@@ -1,5 +1,3 @@
-// Model Chủ đề — khớp collection `topics` trong Firestore (xem database/thiet-ke-database-firestore.md).
-// File này TV1 An giữ. Dữ liệu mẫu 3 chủ đề lấy từ seed-data.json.
 class Topic {
   final String id;
   final String name;
@@ -26,10 +24,10 @@ class Topic {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'icon': icon,
-        'questionCount': questionCount,
-      };
+    'id': id,
+    'name': name,
+    'description': description,
+    'icon': icon,
+    'questionCount': questionCount,
+  };
 }

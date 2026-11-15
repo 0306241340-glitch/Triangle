@@ -1,8 +1,3 @@
-// ApiClient — file DUY NHẤT trong app được gọi server.
-// App Flutter không gọi Firestore trực tiếp, chỉ gọi WebAPI này (phiếu chấm mục 32).
-// Dùng dart:io nên không cần thêm package nào vào pubspec.
-// File này TV1 An giữ (file chung).
-// Base URL đổi sau khi deploy: https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api
 import 'dart:convert';
 import 'dart:io';
 
@@ -22,8 +17,7 @@ class ApiClient {
   final String _baseUrl;
   String? _idToken;
 
-  /// Gắn ID token sau khi đăng nhập (lấy từ Firebase Auth). Mọi request sau
-  /// đó tự kèm header Authorization: Bearer <token>.
+  // gắn token sau khi đăng nhập
   void setToken(String? token) => _idToken = token;
 
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
@@ -48,7 +42,7 @@ class ApiClient {
     }
   }
 
-  /// Server trả envelope { ok: true, data: ... } hoặc { ok: false, error: { message } }.
+  // server trả {ok: true, data} hoặc {ok: false, error}
   Future<dynamic> _handle(HttpClientResponse res) async {
     final text = await res.transform(utf8.decoder).join();
     final json = jsonDecode(text) as Map<String, dynamic>;
