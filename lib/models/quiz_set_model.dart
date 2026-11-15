@@ -1,5 +1,5 @@
-// Model Bộ đề — khớp collection `quiz_sets` trong Firestore.
-// File này TV1 An giữ. level: 'easy' | 'medium' | 'hard' (Dễ / Trung bình / Khó).
+// Model Bộ đề — khớp collection `quiz_sets` trong Firestore (seed-data.json).
+// File này TV1 An giữ. (Bản cập nhật: đọc cả `title` lẫn `name` vì seed dùng `name`.)
 class QuizSet {
   final String id;
   final String topicId;
@@ -9,6 +9,7 @@ class QuizSet {
   final int durationSec;
   final int attemptCount;
   final double avgScore;
+  final String description;
 
   const QuizSet({
     required this.id,
@@ -19,18 +20,20 @@ class QuizSet {
     required this.durationSec,
     required this.attemptCount,
     required this.avgScore,
+    required this.description,
   });
 
   factory QuizSet.fromJson(Map<String, dynamic> json) {
     return QuizSet(
       id: json['id'] as String? ?? '',
       topicId: json['topicId'] as String? ?? '',
-      title: json['title'] as String? ?? '',
-      level: json['level'] as String? ?? 'easy',
+      title: (json['title'] ?? json['name']) as String? ?? '',
+      level: json['level'] as String? ?? 'mixed',
       questionCount: (json['questionCount'] as num?)?.toInt() ?? 0,
       durationSec: (json['durationSec'] as num?)?.toInt() ?? 300,
       attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
       avgScore: (json['avgScore'] as num?)?.toDouble() ?? 0,
+      description: json['description'] as String? ?? '',
     );
   }
 
@@ -40,8 +43,10 @@ class QuizSet {
         return 'Trung bình';
       case 'hard':
         return 'Khó';
-      default:
+      case 'easy':
         return 'Dễ';
+      default:
+        return 'Tổng hợp';
     }
   }
 }
