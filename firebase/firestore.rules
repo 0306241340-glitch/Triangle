@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isSelf(userId) { return isSignedIn() && request.auth.uid == userId; }
+    // Client không được tự sửa điểm/xu/role/trạng thái của mình.
+    function noProtectedUserFields() {
+      return !request.resource.data.diff(resource.data)
+        .affectedKeys().hasAny(['score', 'coins', 'weeklyScore', 'role', 'status']);
+    }
+
+    // ---- users ----
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isAdmin();
+      // Tạo tài khoản: chỉ chính mình, điểm/xu khởi tạo đúng 0/100, role = user.
+      allow create: if isSelf(uid)
+        && request.resource.data.score == 0
+        && request.resource.data.weeklyScore == 0
+        && request.resource.data.coins == 100
+        && request.resource.data.role == 'user'
+        && request.resource.data.status == 'active';
+      // Sửa hồ sơ: chính mình chỉ đổi tên/avatar, không chạm điểm/xu/role/status.
+      allow update: if isSelf(uid) && noProtectedUserFields();
+      // Admin khóa/mở khóa user (đổi status + statusReason).
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---- topics / quiz_sets / items: đọc công khai (chỉ bản đang hoạt động), chỉ Admin ghi ----
+    match /topics/{id} {
+      allow read: if isSignedIn() && resource.data.isActive == true;
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    match /quiz_sets/{id} {
+      allow read: if isSignedIn() && resource.data.isActive == true;
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    match /items/{id} {
+      allow read: if isSignedIn() && resource.data.isActive == true;
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ---- questions ----
+    // Lưu ý: client KHÔNG đọc thẳng collection này. Client gọi Cloud Function
+    // startQuiz, Function đọc bằng Admin SDK, xóa correctIndex rồi mới trả về.
+    // Rules dưới đây chỉ là lớp khóa thứ hai: Admin đọc hết, user không đọc.
+    match /questions/{id} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ---- quiz_histories: chỉ chính mình đọc, chỉ Functions ghi (Functions dùng Admin SDK) ----
+    match /quiz_histories/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ---- user_items / transactions: chỉ chính mình đọc, chỉ Functions ghi ----
+    match /user_items/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /transactions/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ---- friends: 2 người trong quan hệ đọc được, tự tạo/xóa lời mời của mình ----
+    match /friends/{id} {
+      allow read: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
+      allow update: if isSignedIn() && resource.data.friendId == request.auth.uid;
+    }
+
+    // ---- rooms: 2 người chơi đọc/ghi ----
+    match /rooms/{id} {
+      allow read: if isSignedIn() &&
+        (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.hostId == request.auth.uid;
+      allow update: if isSignedIn() &&
+        (resource.data.hostId == request.auth.uid || resource.data.guestId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    // ---- match_histories: 2 người chơi đọc, chỉ Functions ghi ----
+    match /match_histories/{id} {
+      allow read: if isSignedIn() &&
+        (resource.data.player1Id == request.auth.uid || resource.data.player2Id == request.auth.uid);
+      allow write: if false;
+    }
+
+    // ---- comments: ai đăng nhập cũng đọc; chỉ chính mình tạo/sửa/xóa của mình ----
+    match /comments/{id} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ---- favorites: chỉ chính mình ----
+    match /favorites/{id} {
+      allow read, write: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ---- reports: người báo đọc của mình, Admin đọc hết; Admin xử lý ----
+    match /reports/{id} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}
