@@ -1,7 +1,3 @@
-// Màn Làm bài (S07) — TV1 An giữ, thẻ [Mục 14-17] một mình An làm.
-// Chuyển câu, đếm ngược tổng thời gian, trợ giúp 50/50, nộp bài.
-// Hết giờ tự nộp. Nộp xong hiện kết quả (điểm/xu/số câu đúng); màn Kết quả
-// đầy đủ S08 là của Ngọc — nút "Xem lại đáp án" sẽ mở S09 khi Ngọc làm xong.
 import 'package:flutter/material.dart';
 
 import '../../models/quiz_set_model.dart';
@@ -40,11 +36,12 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
         ),
         actions: [
           TextButton(
-            // TODO: mở màn Xem lại S09 khi Ngọc làm xong
             onPressed: () {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Màn Xem lại S09 — Ngọc đang làm')),
+                const SnackBar(
+                  content: Text('Màn Xem lại S09 — Ngọc đang làm'),
+                ),
               );
             },
             child: const Text('Xem lại đáp án'),
