@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:do_vui_ai_thuong/main.dart';
 import 'package:flutter/material.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_constants.dart';
 import 'login_screen.dart';
+import '../../main.dart';
 class SplashScreen extends StatefulWidget{
   const SplashScreen({super.key});
   @override
@@ -14,7 +16,7 @@ class _SplashScreenState extends State<SplashScreen>{
     super.initState();
     Timer(const Duration(seconds: 2),(){
       if(!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>const LoginScreen()),);
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>const AuthGate()),);
     });
   }
   @override

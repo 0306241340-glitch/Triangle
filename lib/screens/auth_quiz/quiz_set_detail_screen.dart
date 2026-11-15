@@ -1,6 +1,4 @@
-// Màn Chi tiết Bộ đề (S06b — mới, theo mục 12 phiếu chấm) — TV1 An giữ.
-// Hiển thị 9 thông số của bộ đề + đánh giá + nút "Trả lời bộ đề" mở màn S07.
-// Đánh giá đang dùng dữ liệu mẫu; nối API GET /quiz-sets/:id/comments sau khi deploy.
+
 import 'package:flutter/material.dart';
 
 import '../../models/quiz_set_model.dart';
