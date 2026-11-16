@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/app_constants.dart';
+import '../../services/friend_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -61,24 +62,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         await user.updateDisplayName(name);
 
         // 2. Tạo hồ sơ trên Firestore tuân thủ đúng AppConstants
+        final userCode = _generateUserCode();
         await FirebaseFirestore.instance
             .collection(AppConstants.usersCollection)
             .doc(user.uid)
             .set({
-          'uid': user.uid,
-          'userCode': _generateUserCode(),
-          'displayName': name,
-          'email': email,
-          'avatarUrl': '',
-          'coins': AppConstants.initialCoins,
-          'score': AppConstants.initialScore,
-          'weeklyScore': AppConstants.initialWeeklyScore,
-          'streakDays': 0,
-          'role': AppConstants.roleUser,
-          'status': AppConstants.statusActive,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+              'uid': user.uid,
+              'userCode': userCode,
+              'displayName': name,
+              'email': email,
+              'avatarUrl': '',
+              'coins': AppConstants.initialCoins,
+              'score': AppConstants.initialScore,
+              'weeklyScore': AppConstants.initialWeeklyScore,
+              'streakDays': 0,
+              'role': AppConstants.roleUser,
+              'status': AppConstants.statusActive,
+              'createdAt': FieldValue.serverTimestamp(),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+        await FriendService().ensurePublicProfile();
       }
 
       if (!mounted) return;
@@ -152,10 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 8),
                 const Text(
                   'Tham gia ${AppConstants.appName} để nhận ngay ${AppConstants.initialCoins} xu khởi đầu!',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF64748B),
-                  ),
+                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                 ),
                 const SizedBox(height: 28),
 
@@ -260,7 +260,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       onPressed: () {
                         setState(
-                          () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                          () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
                         );
                       },
                     ),
@@ -321,7 +322,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(color: Color(0xFF64748B)),
                     ),
                     GestureDetector(
-                      onTap: _isLoading ? null : () => Navigator.of(context).pop(),
+                      onTap: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       child: const Text(
                         'Đăng nhập',
                         style: TextStyle(

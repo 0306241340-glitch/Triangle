@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'friends_screen.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -197,8 +199,11 @@ class ProfileScreen extends StatelessWidget {
                   subtitle: 'Quản lý danh sách & lời mời kết bạn',
                   isHighlighted: true,
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Mở danh sách Bạn bè')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FriendsScreen(),
+                      ),
                     );
                   },
                 ),

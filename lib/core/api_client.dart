@@ -45,7 +45,25 @@ class ApiClient {
   // server trả {ok: true, data} hoặc {ok: false, error}
   Future<dynamic> _handle(HttpClientResponse res) async {
     final text = await res.transform(utf8.decoder).join();
-    final json = jsonDecode(text) as Map<String, dynamic>;
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      throw ApiException(
+        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). '
+        'Kiểm tra Firebase Function đã được deploy chưa.',
+        res.statusCode,
+      );
+    }
+
+    if (decoded is! Map<String, dynamic>) {
+      throw ApiException(
+        'Định dạng phản hồi API không hợp lệ (HTTP ${res.statusCode}).',
+        res.statusCode,
+      );
+    }
+
+    final json = decoded;
     if (res.statusCode >= 200 && res.statusCode < 300 && json['ok'] == true) {
       return json['data'];
     }

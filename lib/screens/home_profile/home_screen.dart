@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_screen.dart';
+import 'store_screen.dart';
+import 'friends_screen.dart';
 
 import '../../viewmodels/home_profile_vm.dart';
 
@@ -188,14 +190,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const StoreScreen(),
+                                ),
+                              );
+                            },
                             child: const Text('🛒 Cửa hàng'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              );
+                            },
                             child: const Text('👥 Bạn bè'),
                           ),
                         ),

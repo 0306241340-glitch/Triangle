@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'firebase_options.dart';
+import 'core/app_theme.dart';
+import 'screens/auth_quiz/splash_screen.dart';
+import 'screens/auth_quiz/login_screen.dart';
+import 'screens/home_profile/home_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  runApp(const QuizApp());
 }
 
 class QuizApp extends StatelessWidget {
@@ -10,7 +22,7 @@ class QuizApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Đố Vui Ai Thưởng',
+      title: 'Đố Vui Ai Thương',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const SplashScreen(),
@@ -31,9 +43,11 @@ class AuthGate extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+
         if (snapshot.hasData) {
           return const HomeScreen();
         }
+
         return const LoginScreen();
       },
     );

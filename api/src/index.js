@@ -7,6 +7,7 @@ const { requireAuth, requireAdmin } = require('./auth');
 const quizRoutes = require('./routes/quiz');
 const topicRoutes = require('./routes/topics');
 const quizSetRoutes = require('./routes/quizSets');
+const storeRoutes = require('./routes/store');
 
 const app = express();
 app.use(express.json());
@@ -25,6 +26,7 @@ app.use(requireAuth);
 app.use('/topics', topicRoutes);
 app.use('/quiz-sets', quizSetRoutes);
 app.use('/quiz', quizRoutes);
+app.use('/store', storeRoutes);
 
 // Ví dụ route Admin: chỉ role=admin mới vào được.
 // app.use('/admin', requireAdmin, require('./routes/admin'));
@@ -38,4 +40,3 @@ if (require.main === module) {
 }
 
 exports.api = functions.region('asia-southeast1').https.onRequest(app);
-module.exports = app;
