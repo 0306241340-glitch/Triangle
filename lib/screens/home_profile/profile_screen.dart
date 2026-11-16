@@ -2,8 +2,26 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'dart:convert';
+
+import 'edit_profile_screen.dart';
+import '../../models/user_model.dart';
+import 'inventory_screen.dart';
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  ImageProvider? _resolveAvatarImage(String? avatarStr) {
+    if (avatarStr == null || avatarStr.isEmpty) return null;
+    if (avatarStr.startsWith('data:image')) {
+      try {
+        return MemoryImage(base64Decode(avatarStr.split(',').last));
+      } catch (_) {
+        return null;
+      }
+    }
+    return NetworkImage(avatarStr);
+  }
 
   String _getInitials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -49,9 +67,7 @@ class ProfileScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Chưa đăng nhập')),
-      );
+      return const Scaffold(body: Center(child: Text('Chưa đăng nhập')));
     }
 
     return Scaffold(
@@ -74,7 +90,7 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: StreamBuilder(
+        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -83,21 +99,19 @@ class ProfileScreen extends StatelessWidget {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text('Không thể tải hồ sơ người dùng'),
+              );
+            }
 
-            final doc = snapshot.data;
-            final data = doc?.data() ?? {};
-
-            final displayName =
-                (data['displayName'] as String?)?.trim().isNotEmpty == true
-                    ? data['displayName'] as String
-                    : (user.displayName ??
-                        user.email?.split('@').first ??
-                        'Người chơi');
-            final userCode = (data['userCode'] as String?) ?? '------';
-            final score = (data['score'] as num?)?.toInt() ?? 0;
-            final coins = (data['coins'] as num?)?.toInt() ?? 0;
-            final gamesPlayed = (data['gamesPlayed'] as num?)?.toInt() ?? 0;
-            final initials = _getInitials(displayName);
+            final data = snapshot.data?.data() ?? <String, dynamic>{};
+            final profile = UserModel.fromMap({
+              ...data,
+              'email': data['email'] ?? user.email ?? '',
+              'displayName': data['displayName'] ?? user.displayName ?? '',
+            }, user.uid);
+            final initials = _getInitials(profile.displayName);
 
             return ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -115,20 +129,41 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                     alignment: Alignment.center,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1D4ED8),
-                      ),
-                    ),
+                    child: profile.avatarUrl?.trim().isNotEmpty == true
+                        ? ClipOval(
+                            child: profile.avatarUrl!.startsWith('data:image')
+                                ? Image.memory(
+                                    base64Decode(
+                                      profile.avatarUrl!.split(',').last,
+                                    ),
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                    ) => _buildInitials(initials),
+                                  )
+                                : Image.network(
+                                    profile.avatarUrl!,
+                                    width: 72,
+                                    height: 72,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (
+                                      context,
+                                      error,
+                                      stackTrace,
+                                    ) => _buildInitials(initials),
+                                  ),
+                          )
+                        : _buildInitials(initials),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Center(
                   child: Text(
-                    displayName,
+                    profile.displayName,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -139,7 +174,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Center(
                   child: Text(
-                    'Mã kết bạn: $userCode • Thành viên',
+                    'Mã kết bạn: ${profile.userCode}',
                     style: const TextStyle(
                       fontSize: 12.5,
                       color: Color(0xFF64748B),
@@ -149,11 +184,16 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 18),
                 Row(
                   children: [
-                    Expanded(child: _buildStatCard('$score', 'điểm')),
+                    Expanded(child: _buildStatCard('${profile.score}', 'điểm')),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildStatCard('$coins', 'xu')),
+                    Expanded(child: _buildStatCard('${profile.coins}', 'xu')),
                     const SizedBox(width: 10),
-                    Expanded(child: _buildStatCard('$gamesPlayed', 'lượt chơi')),
+                    Expanded(
+                      child: _buildStatCard(
+                        '${profile.gamesPlayed}',
+                        'lượt chơi',
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -163,8 +203,11 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Sửa hồ sơ',
                   subtitle: 'Tên, avatar, đổi mật khẩu',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Mở màn Sửa hồ sơ')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileScreen(userModel: profile),
+                      ),
                     );
                   },
                 ),
@@ -174,8 +217,11 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Túi đồ',
                   subtitle: '50/50 x2 • Thêm thời gian x1 • Khung Vàng',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Mở Túi đồ')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const InventoryScreen(),
+                      ),
                     );
                   },
                 ),
@@ -202,6 +248,7 @@ class ProfileScreen extends StatelessWidget {
                     );
                   },
                 ),
+
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
@@ -212,7 +259,9 @@ class ProfileScreen extends StatelessWidget {
                       foregroundColor: const Color(0xFFDC2626),
                       backgroundColor: Colors.white,
                       side: const BorderSide(
-                          color: Color(0xFFEF4444), width: 1.2),
+                        color: Color(0xFFEF4444),
+                        width: 1.2,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -230,6 +279,17 @@ class ProfileScreen extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildInitials(String initials) {
+    return Text(
+      initials,
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1D4ED8),
       ),
     );
   }
@@ -255,10 +315,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-            ),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
           ),
         ],
       ),
@@ -280,8 +337,7 @@ class ProfileScreen extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color:
-              isHighlighted ? const Color(0xFF2563EB) : Colors.grey.shade300,
+          color: isHighlighted ? const Color(0xFF2563EB) : Colors.grey.shade300,
           width: isHighlighted ? 1.5 : 1,
         ),
       ),

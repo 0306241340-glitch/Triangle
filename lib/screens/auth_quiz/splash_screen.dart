@@ -48,11 +48,17 @@ class _SplashScreenState extends State<SplashScreen>{
                   )
                 ]
               ),
-              child: const Icon(
-                Icons.quiz_rounded,
-                size: 64,
-                color: AppColors.primaryLight,
-              ),
+              child:   ClipRRect(
+                        borderRadius: BorderRadius.circular(
+                          20,
+                        ),
+                        child: Image.asset(
+                          'assets/logo.jpg',
+                          width: 140,
+                          height: 140,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
             ),
             const Text(
               AppConstants.appName,
