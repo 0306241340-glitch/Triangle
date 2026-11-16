@@ -1,8 +1,4 @@
-// ViewModels cho nhánh feat/an-auth-quiz — TV1 An giữ.
-// Gồm: AuthViewModel (đăng nhập/đăng ký/quên mật khẩu) + QuizPlayViewModel
-// (làm bài S07: đếm ngược, chuyển câu, trợ giúp 50/50, nộp bài).
-// Làm bài gọi API (/quiz/start, /quiz/submit); API chưa deploy thì dùng
-// 10 câu Toán thật trong seed-data.json để demo được ngay.
+
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';

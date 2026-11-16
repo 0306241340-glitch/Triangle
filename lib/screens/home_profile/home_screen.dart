@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
@@ -21,18 +22,15 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _wireframeTopics = [
     {
       'title': 'Kiến thức tổng hợp / Đời sống',
-      'description':
-          'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
+      'description': 'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
     },
     {
       'title': 'Đố dân gian & Câu đố mẹo',
-      'description':
-          'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
+      'description': 'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
     },
     {
       'title': 'Giải trí – Âm nhạc – Phim ảnh:',
-      'description':
-          'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
+      'description': 'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
     },
   ];
 
@@ -158,8 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     id: 'set_math_1',
                                     topicId: 'topic_math',
                                     title: 'Toán tư duy căn bản',
-                                    description:
-                                        '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
+                                    description: '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
                                     level: 'medium',
                                     questionCount: 10,
                                     durationSec: 300,
@@ -242,10 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.history),
                 label: 'Lịch sử',
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Hồ sơ',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
             ],
             onTap: (i) {
               if (i == 3) {
