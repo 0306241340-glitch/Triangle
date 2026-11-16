@@ -94,12 +94,23 @@ class QuizPlayViewModel extends ChangeNotifier {
   Map<int, Set<int>> hiddenOptions = {}; // 50/50: đáp án bị ẩn của từng câu
   int currentIndex = 0;
   int remainingSec = 300;
+  int _initialDuration = 300;
   Timer? _timer;
-  String? attemptId; // có khi gọi API start thành công
+  bool _submitting = false;
+  String? attemptId;
   bool submitted = false;
   int score = 0;
   int coins = 0;
   int correctCount = 0;
+  int skippedCount = 0;
+
+  /// Xu hiện có của user — hiển thị trên thanh AppBar khi thi.
+  /// Khởi tạo = 100 (seed mặc định). API deploy thì load() lấy từ server.
+  int userCoins = 100;
+
+  /// Đếm số lần đã dùng mỗi loại trợ giúp (toàn bài, không phải từng câu).
+  bool usedExtraTime = false;  // Thêm thời gian: dùng 1 lần / bài
+  Set<int> changedQuestions = {}; // Đổi câu hỏi: mỗi câu chỉ đổi 1 lần
 
   int get total => questions.length;
   Question? get currentQuestion =>
@@ -116,17 +127,20 @@ class QuizPlayViewModel extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
     try {
-      final data = await _api.post('/quiz/start', {'quizSetId': quizSetId});
+      final data = await _api
+          .post('/quiz/start', {'quizSetId': quizSetId})
+          .timeout(const Duration(seconds: 2));
       attemptId = data['attemptId'] as String?;
       remainingSec = (data['durationSec'] as num?)?.toInt() ?? 300;
+      userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
       questions = (data['questions'] as List)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (_) {
-      // API chưa deploy: dùng 10 câu Toán thật trong seed để demo.
-      questions = _mockMathQuestions;
+      questions = List.of(_mockMathQuestions);
       remainingSec = 300;
     }
+    _initialDuration = remainingSec;
     isLoading = false;
     notifyListeners();
     _startTimer();
@@ -156,29 +170,73 @@ class QuizPlayViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Trợ giúp 50/50: ẩn 2 đáp án sai của câu hiện tại. Tốn 30 xu (TODO: trừ
-  /// xu thật qua API /quiz/use-help khi deploy xong). Mỗi câu chỉ dùng 1 lần.
-  void useFiftyFifty() {
+  // ──────────────────────────────────────────────────────────────────
+  // 3 QUYỀN TRỢ GIÚP (BF03) — đúng tài liệu đặc tả + seed-data
+  // ──────────────────────────────────────────────────────────────────
+
+  /// Trợ giúp 1: 50/50 — ẩn 2 đáp án sai (30 xu). Mỗi câu chỉ dùng 1 lần.
+  /// Trả về chuỗi lỗi nếu thất bại, null nếu thành công.
+  String? useFiftyFifty() {
     final q = currentQuestion;
-    if (q == null || hiddenOptions.containsKey(currentIndex)) return;
+    if (q == null) return 'Không có câu hỏi';
+    if (hiddenOptions.containsKey(currentIndex)) return 'Câu này đã dùng 50/50 rồi';
+    if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
     final wrong = [0, 1, 2, 3]
         .where((i) => i != q.correctIndex && answers[currentIndex] != i)
         .take(2)
         .toSet();
     hiddenOptions[currentIndex] = wrong;
+    userCoins -= 30;
     notifyListeners();
+    return null; // thành công
+  }
+
+  /// Trợ giúp 2: Thêm thời gian — cộng 30 giây (20 xu). Cả bài chỉ dùng 1 lần.
+  String? useExtraTime() {
+    if (usedExtraTime) return 'Đã dùng Thêm thời gian rồi';
+    if (userCoins < 20) return 'Không đủ xu (cần 20, còn $userCoins xu)';
+    remainingSec += 30;
+    userCoins -= 20;
+    usedExtraTime = true;
+    notifyListeners();
+    return null; // thành công
+  }
+
+  /// Trợ giúp 3: Đổi câu hỏi — thay câu hiện tại bằng câu khác cùng chủ đề
+  /// (30 xu). Mỗi câu chỉ đổi 1 lần. Demo offline: hoán vị câu cuối sang vị
+  /// trí hiện tại. Khi API deploy: gọi /quiz/change-question.
+  String? useChangeQuestion() {
+    if (changedQuestions.contains(currentIndex)) return 'Câu này đã đổi rồi';
+    if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    // Demo offline: hoán vị câu hiện tại với câu cuối chưa đổi
+    final swapTarget = questions.lastIndexWhere(
+      (q) => q.topicId == currentQuestion!.topicId && questions.indexOf(q) != currentIndex,
+    );
+    if (swapTarget >= 0 && swapTarget != currentIndex) {
+      final tmp = questions[currentIndex];
+      questions[currentIndex] = questions[swapTarget];
+      questions[swapTarget] = tmp;
+      // Xóa đáp án cũ + 50/50 cũ của câu này vì đã đổi nội dung
+      answers.remove(currentIndex);
+      hiddenOptions.remove(currentIndex);
+    }
+    changedQuestions.add(currentIndex);
+    userCoins -= 30;
+    notifyListeners();
+    return null; // thành công
   }
 
   bool isHidden(int questionIndex, int optionIndex) =>
       hiddenOptions[questionIndex]?.contains(optionIndex) ?? false;
 
-  /// Nộp bài: gọi API submit để server chấm (chống gian lận); API chưa có
-  /// thì tự chấm local theo công thức Dễ 10đ/5xu, TB 20đ/10xu, Khó 30đ/15xu.
+  // ──────────────────────────────────────────────────────────────────
+
   Future<void> submit() async {
-    if (submitted) return;
+    if (submitted || _submitting) return;
+    _submitting = true;
     _timer?.cancel();
     submitted = true;
-    final timeTakenSec = 300 - remainingSec;
+    final timeTakenSec = _initialDuration - remainingSec;
     try {
       if (attemptId != null) {
         final data = await _api.post('/quiz/submit', {
@@ -195,12 +253,14 @@ class QuizPlayViewModel extends ChangeNotifier {
         score = (data['score'] as num?)?.toInt() ?? 0;
         coins = (data['coinsEarned'] as num?)?.toInt() ?? 0;
         correctCount = (data['correctCount'] as num?)?.toInt() ?? 0;
+        skippedCount = total - ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
       } else {
         _scoreLocally();
       }
     } catch (_) {
       _scoreLocally();
     }
+    _submitting = false;
     notifyListeners();
   }
 
@@ -208,6 +268,7 @@ class QuizPlayViewModel extends ChangeNotifier {
     score = 0;
     coins = 0;
     correctCount = 0;
+    skippedCount = total - answers.length;
     for (final e in answers.entries) {
       final q = questions[e.key];
       if (e.value == q.correctIndex) {
