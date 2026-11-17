@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
@@ -26,12 +25,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
   }
 
   // ──── Hàm dùng chung: gọi trợ giúp → hiện SnackBar nếu lỗi ────
-  void _useHelp(String? Function() action) {
-    final err = action();
-    if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(err)),
-      );
+  Future<void> _useHelp(Future<String?> Function() action) async {
+    final err = await action();
+    if (err != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     }
   }
 
@@ -47,8 +44,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
           children: const [
             Icon(Icons.emoji_events, color: AppColors.accent, size: 28),
             SizedBox(width: 8),
-            Text('Kết quả bài thi',
-                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Kết quả bài thi',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -57,13 +56,18 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.check_circle_outline,
-                    color: AppColors.success, size: 20),
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.success,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Đúng: ${_vm.correctCount}/${_vm.total} câu',
                   style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 15),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
                 ),
               ],
             ),
@@ -73,8 +77,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 children: [
                   const Icon(Icons.help_outline, color: Colors.grey, size: 20),
                   const SizedBox(width: 8),
-                  Text('Bỏ qua: ${_vm.skippedCount} câu',
-                      style: const TextStyle(color: Colors.grey)),
+                  Text(
+                    'Bỏ qua: ${_vm.skippedCount} câu',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
             ],
@@ -83,11 +89,14 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Tổng điểm:', style: TextStyle(fontSize: 15)),
-                Text('+${_vm.score} điểm',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary)),
+                Text(
+                  '+${_vm.score} điểm',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -95,11 +104,14 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Xu nhận được:', style: TextStyle(fontSize: 15)),
-                Text('+${_vm.coins} 🪙',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accent)),
+                Text(
+                  '+${_vm.coins} 🪙',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.accent,
+                  ),
+                ),
               ],
             ),
           ],
@@ -110,7 +122,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('Màn Xem lại S09 — Ngọc đang làm')),
+                  content: Text('Màn Xem lại S09 — Ngọc đang làm'),
+                ),
               );
             },
             child: const Text('Xem lại đáp án'),
@@ -184,8 +197,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               // ── Xu hiện có ──
               Container(
                 margin: const EdgeInsets.only(right: 6, top: 8, bottom: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.accent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(16),
@@ -208,8 +220,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               // ── Đồng hồ đếm ngược ──
               Container(
                 margin: const EdgeInsets.only(right: 14, top: 8, bottom: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isUrgent
                       ? AppColors.error.withOpacity(0.2)
@@ -221,10 +235,11 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.timer_outlined,
-                        size: 18,
-                        color:
-                            isUrgent ? AppColors.error : AppColors.accent),
+                    Icon(
+                      Icons.timer_outlined,
+                      size: 18,
+                      color: isUrgent ? AppColors.error : AppColors.accent,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _vm.timeText,
@@ -270,26 +285,32 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.levelColor(q.level)
                                 .withOpacity(0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text(q.levelLabel,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.levelColor(q.level),
-                              )),
+                          child: Text(
+                            q.levelLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.levelColor(q.level),
+                            ),
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        Text('+${q.points} điểm',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.accent,
-                            )),
+                        Text(
+                          '+${q.points} điểm',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accent,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -305,16 +326,20 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                         Card(
                           elevation: 1,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: SizedBox(
                               width: double.infinity,
-                              child: Text(q.content,
-                                  style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.4)),
+                              child: Text(
+                                q.content,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.4,
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -342,9 +367,12 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                   ),
                                   alignment: Alignment.centerLeft,
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 14, horizontal: 16),
+                                    vertical: 14,
+                                    horizontal: 16,
+                                  ),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
                                 ),
                                 onPressed: () => _vm.selectAnswer(i),
                                 child: Text(
@@ -373,7 +401,10 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 // ════════════════════════════════════════════════
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(24),
@@ -398,7 +429,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: '50/50',
                           cost: 30,
                           used: _vm.hiddenOptions.containsKey(_vm.currentIndex),
-                          onTap: () => _useHelp(() => _vm.useFiftyFifty()),
+                          onTap: () =>
+                              _useHelp(() async => _vm.useFiftyFifty()),
                         ),
                         // ── 2. Đổi câu hỏi (30 xu) ──
                         _HelpButton(
@@ -406,7 +438,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: 'Đổi câu',
                           cost: 30,
                           used: _vm.changedQuestions.contains(_vm.currentIndex),
-                          onTap: () => _useHelp(() => _vm.useChangeQuestion()),
+                          onTap: () =>
+                              _useHelp(() async => _vm.useChangeQuestion()),
                         ),
                         // ── 3. Thêm thời gian (20 xu) ──
                         _HelpButton(
@@ -414,7 +447,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: '+30s',
                           cost: 20,
                           used: _vm.usedExtraTime,
-                          onTap: () => _useHelp(() => _vm.useExtraTime()),
+                          onTap: () => _useHelp(() async => _vm.useExtraTime()),
                         ),
                       ],
                     ),
@@ -442,7 +475,9 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                             : AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 20),
+                          vertical: 12,
+                          horizontal: 20,
+                        ),
                       ),
                       onPressed: _vm.isLast
                           ? () => _vm.submit()
@@ -485,10 +520,14 @@ class _HelpButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: used ? Colors.grey.shade100 : AppColors.accent.withOpacity(0.08),
+          color: used
+              ? Colors.grey.shade100
+              : AppColors.accent.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: used ? Colors.grey.shade300 : AppColors.accent.withOpacity(0.4),
+            color: used
+                ? Colors.grey.shade300
+                : AppColors.accent.withOpacity(0.4),
             width: 1,
           ),
         ),
