@@ -46,7 +46,8 @@ curl https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api/topics
    Firestore. Lưu toàn bộ JSON key vào biến môi trường Render
    `FIREBASE_SERVICE_ACCOUNT_JSON` (không đưa key vào Git hoặc file cấu hình).
 3. Sau khi deploy xong, kiểm tra `https://<service>.onrender.com/health`.
-   Cấu hình app bằng URL gốc của service (không thêm `/api`):
+   App mặc định dùng URL Render hiện tại; nếu dùng service khác, cấu hình URL
+   gốc (không thêm `/api`) khi build:
 
    ```bash
    flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com

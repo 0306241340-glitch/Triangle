@@ -16,8 +16,7 @@ class ApiClient {
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue:
-        'https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api',
+    defaultValue: 'https://triangle-api-n25s.onrender.com',
   );
   static const _connectionTimeout = Duration(seconds: 10);
   static const _requestTimeout = Duration(seconds: 60);
