@@ -112,6 +112,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _toggleEquip({
+    required UserItemModel targetUserItem,
     required ItemModel targetItem,
     required bool isCurrentlyEquipped,
   }) async {
@@ -120,25 +121,42 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     try {
       final nextEquipped = !isCurrentlyEquipped;
+      final batch = _firestore.batch();
       final userRef = _firestore.collection('users').doc(user.uid);
 
       if (targetItem.type == 'frame') {
-        await userRef.update({'frameId': nextEquipped ? targetItem.id : null});
-        if (mounted) {
-          setState(() {
-            _equippedFrameId = nextEquipped ? targetItem.id : null;
-          });
+        // 1. Cập nhật frameId trên hồ sơ user
+        batch.update(userRef, {'frameId': nextEquipped ? targetItem.id : null});
+        // 2. Đồng bộ trạng thái equipped trong collection user_items
+        for (final entry in _frames) {
+          batch.update(
+            _firestore.collection('user_items').doc(entry.key.id),
+            {'equipped': entry.key.id == targetUserItem.id ? nextEquipped : false},
+          );
         }
       } else if (targetItem.type == 'title') {
-        await userRef.update({'titleId': nextEquipped ? targetItem.id : null});
-        if (mounted) {
-          setState(() {
-            _equippedTitleId = nextEquipped ? targetItem.id : null;
-          });
+        // 1. Cập nhật titleId trên hồ sơ user
+        batch.update(userRef, {'titleId': nextEquipped ? targetItem.id : null});
+        // 2. Đồng bộ trạng thái equipped trong collection user_items
+        for (final entry in _titles) {
+          batch.update(
+            _firestore.collection('user_items').doc(entry.key.id),
+            {'equipped': entry.key.id == targetUserItem.id ? nextEquipped : false},
+          );
         }
       }
 
+      await batch.commit();
+
       if (!mounted) return;
+      setState(() {
+        if (targetItem.type == 'frame') {
+          _equippedFrameId = nextEquipped ? targetItem.id : null;
+        } else if (targetItem.type == 'title') {
+          _equippedTitleId = nextEquipped ? targetItem.id : null;
+        }
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -461,6 +479,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 constraints: const BoxConstraints(maxWidth: 96),
                 child: ElevatedButton(
                   onPressed: () => _toggleEquip(
+                    targetUserItem: userItem,
                     targetItem: item,
                     isCurrentlyEquipped: isEquipped,
                   ),
