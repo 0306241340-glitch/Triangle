@@ -11,7 +11,7 @@ class ApiException implements Exception {
 
 class ApiClient {
   ApiClient({String? baseUrl})
-    : _baseUrl = baseUrl ?? 'https://quiz-app-api-vm1o.onrender.com/';
+    : _baseUrl = baseUrl ?? 'https://quiz-app-api-vm1o.onrender.com';
 
   final String _baseUrl;
   String? _idToken;
