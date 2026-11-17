@@ -3,12 +3,14 @@
 // App Flutter chỉ gọi API này, không gọi Firestore trực tiếp.
 const functions = require('firebase-functions');
 const express = require('express');
+const cors = require('cors');
 const { requireAuth, requireAdmin } = require('./auth');
 const quizRoutes = require('./routes/quiz');
 const topicRoutes = require('./routes/topics');
 const quizSetRoutes = require('./routes/quizSets');
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Trả về chung: { ok: true, data } hoặc { ok: false, error: { code, message } }
