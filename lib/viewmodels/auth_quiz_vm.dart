@@ -93,6 +93,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   Timer? _timer;
   bool _submitting = false;
   String? attemptId;
+  String? quizSetId;
   bool submitted = false;
   int score = 0;
   int coins = 0;
@@ -119,6 +120,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   }
 
   Future<void> load(String quizSetId) async {
+    this.quizSetId = quizSetId;
     isLoading = true;
     notifyListeners();
     try {
@@ -238,6 +240,7 @@ class QuizPlayViewModel extends ChangeNotifier {
       if (attemptId != null) {
         final data = await _api.post('/quiz/submit', {
           'attemptId': attemptId,
+          'quizSetId': quizSetId,
           'answers': [
             for (final e in answers.entries)
               {'questionId': questions[e.key].id, 'selectedIndex': e.value},
