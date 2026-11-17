@@ -46,24 +46,24 @@ class HomeViewModel extends ChangeNotifier {
 
   static const _mockTopics = [
     Topic(
-      id: 'toan',
-      name: 'Toán học',
-      description: 'Số học, đại số, tư duy logic',
-      icon: '📐',
+      id: 'topic_tong_hop',
+      name: 'Kiến thức tổng hợp / Đời sống',
+      description: 'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
+      icon: '🌍',
       questionCount: 10,
     ),
     Topic(
-      id: 'lich-su',
-      name: 'Lịch sử Việt Nam',
-      description: 'Sự kiện, nhân vật lịch sử',
-      icon: '📜',
+      id: 'topic_do_meo',
+      name: 'Đố dân gian & Câu đố mẹo',
+      description: 'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
+      icon: '🧩',
       questionCount: 10,
     ),
     Topic(
-      id: 'khoa-hoc',
-      name: 'Khoa học',
-      description: 'Vật lý, hóa học, sinh học',
-      icon: '🔬',
+      id: 'topic_giai_tri',
+      name: 'Giải trí – Âm nhạc – Phim ảnh',
+      description: 'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
+      icon: '🎬',
       questionCount: 10,
     ),
   ];
