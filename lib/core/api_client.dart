@@ -10,7 +10,12 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl})
+  static final ApiClient _instance = ApiClient._internal();
+
+  factory ApiClient({String? baseUrl}) =>
+      baseUrl == null ? _instance : ApiClient._internal(baseUrl: baseUrl);
+
+  ApiClient._internal({String? baseUrl})
     : _baseUrl = baseUrl ?? 'https://quiz-app-api-vm1o.onrender.com';
 
   final String _baseUrl;

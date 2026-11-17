@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -105,7 +104,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   int userCoins = 100;
 
   /// Đếm số lần đã dùng mỗi loại trợ giúp (toàn bài, không phải từng câu).
-  bool usedExtraTime = false;  // Thêm thời gian: dùng 1 lần / bài
+  bool usedExtraTime = false; // Thêm thời gian: dùng 1 lần / bài
   Set<int> changedQuestions = {}; // Đổi câu hỏi: mỗi câu chỉ đổi 1 lần
 
   int get total => questions.length;
@@ -123,9 +122,8 @@ class QuizPlayViewModel extends ChangeNotifier {
     isLoading = true;
     notifyListeners();
     try {
-      final data = await _api
-          .post('/quiz/start', {'quizSetId': quizSetId})
-          .timeout(const Duration(seconds: 2));
+      final data = await _api.post('/quiz/start', {'quizSetId': quizSetId});
+
       attemptId = data['attemptId'] as String?;
       remainingSec = (data['durationSec'] as num?)?.toInt() ?? 300;
       userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
@@ -175,7 +173,8 @@ class QuizPlayViewModel extends ChangeNotifier {
   String? useFiftyFifty() {
     final q = currentQuestion;
     if (q == null) return 'Không có câu hỏi';
-    if (hiddenOptions.containsKey(currentIndex)) return 'Câu này đã dùng 50/50 rồi';
+    if (hiddenOptions.containsKey(currentIndex))
+      return 'Câu này đã dùng 50/50 rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
     final wrong = [0, 1, 2, 3]
         .where((i) => i != q.correctIndex && answers[currentIndex] != i)
@@ -206,7 +205,9 @@ class QuizPlayViewModel extends ChangeNotifier {
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
     // Demo offline: hoán vị câu hiện tại với câu cuối chưa đổi
     final swapTarget = questions.lastIndexWhere(
-      (q) => q.topicId == currentQuestion!.topicId && questions.indexOf(q) != currentIndex,
+      (q) =>
+          q.topicId == currentQuestion!.topicId &&
+          questions.indexOf(q) != currentIndex,
     );
     if (swapTarget >= 0 && swapTarget != currentIndex) {
       final tmp = questions[currentIndex];
@@ -239,17 +240,16 @@ class QuizPlayViewModel extends ChangeNotifier {
           'attemptId': attemptId,
           'answers': [
             for (final e in answers.entries)
-              {
-                'questionId': questions[e.key].id,
-                'selectedIndex': e.value,
-              }
+              {'questionId': questions[e.key].id, 'selectedIndex': e.value},
           ],
           'timeTakenSec': timeTakenSec,
         });
         score = (data['score'] as num?)?.toInt() ?? 0;
         coins = (data['coinsEarned'] as num?)?.toInt() ?? 0;
         correctCount = (data['correctCount'] as num?)?.toInt() ?? 0;
-        skippedCount = total - ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
+        skippedCount =
+            total -
+            ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
       } else {
         _scoreLocally();
       }
@@ -283,15 +283,95 @@ class QuizPlayViewModel extends ChangeNotifier {
 
   // 10 câu Toán thật trong seed-data.json (4 Dễ / 4 TB / 2 Khó = 180đ / 90xu).
   static const _mockMathQuestions = [
-    Question(id: 'q_math_01', topicId: 'topic_math', content: '7 + 8 bằng bao nhiêu?', options: ['14', '15', '16', '17'], correctIndex: 1, level: 'easy', explanation: '7 + 8 = 15.'),
-    Question(id: 'q_math_02', topicId: 'topic_math', content: '12 × 3 bằng bao nhiêu?', options: ['33', '36', '39', '42'], correctIndex: 1, level: 'easy', explanation: '12 × 3 = 36.'),
-    Question(id: 'q_math_03', topicId: 'topic_math', content: '100 − 37 bằng bao nhiêu?', options: ['63', '67', '73', '53'], correctIndex: 0, level: 'easy', explanation: '100 − 37 = 63.'),
-    Question(id: 'q_math_04', topicId: 'topic_math', content: '5² bằng bao nhiêu?', options: ['10', '20', '25', '30'], correctIndex: 2, level: 'easy', explanation: '5² = 5 × 5 = 25.'),
-    Question(id: 'q_math_05', topicId: 'topic_math', content: 'Căn bậc hai của 144 bằng bao nhiêu?', options: ['11', '12', '13', '14'], correctIndex: 1, level: 'medium', explanation: '12 × 12 = 144 nên √144 = 12.'),
-    Question(id: 'q_math_06', topicId: 'topic_math', content: '3/4 của 80 bằng bao nhiêu?', options: ['50', '55', '60', '65'], correctIndex: 2, level: 'medium', explanation: '80 × 3/4 = 60.'),
-    Question(id: 'q_math_07', topicId: 'topic_math', content: 'Giải phương trình 2x + 5 = 17, x bằng bao nhiêu?', options: ['5', '6', '7', '8'], correctIndex: 1, level: 'medium', explanation: '2x = 12 nên x = 6.'),
-    Question(id: 'q_math_08', topicId: 'topic_math', content: '15% của 200 bằng bao nhiêu?', options: ['20', '25', '30', '35'], correctIndex: 2, level: 'medium', explanation: '200 × 15% = 30.'),
-    Question(id: 'q_math_09', topicId: 'topic_math', content: 'Tổng 1 + 2 + ... + 20 bằng bao nhiêu?', options: ['200', '210', '220', '190'], correctIndex: 1, level: 'hard', explanation: 'Tổng = 20 × 21 / 2 = 210.'),
-    Question(id: 'q_math_10', topicId: 'topic_math', content: '2 mũ bao nhiêu thì bằng 128?', options: ['6', '7', '8', '9'], correctIndex: 1, level: 'hard', explanation: '2^7 = 128.'),
+    Question(
+      id: 'q_math_01',
+      topicId: 'topic_math',
+      content: '7 + 8 bằng bao nhiêu?',
+      options: ['14', '15', '16', '17'],
+      correctIndex: 1,
+      level: 'easy',
+      explanation: '7 + 8 = 15.',
+    ),
+    Question(
+      id: 'q_math_02',
+      topicId: 'topic_math',
+      content: '12 × 3 bằng bao nhiêu?',
+      options: ['33', '36', '39', '42'],
+      correctIndex: 1,
+      level: 'easy',
+      explanation: '12 × 3 = 36.',
+    ),
+    Question(
+      id: 'q_math_03',
+      topicId: 'topic_math',
+      content: '100 − 37 bằng bao nhiêu?',
+      options: ['63', '67', '73', '53'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: '100 − 37 = 63.',
+    ),
+    Question(
+      id: 'q_math_04',
+      topicId: 'topic_math',
+      content: '5² bằng bao nhiêu?',
+      options: ['10', '20', '25', '30'],
+      correctIndex: 2,
+      level: 'easy',
+      explanation: '5² = 5 × 5 = 25.',
+    ),
+    Question(
+      id: 'q_math_05',
+      topicId: 'topic_math',
+      content: 'Căn bậc hai của 144 bằng bao nhiêu?',
+      options: ['11', '12', '13', '14'],
+      correctIndex: 1,
+      level: 'medium',
+      explanation: '12 × 12 = 144 nên √144 = 12.',
+    ),
+    Question(
+      id: 'q_math_06',
+      topicId: 'topic_math',
+      content: '3/4 của 80 bằng bao nhiêu?',
+      options: ['50', '55', '60', '65'],
+      correctIndex: 2,
+      level: 'medium',
+      explanation: '80 × 3/4 = 60.',
+    ),
+    Question(
+      id: 'q_math_07',
+      topicId: 'topic_math',
+      content: 'Giải phương trình 2x + 5 = 17, x bằng bao nhiêu?',
+      options: ['5', '6', '7', '8'],
+      correctIndex: 1,
+      level: 'medium',
+      explanation: '2x = 12 nên x = 6.',
+    ),
+    Question(
+      id: 'q_math_08',
+      topicId: 'topic_math',
+      content: '15% của 200 bằng bao nhiêu?',
+      options: ['20', '25', '30', '35'],
+      correctIndex: 2,
+      level: 'medium',
+      explanation: '200 × 15% = 30.',
+    ),
+    Question(
+      id: 'q_math_09',
+      topicId: 'topic_math',
+      content: 'Tổng 1 + 2 + ... + 20 bằng bao nhiêu?',
+      options: ['200', '210', '220', '190'],
+      correctIndex: 1,
+      level: 'hard',
+      explanation: 'Tổng = 20 × 21 / 2 = 210.',
+    ),
+    Question(
+      id: 'q_math_10',
+      topicId: 'topic_math',
+      content: '2 mũ bao nhiêu thì bằng 128?',
+      options: ['6', '7', '8', '9'],
+      correctIndex: 1,
+      level: 'hard',
+      explanation: '2^7 = 128.',
+    ),
   ];
 }
