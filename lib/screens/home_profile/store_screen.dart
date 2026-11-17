@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../models/item_model.dart';
 import '../../services/store_service.dart';
+import '../../viewmodels/home_profile_vm.dart';
+import '../../widgets/item_visual.dart';
 
 class StoreScreen extends StatefulWidget {
-  const StoreScreen({super.key, this.service});
+  const StoreScreen({super.key, this.service, this.homeVm});
 
   final StoreService? service;
+  final HomeViewModel? homeVm;
 
   @override
   State<StoreScreen> createState() => _StoreScreenState();
@@ -17,6 +20,7 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> {
   late final StoreService _service;
+  late final HomeViewModel _homeVm;
   StoreCatalog _catalog = StoreCatalog.preview;
   String _selectedType = 'all';
   String? _error;
@@ -35,7 +39,22 @@ class _StoreScreenState extends State<StoreScreen> {
   void initState() {
     super.initState();
     _service = widget.service ?? StoreService();
+    _homeVm = widget.homeVm ?? HomeViewModel();
+    _homeVm.loadCurrentUserCoins();
+    _catalog = StoreCatalog(
+      coins: _homeVm.coins,
+      items: StoreCatalog.previewItems,
+      ownedQuantities: Map<String, int>.from(_homeVm.ownedItems),
+    );
     _loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    if (widget.homeVm == null) {
+      _homeVm.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadCatalog() async {
@@ -45,19 +64,25 @@ class _StoreScreenState extends State<StoreScreen> {
     });
 
     try {
+      await _homeVm.loadCurrentUserCoins();
       final catalog = await _service.loadCatalog();
       if (!mounted) return;
+      _homeVm.syncCatalog(catalog);
       setState(() {
         _catalog = catalog;
+        _error = null;
         _apiAvailable = true;
         _isLoading = false;
       });
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error is StateError
-            ? error.message
-            : 'Máy chủ cửa hàng hiện chưa khả dụng. Bạn vẫn có thể xem vật phẩm và giá; giao dịch mua sẽ hoạt động khi kết nối được khôi phục.';
+        _catalog = StoreCatalog(
+          coins: _homeVm.coins,
+          items: StoreCatalog.previewItems,
+          ownedQuantities: Map<String, int>.from(_homeVm.ownedItems),
+        );
+        _error = error is StateError ? error.message : 'Máy chủ cửa hàng hiện chưa khả dụng. Danh mục mẫu đang được hiển thị; giao dịch sẽ không được ghi nhận đến khi máy chủ hoạt động.';
         _apiAvailable = false;
         _isLoading = false;
       });
@@ -82,7 +107,7 @@ class _StoreScreenState extends State<StoreScreen> {
             if (!_apiAvailable) ...[
               const SizedBox(height: 12),
               const Text(
-                'Máy chủ cửa hàng chưa khả dụng. Bạn chưa thể mua vật phẩm này.',
+                'Máy chủ cửa hàng chưa khả dụng. Bạn chưa thể mua vật phẩm lúc này.',
               ),
             ],
           ],
@@ -93,23 +118,15 @@ class _StoreScreenState extends State<StoreScreen> {
             child: const Text('Đóng'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: _apiAvailable
+                ? () => Navigator.pop(context, true)
+                : null,
             child: const Text('Mua'),
           ),
         ],
       ),
     );
     if (wantsToPurchase != true || !mounted) return;
-    if (!_apiAvailable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'API cửa hàng chưa hoạt động. Chưa thực hiện giao dịch.',
-          ),
-        ),
-      );
-      return;
-    }
     await _confirmPurchase(item);
   }
 
@@ -137,19 +154,16 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       final result = await _service.purchase(item.id);
       if (!mounted) return;
-      final catalog = _catalog;
+
+      _homeVm.updateAfterPurchase(item, result.coins, result.quantity);
       setState(() {
-        _catalog = catalog.copyWith(
-          coins: result.coins,
-          ownedQuantities: {
-            ...catalog.ownedQuantities,
-            item.id: result.quantity,
-          },
+        _catalog = _catalog.copyWith(
+          coins: _homeVm.coins,
+          ownedQuantities: Map<String, int>.from(_homeVm.ownedItems),
         );
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Đã mua ${item.name}.')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Đã mua ${item.name}.')));
     } catch (error) {
       if (!mounted) return;
       final apiUnavailable =
@@ -157,16 +171,21 @@ class _StoreScreenState extends State<StoreScreen> {
           error is HttpException ||
           error is ApiException &&
               (error.statusCode == 404 || error.statusCode >= 500);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể mua ${item.name}: $error')),
-      );
       if (apiUnavailable) {
         setState(() {
           _apiAvailable = false;
-          _error =
-              'Máy chủ cửa hàng hiện chưa khả dụng. Bạn vẫn có thể xem vật phẩm và giá; giao dịch mua sẽ hoạt động khi kết nối được khôi phục.';
+          _error = 'Máy chủ cửa hàng hiện chưa khả dụng. Giao dịch chưa được ghi nhận.';
         });
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            apiUnavailable
+                ? 'Máy chủ cửa hàng chưa khả dụng. Chưa thực hiện giao dịch.'
+                : 'Không thể mua ${item.name}: $error',
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _purchasingItemId = null);
     }
@@ -309,9 +328,12 @@ class _StoreScreenState extends State<StoreScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFFEFF6FF),
-              child: Icon(_iconFor(item.type), color: const Color(0xFF2563EB)),
+            ItemVisual(
+              imageUrl: item.imageUrl,
+              type: item.type,
+              code: item.effect,
+              itemId: item.id,
+              size: 48,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -361,18 +383,5 @@ class _StoreScreenState extends State<StoreScreen> {
         ),
       ),
     );
-  }
-
-  IconData _iconFor(String type) {
-    switch (type) {
-      case 'help':
-        return Icons.lightbulb_outline;
-      case 'frame':
-        return Icons.crop_square;
-      case 'title':
-        return Icons.workspace_premium_outlined;
-      default:
-        return Icons.shopping_bag_outlined;
-    }
   }
 }

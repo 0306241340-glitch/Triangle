@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'screens/auth_quiz/login_screen.dart';
-import 'screens/auth_quiz/splash_screen.dart';
 import 'screens/home_profile/home_profile_screen.dart';
 
 Future<void> main() async {
@@ -27,7 +26,7 @@ class QuizApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF2563EB),
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const AuthGate(),
     );
   }
 }

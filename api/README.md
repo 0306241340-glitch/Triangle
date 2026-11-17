@@ -66,6 +66,8 @@ Lệnh chạy trên Render là `npm start`; ứng dụng lắng nghe port trong 
 
 - `GET /store/items` trả danh sách vật phẩm đang bán, số xu và túi đồ của người dùng.
 - `POST /store/purchase` với `{ "itemId": "item_frame_gold" }` mua vật phẩm.
+- `POST /store/equip` với `{ "itemId": "item_frame_gold", "equipped": true }`
+  trang bị hoặc tháo khung avatar/danh hiệu đã sở hữu.
 - Mỗi giao dịch kiểm tra số dư và quyền sở hữu rồi trừ xu, cập nhật `user_items`,
   đồng thời ghi `transactions` trong cùng một Firestore transaction. Gói trợ giúp
   có thể mua nhiều lần; khung avatar và danh hiệu chỉ mua một lần.

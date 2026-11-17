@@ -1,18 +1,39 @@
 import 'package:do_vui_ai_thuong/models/item_model.dart';
 import 'package:do_vui_ai_thuong/screens/home_profile/store_screen.dart';
 import 'package:do_vui_ai_thuong/services/store_service.dart';
+import 'package:do_vui_ai_thuong/viewmodels/home_profile_vm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('loads the catalog and updates the balance after purchase', (
+  test('parses item image URL and the Firestore lifeline code', () {
+    final item = StoreItem.fromJson({
+      'id': 'item_extra_time',
+      'name': 'Thêm thời gian',
+      'description': '',
+      'type': 'help',
+      'lifelineCode': 'extra_time',
+      'price': 20,
+      'imageUrl': 'https://example.com/extra-time.png',
+    });
+
+    expect(item.effect, 'extra_time');
+    expect(item.imageUrl, 'https://example.com/extra-time.png');
+  });
+
+  testWidgets('updates the store from the backend purchase result', (
     tester,
   ) async {
     final service = _FakeStoreService();
 
-    await tester.pumpWidget(MaterialApp(home: StoreScreen(service: service)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StoreScreen(service: service, homeVm: _FakeHomeViewModel()),
+      ),
+    );
     await tester.pumpAndSettle();
 
+    expect(find.text('⏱️'), findsOneWidget);
     expect(find.text('200 xu'), findsOneWidget);
     expect(find.text('50/50'), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -43,17 +64,21 @@ void main() {
     expect(find.textContaining('Đang có: 1'), findsOneWidget);
   });
 
-  testWidgets('shows preview catalog and blocks purchase when API is down', (
+  testWidgets('does not claim a purchase when the shop API is down', (
     tester,
   ) async {
     final service = _FakeStoreService()..loadError = Exception('HTTP 404');
 
-    await tester.pumpWidget(MaterialApp(home: StoreScreen(service: service)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StoreScreen(service: service, homeVm: _FakeHomeViewModel()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('50/50'), findsOneWidget);
-    expect(find.text('30 xu'), findsOneWidget);
-    expect(find.text('Chưa tải được'), findsOneWidget);
+    expect(find.text('30 xu'), findsWidgets);
+    expect(find.text('200 xu'), findsOneWidget);
     expect(
       find.textContaining('Máy chủ cửa hàng hiện chưa khả dụng'),
       findsOneWidget,
@@ -79,16 +104,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(service.purchasedItemId, isEmpty);
-    expect(
-      find.text('API cửa hàng chưa hoạt động. Chưa thực hiện giao dịch.'),
-      findsOneWidget,
+    final buyButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Mua'),
     );
+    expect(buyButton.onPressed, isNull);
+    expect(find.text('200 xu'), findsOneWidget);
   });
 }
 
 class _FakeStoreService implements StoreService {
   var purchasedItemId = '';
   Object? loadError;
+
+  @override
+  Future<void> setEquipped(String itemId, {required bool equipped}) async {}
 
   @override
   Future<StoreCatalog> loadCatalog() async {
@@ -103,6 +132,7 @@ class _FakeStoreService implements StoreService {
           type: 'help',
           effect: 'fifty_fifty',
           price: 30,
+          imageUrl: '⏱️',
         ),
         StoreItem(
           id: 'item_frame_gold',
@@ -121,5 +151,12 @@ class _FakeStoreService implements StoreService {
   Future<StorePurchaseResult> purchase(String itemId) async {
     purchasedItemId = itemId;
     return const StorePurchaseResult(coins: 170, quantity: 1);
+  }
+}
+
+class _FakeHomeViewModel extends HomeViewModel {
+  @override
+  Future<void> loadCurrentUserCoins() async {
+    coins = 200;
   }
 }

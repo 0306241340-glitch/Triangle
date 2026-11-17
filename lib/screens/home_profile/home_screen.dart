@@ -10,7 +10,12 @@ import '../auth_quiz/quiz_set_detail_screen.dart';
 import '../../viewmodels/home_profile_vm.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.vm,
+  });
+
+  final HomeViewModel? vm;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -39,13 +44,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _vm = HomeViewModel();
+    _vm = widget.vm ?? HomeViewModel();
     _vm.load();
+    _vm.loadCurrentUserCoins();
   }
 
   @override
   void dispose() {
-    _vm.dispose();
+    if (widget.vm == null) {
+      _vm.dispose();
+    }
     super.dispose();
   }
 
@@ -65,10 +73,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
             title: const Text('Xin chào, An'),
-            actions: const [
+            actions: [
               Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Center(child: Text('⭐ 180đ · 🪙 190 xu')),
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(child: Text('⭐ 180đ · 🪙 ${_vm.coins} xu')),
               ),
             ],
           ),
@@ -213,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const StoreScreen(),
+                                  builder: (_) => StoreScreen(homeVm: _vm),
                                 ),
                               );
                             },
