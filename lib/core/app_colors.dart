@@ -20,4 +20,18 @@ class AppColors {
   static const Color surface = Colors.white;
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Colors.black54;
+
+  // Phân loại màu theo mức độ khó (dành cho Quiz)
+  static Color levelColor(String level) {
+    switch (level) {
+      case 'easy':
+        return success;
+      case 'medium':
+        return accent;
+      case 'hard':
+        return error;
+      default:
+        return primaryLight;
+    }
+  }
 }

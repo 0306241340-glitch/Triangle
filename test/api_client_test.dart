@@ -11,10 +11,12 @@ void main() {
   setUp(() async {
     authorizationHeader = null;
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+
     server.listen((request) async {
       authorizationHeader = request.headers.value(
         HttpHeaders.authorizationHeader,
       );
+
       if (request.uri.path == '/html') {
         request.response
           ..statusCode = HttpStatus.notFound
@@ -30,6 +32,7 @@ void main() {
             }),
           );
       }
+
       await request.response.close();
     });
   });
