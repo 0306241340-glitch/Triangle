@@ -112,3 +112,28 @@ router.post('/submit', async (req, res) => {
 });
 
 module.exports = router;
+// POST /quiz/fifty-fifty { attemptId, questionId, selectedIndex } -> 2 đáp án sai để ẩn
+// Đáp án đúng chỉ có ở server (attempt.answers), client không bao giờ thấy.
+router.post('/fifty-fifty', async (req, res) => {
+  const { attemptId, questionId, selectedIndex } = req.body || {};
+  if (!attemptId || !questionId) {
+    return res.fail(400, 'VALIDATION', 'Thiếu attemptId hoặc questionId.');
+  }
+  const db = getDb();
+  const attemptRef = db.collection('attempts').doc(attemptId);
+  const attemptSnap = await attemptRef.get();
+  if (!attemptSnap.exists) return res.fail(404, 'NOT_FOUND', 'Không tìm thấy lượt chơi này.');
+  const attempt = attemptSnap.data();
+  if (attempt.userId !== req.user.uid) return res.fail(403, 'FORBIDDEN', 'Không phải lượt chơi của bạn.');
+  if (attempt.submitted) return res.fail(409, 'CONFLICT', 'Bài đã nộp rồi.');
+  const entry = (attempt.answers || []).find((a) => a.questionId === questionId);
+  if (!entry) return res.fail(404, 'NOT_FOUND', 'Không tìm thấy câu hỏi này.');
+  // Gọi lại cùng câu thì trả đúng 2 đáp án cũ (tránh lộ đáp án đúng).
+  const used = attempt.fiftyFifty || {};
+  if (used[questionId]) return res.ok({ hide: used[questionId] });
+  const wrong = shuffle(
+    [0, 1, 2, 3].filter((i) => i !== entry.correctIndex && i !== selectedIndex),
+  ).slice(0, 2);
+  await attemptRef.update({ [`fiftyFifty.${questionId}`]: wrong });
+  return res.ok({ hide: wrong });
+});

@@ -172,20 +172,42 @@ class QuizPlayViewModel extends ChangeNotifier {
 
   /// Trợ giúp 1: 50/50 — ẩn 2 đáp án sai (30 xu). Mỗi câu chỉ dùng 1 lần.
   /// Trả về chuỗi lỗi nếu thất bại, null nếu thành công.
-  String? useFiftyFifty() {
+  /// Trợ giúp 1: 50/50 — ẩn 2 đáp án sai (30 xu). Mỗi câu chỉ dùng 1 lần.
+  /// Đáp án đúng chỉ có ở server nên hỏi server lấy 2 đáp án sai.
+  /// Trả về chuỗi lỗi nếu thất bại, null nếu thành công.
+  Future<String?> useFiftyFifty() async {
     final q = currentQuestion;
     if (q == null) return 'Không có câu hỏi';
     if (hiddenOptions.containsKey(currentIndex))
       return 'Câu này đã dùng 50/50 rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
-    final wrong = [0, 1, 2, 3]
-        .where((i) => i != q.correctIndex && answers[currentIndex] != i)
-        .take(2)
-        .toSet();
-    hiddenOptions[currentIndex] = wrong;
-    userCoins -= 30;
-    notifyListeners();
-    return null; // thành công
+    if (attemptId == null) {
+      // Chế độ offline (câu mẫu): đáp án đúng có sẵn, tính tại chỗ.
+      final wrong = [0, 1, 2, 3]
+          .where((i) => i != q.correctIndex && answers[currentIndex] != i)
+          .take(2)
+          .toSet();
+      hiddenOptions[currentIndex] = wrong;
+      userCoins -= 30;
+      notifyListeners();
+      return null;
+    }
+    try {
+      final data = await _api.post('/quiz/fifty-fifty', {
+        'attemptId': attemptId,
+        'questionId': q.id,
+        'selectedIndex': answers[currentIndex],
+      });
+      final hide = (data['hide'] as List)
+          .map((e) => (e as num).toInt())
+          .toSet();
+      hiddenOptions[currentIndex] = hide;
+      userCoins -= 30;
+      notifyListeners();
+      return null;
+    } catch (_) {
+      return 'Không gọi được server, thử lại sau';
+    }
   }
 
   /// Trợ giúp 2: Thêm thời gian — cộng 30 giây (20 xu). Cả bài chỉ dùng 1 lần.
