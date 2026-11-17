@@ -34,7 +34,7 @@ app.use((req, res) => res.fail(404, 'NOT_FOUND', 'Không tìm thấy endpoint n�
 // Chạy local: node src/index.js (cần serviceAccountKey.json hoặc GOOGLE_APPLICATION_CREDENTIALS)
 if (require.main === module) {
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`API chạy ở http://localhost:${port}`));
+  app.listen(port, '0.0.0.0', () => console.log(`API chạy ở http://localhost:${port}`));
 }
 
 exports.api = functions.region('asia-southeast1').https.onRequest(app);
