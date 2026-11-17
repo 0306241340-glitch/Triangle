@@ -11,9 +11,7 @@ class ApiException implements Exception {
 
 class ApiClient {
   ApiClient({String? baseUrl})
-    : _baseUrl =
-          baseUrl ??
-          'https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api';
+    : _baseUrl = baseUrl ?? 'https://quiz-app-api-vm1o.onrender.com/';
 
   final String _baseUrl;
   String? _idToken;
@@ -24,10 +22,11 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
-      final req = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 60);
+      final req = await client.getUrl(uri).timeout(const Duration(seconds: 60));
       _applyHeaders(req);
-      final res = await req.close().timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(const Duration(seconds: 60));
       return await _handle(res);
     } catch (e) {
       throw ApiException('Không thể kết nối máy chủ: $e', 503);
@@ -37,11 +36,14 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
-      final req = await client.postUrl(uri).timeout(const Duration(seconds: 2));
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 60);
+      final req = await client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 60));
       _applyHeaders(req);
       req.write(jsonEncode(body));
-      final res = await req.close().timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(const Duration(seconds: 60));
       return await _handle(res);
     } catch (e) {
       throw ApiException('Không thể kết nối máy chủ: $e', 503);
