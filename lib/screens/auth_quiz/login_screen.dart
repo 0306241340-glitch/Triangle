@@ -131,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(width: 1)
+                        border: Border.all(width: 0.5)
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(
@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Chơi • Học • Thi đấu cùng bạn bè',
+                    'Chơi • Thi đấu cùng bạn bè',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                   ),

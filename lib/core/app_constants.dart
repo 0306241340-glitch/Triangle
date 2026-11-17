@@ -1,8 +1,7 @@
 class AppConstants {
   AppConstants._();
 
-  // 1. Thông tin ứng dụng (Wireframe 01)
-  static const String appName = 'Đố Vui Ai Thưởng';
+  static const String appName = 'Đố Vui AI Thưởng';
 
   // 2. Tên đầy đủ 16 Collections trên Cloud Firestore (Mục 3.1 & 3.2)
   static const String usersCollection = 'users';
