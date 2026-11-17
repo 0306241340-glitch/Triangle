@@ -48,9 +48,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      // Chỉ tải song song 2 collection nhẹ (bỏ qua users/{uid} chứa ảnh Base64 nặng)
       final results = await Future.wait([
-        _firestore.collection('items').where('isActive', isEqualTo: true).get(),
+        _firestore.collection('items').where('isActive', isEqualTo: true).get(),    
         _firestore
             .collection('user_items')
             .where('userId', isEqualTo: user.uid)
