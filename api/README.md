@@ -1,6 +1,6 @@
 # WebAPI — App Đố Vui Trắc Nghiệm
 
-Express chạy trên Firebase Cloud Functions. App Flutter chỉ gọi API này.
+Express chạy trên Firebase Cloud Functions hoặc Render. App Flutter chỉ gọi API này.
 
 ## Cài đặt
 
@@ -17,7 +17,7 @@ npm start
 ```
 
 Để chạy Firebase Emulator hoặc deploy Functions, chạy lệnh từ thư mục gốc repo.
-Đặt `serviceAccountKey.json` trong `api/` nếu cần credentials khi chạy local;
+Khi chạy local, đặt `serviceAccountKey.json` trong `api/` nếu cần credentials;
 không commit file này.
 
 ```bash
@@ -37,6 +37,29 @@ curl https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api/health
 curl https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api/topics
 # → 401 (thiếu token là đúng)
 ```
+
+## Deploy lên Render
+
+1. Tạo một Blueprint từ repository này trên Render; Render sẽ đọc `render.yaml`
+   và tạo web service `triangle-api` với thư mục gốc là `api/`.
+2. Tạo Firebase service account có quyền truy cập Firebase Authentication và
+   Firestore. Lưu toàn bộ JSON key vào biến môi trường Render
+   `FIREBASE_SERVICE_ACCOUNT_JSON` (không đưa key vào Git hoặc file cấu hình).
+3. Sau khi deploy xong, kiểm tra `https://<service>.onrender.com/health`.
+   Cấu hình app bằng URL gốc của service (không thêm `/api`):
+
+   ```bash
+   flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com
+   ```
+
+   Thay `<service>` bằng hostname Render được cấp. Không thêm dấu `/` cuối URL.
+   Khi build Android, iOS hoặc web, truyền cùng `--dart-define` vào lệnh build.
+4. Render Free có thể tạm dừng service khi không dùng; request đầu có thể cần
+   chờ service khởi động lại.
+
+Lệnh chạy trên Render là `npm start`; ứng dụng lắng nghe port trong biến
+`PORT` do Render cấp. Firebase Admin đọc credentials từ
+`FIREBASE_SERVICE_ACCOUNT_JSON`.
 
 ## Cửa hàng
 

@@ -1,7 +1,6 @@
 // WebAPI — App Đố Vui Trắc Nghiệm
 // Express chạy trên Firebase Cloud Functions (Gen 2, region asia-southeast1).
 // App Flutter chỉ gọi API này, không gọi Firestore trực tiếp.
-const functions = require('firebase-functions');
 const express = require('express');
 const { requireAuth, requireAdmin } = require('./auth');
 const quizRoutes = require('./routes/quiz');
@@ -37,6 +36,7 @@ app.use((req, res) => res.fail(404, 'NOT_FOUND', 'Không tìm thấy endpoint n�
 if (require.main === module) {
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`API chạy ở http://localhost:${port}`));
+} else {
+  const functions = require('firebase-functions');
+  exports.api = functions.region('asia-southeast1').https.onRequest(app);
 }
-
-exports.api = functions.region('asia-southeast1').https.onRequest(app);

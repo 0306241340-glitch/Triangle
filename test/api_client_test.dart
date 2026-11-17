@@ -61,7 +61,7 @@ void main() {
             .having(
               (error) => error.message,
               'message',
-              contains('Firebase Function đã được deploy chưa'),
+              contains('Kiểm tra URL API và trạng thái máy chủ'),
             ),
       ),
     );

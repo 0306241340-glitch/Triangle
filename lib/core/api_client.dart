@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 class ApiException implements Exception {
@@ -12,11 +12,15 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl})
-    : _baseUrl =
-          baseUrl ??
-          'https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api';
+  ApiClient({String? baseUrl}) : _baseUrl = baseUrl ?? _defaultBaseUrl;
 
+  static const _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue:
+        'https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api',
+  );
+  static const _connectionTimeout = Duration(seconds: 10);
+  static const _requestTimeout = Duration(seconds: 60);
   final String _baseUrl;
   String? _idToken;
 
@@ -26,13 +30,12 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 2);
+      final client = HttpClient()..connectionTimeout = _connectionTimeout;
 
-      final req = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      final req = await client.getUrl(uri).timeout(_requestTimeout);
       _applyHeaders(req);
 
-      final res = await req.close().timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(_requestTimeout);
       return await _handle(res);
     } on ApiException {
       rethrow;
@@ -44,14 +47,13 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 2);
+      final client = HttpClient()..connectionTimeout = _connectionTimeout;
 
-      final req = await client.postUrl(uri).timeout(const Duration(seconds: 2));
+      final req = await client.postUrl(uri).timeout(_requestTimeout);
       _applyHeaders(req);
       req.write(jsonEncode(body));
 
-      final res = await req.close().timeout(const Duration(seconds: 2));
+      final res = await req.close().timeout(_requestTimeout);
       return await _handle(res);
     } on ApiException {
       rethrow;
@@ -70,7 +72,10 @@ class ApiClient {
 
   // Server trả về {ok: true, data} hoặc {ok: false, error}
   Future<dynamic> _handle(HttpClientResponse res) async {
-    final text = await res.transform(utf8.decoder).join();
+    final text = await res
+        .transform(utf8.decoder)
+        .join()
+        .timeout(_requestTimeout);
 
     dynamic decoded;
 
@@ -79,7 +84,7 @@ class ApiClient {
     } on FormatException {
       throw ApiException(
         'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). '
-        'Kiểm tra Firebase Function đã được deploy chưa.',
+        'Kiểm tra URL API và trạng thái máy chủ.',
         res.statusCode,
       );
     }

@@ -24,9 +24,10 @@ router.get('/items', async (req, res) => {
   inventorySnap.docs.forEach((doc) => {
     const data = doc.data();
     if (data.itemId) {
-      inventory[data.itemId] = Number.isSafeInteger(data.quantity) && data.quantity > 0
+      const quantity = Number.isSafeInteger(data.quantity) && data.quantity > 0
         ? data.quantity
         : 1;
+      inventory[data.itemId] = (inventory[data.itemId] || 0) + quantity;
     }
   });
   const items = itemsSnap.docs
@@ -49,16 +50,27 @@ router.post('/purchase', async (req, res) => {
   const db = getDb();
   const itemRef = db.collection('items').doc(normalizedItemId);
   const userRef = db.collection('users').doc(req.user.uid);
-  const userItemRef = db.collection('user_items')
+  const userItemsQuery = db.collection('user_items')
+    .where('userId', '==', req.user.uid);
+  const fallbackUserItemRef = db.collection('user_items')
     .doc(`${req.user.uid}_${encodeURIComponent(normalizedItemId)}`);
   const transactionRef = db.collection('transactions').doc();
 
   const result = await db.runTransaction(async (tx) => {
-    const [itemSnap, userSnap, userItemSnap] = await Promise.all([
+    const [itemSnap, userSnap, inventorySnap] = await Promise.all([
       tx.get(itemRef),
       tx.get(userRef),
-      tx.get(userItemRef),
+      tx.get(userItemsQuery),
     ]);
+    const matchingItems = inventorySnap.docs.filter(
+      (doc) => doc.data().itemId === normalizedItemId,
+    );
+    const preferredItem = matchingItems.find(
+      (doc) => doc.id === fallbackUserItemRef.id,
+    ) || matchingItems[0];
+    const userItemRef = preferredItem
+      ? preferredItem.ref
+      : fallbackUserItemRef;
 
     if (!itemSnap.exists || itemSnap.data().isActive !== true) {
       return { status: 404, code: 'NOT_FOUND', message: 'Vật phẩm không tồn tại hoặc đã ngừng bán.' };
@@ -73,8 +85,7 @@ router.post('/purchase', async (req, res) => {
       return { status: 500, code: 'INVALID_ITEM', message: 'Giá vật phẩm chưa được cấu hình hợp lệ.' };
     }
 
-    const existing = userItemSnap.exists ? userItemSnap.data() : null;
-    if (existing && item.type !== 'help') {
+    if (matchingItems.length > 0 && item.type !== 'help') {
       return { status: 409, code: 'ALREADY_OWNED', message: 'Bạn đã sở hữu vật phẩm này.' };
     }
 
@@ -87,9 +98,14 @@ router.post('/purchase', async (req, res) => {
       return { status: 409, code: 'INSUFFICIENT_COINS', message: 'Bạn không đủ xu để mua vật phẩm này.' };
     }
 
-    const quantity = (existing && Number.isSafeInteger(existing.quantity)
-      ? existing.quantity
-      : existing ? 1 : 0) + 1;
+    const ownedQuantity = matchingItems.reduce((total, doc) => {
+      const data = doc.data();
+      const quantity = Number.isSafeInteger(data.quantity) && data.quantity > 0
+        ? data.quantity
+        : 1;
+      return total + quantity;
+    }, 0);
+    const quantity = ownedQuantity + 1;
     const now = admin.firestore.FieldValue.serverTimestamp();
 
     tx.update(userRef, {
@@ -100,9 +116,13 @@ router.post('/purchase', async (req, res) => {
       userId: req.user.uid,
       itemId: normalizedItemId,
       quantity,
-      ...(existing ? {} : { createdAt: now }),
+      equipped: matchingItems.some((doc) => doc.data().equipped === true),
+      ...(matchingItems.length === 0 ? { createdAt: now } : {}),
       updatedAt: now,
     }, { merge: true });
+    matchingItems.forEach((doc) => {
+      if (doc.id !== userItemRef.id) tx.delete(doc.ref);
+    });
     tx.set(transactionRef, {
       userId: req.user.uid,
       type: 'purchase',
