@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
-import '../auth_quiz/quiz_set_detail_screen.dart';
-import 'profile_screen.dart';
-
 import '../../viewmodels/home_profile_vm.dart';
+import '../auth_quiz/quiz_set_detail_screen.dart';
+import 'friends_screen.dart';
+import 'profile_screen.dart';
+import 'store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.vm});
+
+  final HomeViewModel? vm;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,7 +21,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late final HomeViewModel _vm;
   String _searchQuery = '';
 
-  // 3 chủ đề đúng theo Wireframe (S05)
   static const _wireframeTopics = [
     {
       'title': 'Kiến thức tổng hợp / Đời sống',
@@ -37,13 +39,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _vm = HomeViewModel();
+    _vm = widget.vm ?? HomeViewModel();
     _vm.load();
+    _vm.loadCurrentUserCoins();
   }
 
   @override
   void dispose() {
-    _vm.dispose();
+    if (widget.vm == null) {
+      _vm.dispose();
+    }
     super.dispose();
   }
 
@@ -63,10 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
             title: const Text('Xin chào, An'),
-            actions: const [
+            actions: [
               Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Center(child: Text('⭐ 180đ · 🪙 190 xu')),
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(child: Text('⭐ 180đ · 🪙 ${_vm.coins} xu')),
               ),
             ],
           ),
@@ -109,7 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                // TODO: mở phòng đấu 1vs1 (S15) khi Vương làm xong màn đó
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -146,7 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          // Bấm vào mở Chi tiết bộ đề (S06) -> Làm bài (S07)
                           onTap: () {
                             Navigator.push(
                               context,
@@ -207,14 +210,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StoreScreen(homeVm: _vm),
+                                ),
+                              );
+                            },
                             child: const Text('🛒 Cửa hàng'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              );
+                            },
                             child: const Text('👥 Bạn bè'),
                           ),
                         ),

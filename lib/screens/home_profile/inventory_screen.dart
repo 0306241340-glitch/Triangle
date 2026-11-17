@@ -1,11 +1,11 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/item_model.dart';
 import '../../models/user_item_model.dart';
+import '../../services/store_service.dart';
+import '../../widgets/item_visual.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -16,6 +16,7 @@ class InventoryScreen extends StatefulWidget {
 
 class _InventoryScreenState extends State<InventoryScreen> {
   final _firestore = FirebaseFirestore.instance;
+  final _storeService = StoreService();
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -111,7 +112,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _toggleEquip({
-    required UserItemModel targetUserItem,
     required ItemModel targetItem,
     required bool isCurrentlyEquipped,
   }) async {
@@ -120,32 +120,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
     try {
       final nextEquipped = !isCurrentlyEquipped;
-      final batch = _firestore.batch();
-      final userRef = _firestore.collection('users').doc(user.uid);
-
-      if (targetItem.type == 'frame') {
-        // 1. Cập nhật frameId trên hồ sơ user
-        batch.update(userRef, {'frameId': nextEquipped ? targetItem.id : null});
-        // 2. Đồng bộ trạng thái equipped trong collection user_items
-        for (final entry in _frames) {
-          batch.update(
-            _firestore.collection('user_items').doc(entry.key.id),
-            {'equipped': entry.key.id == targetUserItem.id ? nextEquipped : false},
-          );
-        }
-      } else if (targetItem.type == 'title') {
-        // 1. Cập nhật titleId trên hồ sơ user
-        batch.update(userRef, {'titleId': nextEquipped ? targetItem.id : null});
-        // 2. Đồng bộ trạng thái equipped trong collection user_items
-        for (final entry in _titles) {
-          batch.update(
-            _firestore.collection('user_items').doc(entry.key.id),
-            {'equipped': entry.key.id == targetUserItem.id ? nextEquipped : false},
-          );
-        }
-      }
-
-      await batch.commit();
+      await _storeService.setEquipped(targetItem.id, equipped: nextEquipped);
 
       if (!mounted) return;
       setState(() {
@@ -176,68 +151,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
   void _goToShop() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Đang chuyển sang Cửa hàng đổi xu...')),
-    );
-  }
-
-  Widget _buildItemLeading(String imageUrl) {
-    final isDataImage = imageUrl.startsWith('data:image/');
-    final uri = Uri.tryParse(imageUrl);
-    final isNetworkImage =
-        uri != null &&
-        (uri.scheme == 'http' || uri.scheme == 'https') &&
-        uri.hasAuthority;
-
-    Widget image;
-    if (isDataImage) {
-      final separator = imageUrl.indexOf(',');
-      if (separator < 0) return _buildItemPlaceholder();
-      try {
-        image = Image.memory(
-          base64Decode(imageUrl.substring(separator + 1)),
-          width: 36,
-          height: 36,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildItemPlaceholder(),
-        );
-      } on FormatException {
-        return _buildItemPlaceholder();
-      }
-    } else if (isNetworkImage) {
-      image = Image.network(
-        imageUrl,
-        width: 36,
-        height: 36,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _buildItemPlaceholder(),
-      );
-    } else {
-      return _buildItemPlaceholder(
-        imageUrl.isNotEmpty && imageUrl.length <= 4 ? imageUrl : '🎒',
-      );
-    }
-
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      alignment: Alignment.center,
-      child: ClipRRect(borderRadius: BorderRadius.circular(10), child: image),
-    );
-  }
-
-  Widget _buildItemPlaceholder([String icon = '🎒']) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      alignment: Alignment.center,
-      child: Text(icon, style: const TextStyle(fontSize: 24)),
     );
   }
 
@@ -442,7 +355,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            _buildItemLeading(item.imageUrl),
+            ItemVisual(
+              imageUrl: item.imageUrl,
+              type: item.type,
+              code: item.lifelineCode ?? '',
+              itemId: item.id,
+              size: 48,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -478,7 +397,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 constraints: const BoxConstraints(maxWidth: 96),
                 child: ElevatedButton(
                   onPressed: () => _toggleEquip(
-                    targetUserItem: userItem,
                     targetItem: item,
                     isCurrentlyEquipped: isEquipped,
                   ),
