@@ -1,5 +1,3 @@
-// Model Bộ đề — khớp collection `quiz_sets` trong Firestore (seed-data.json).
-// File này TV1 An giữ. (Bản cập nhật: đọc cả `title` lẫn `name` vì seed dùng `name`.)
 class QuizSet {
   final String id;
   final String topicId;

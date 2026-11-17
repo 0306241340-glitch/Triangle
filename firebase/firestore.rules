@@ -31,6 +31,24 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Chỉ công khai các trường tối thiểu để tìm và hiển thị bạn bè.
+    match /public_profiles/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSelf(request.resource.data.uid)
+        && uid == request.auth.uid
+        && request.resource.data.userCode is string
+        && request.resource.data.userCode == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userCode
+        && request.resource.data.displayName is string
+        && request.resource.data.displayNameLower is string
+        && request.resource.data.avatarUrl is string
+        && request.resource.data.keys().hasOnly([
+          'uid', 'userCode', 'displayName', 'displayNameLower', 'avatarUrl'
+        ])
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName == request.resource.data.displayName
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('avatarUrl', '') == request.resource.data.avatarUrl;
+      allow delete: if false;
+    }
+
     // ---- topics / quiz_sets / items: đọc công khai (chỉ bản đang hoạt động), chỉ Admin ghi ----
     match /topics/{id} {
       allow read: if isSignedIn() && resource.data.isActive == true;
@@ -78,10 +96,25 @@ service cloud.firestore {
     match /friends/{id} {
       allow read: if isSignedIn() &&
         (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.friendId != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasAll(['userId', 'friendId', 'status', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['userId', 'friendId', 'status', 'createdAt'])
+        && exists(/databases/$(database)/documents/public_profiles/$(request.resource.data.friendId))
+        && (id == request.auth.uid + '_' + request.resource.data.friendId
+          || id == request.resource.data.friendId + '_' + request.auth.uid);
       allow delete: if isSignedIn() &&
         (resource.data.userId == request.auth.uid || resource.data.friendId == request.auth.uid);
-      allow update: if isSignedIn() && resource.data.friendId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.friendId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'accepted'
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.friendId == resource.data.friendId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'respondedAt']);
     }
 
     // ---- rooms: 2 người chơi đọc/ghi ----

@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Chơi • Thi đấu cùng bạn bè',
+                    'Chơi • Học • Thi đấu cùng bạn bè',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                   ),

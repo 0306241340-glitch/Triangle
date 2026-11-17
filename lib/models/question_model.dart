@@ -1,6 +1,3 @@
-// Model Câu hỏi — khớp collection `questions` trong Firestore (seed-data.json).
-// File này TV1 An giữ. level: 'easy' | 'medium' | 'hard'.
-// Điểm: Dễ 10đ/5xu, Trung bình 20đ/10xu, Khó 30đ/15xu (theo UC04).
 class Question {
   final String id;
   final String topicId;
@@ -34,7 +31,7 @@ class Question {
     );
   }
 
-  /// Câu hỏi lấy từ API (/quiz/start) KHÔNG có correctIndex — chỉ dùng để hiển thị.
+  // câu lấy từ API không có đáp án, chỉ dùng để hiển thị
   bool get hasAnswerKey => correctIndex >= 0;
 
   int get points {
