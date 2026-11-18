@@ -11,8 +11,8 @@ import '../core/api_client.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? auth, ApiClient? api})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _api = api ?? ApiClient();
+    : _auth = auth ?? FirebaseAuth.instance,
+      _api = api ?? ApiClient();
 
   final FirebaseAuth _auth;
   final ApiClient _api;
@@ -39,16 +39,22 @@ class AuthService {
 
   /// Đăng nhập Google. Tài khoản Google KHÔNG có mật khẩu nên màn Đổi mật khẩu
   /// phải ẩn với user này (xem UC03).
+
   Future<UserCredential?> signInWithGoogle() async {
-    final googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return null; // user bấm hủy
-    final googleAuth = await googleUser.authentication;
+    await GoogleSignIn.instance.initialize();
+
+    final googleUser = await GoogleSignIn.instance.authenticate();
+
+    final googleAuth = googleUser.authentication;
+
     final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
+
     final cred = await _auth.signInWithCredential(credential);
+
     await _attachToken();
+
     return cred;
   }
 
@@ -56,7 +62,7 @@ class AuthService {
       _auth.sendPasswordResetEmail(email: email);
 
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
+    await GoogleSignIn.instance.signOut();
     await _auth.signOut();
     _api.setToken(null);
   }

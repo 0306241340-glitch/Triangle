@@ -5,9 +5,17 @@
 import 'package:flutter/material.dart';
 
 import '../../viewmodels/home_profile_vm.dart';
+import 'friends_screen.dart';
+import 'profile_screen.dart';
+import 'store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.vm,
+  });
+
+  final HomeViewModel? vm;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,13 +27,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _vm = HomeViewModel();
+    _vm = widget.vm ?? HomeViewModel();
     _vm.load();
+    _vm.loadCurrentUserCoins();
   }
 
   @override
   void dispose() {
-    _vm.dispose();
+    if (widget.vm == null) {
+      _vm.dispose();
+    }
     super.dispose();
   }
 
@@ -38,10 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
             title: const Text('Xin chào, An'),
-            actions: const [
+            actions: [
               Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: Center(child: Text('⭐ 180đ · 🪙 190 xu')),
+                padding: const EdgeInsets.only(right: 16),
+                child: Center(child: Text('⭐ 180đ · 🪙 ${_vm.coins} xu')),
               ),
             ],
           ),
@@ -67,11 +78,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('⚔️ Đấu 1vs1',
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold)),
                             const Text(
-                                'Thách đấu bạn bè, 10 câu – 15 giây/câu'),
+                              '⚔️ Đấu 1vs1',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Text(
+                              'Thách đấu bạn bè, 10 câu – 15 giây/câu',
+                            ),
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,
@@ -80,8 +96,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onPressed: () {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                        content: Text(
-                                            'Phòng đấu 1vs1 — đang làm ở tuần 2')),
+                                      content: Text(
+                                        'Phòng đấu 1vs1 — đang làm ở tuần 2',
+                                      ),
+                                    ),
                                   );
                                 },
                                 child: const Text('Tìm trận ngay'),
@@ -92,40 +110,64 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Chủ đề',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Chủ đề',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    ..._vm.filteredTopics.map((topic) => Card(
-                          child: ListTile(
-                            leading: Text(topic.icon,
-                                style: const TextStyle(fontSize: 28)),
-                            title: Text(topic.name),
-                            subtitle: Text(topic.description),
-                            trailing: Text('${topic.questionCount} câu'),
-                            // TODO: bấm vào mở Danh sách bộ đề S06 (commit sau)
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Mở danh sách bộ đề: ${topic.name} (S06 — commit sau)')),
-                              );
-                            },
+                    ..._vm.filteredTopics.map(
+                      (topic) => Card(
+                        child: ListTile(
+                          leading: Text(
+                            topic.icon,
+                            style: const TextStyle(fontSize: 28),
                           ),
-                        )),
+                          title: Text(topic.name),
+                          subtitle: Text(topic.description),
+                          trailing: Text('${topic.questionCount} câu'),
+                          // TODO: bấm vào mở Danh sách bộ đề S06 (commit sau)
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Mở danh sách bộ đề: ${topic.name} (S06 — commit sau)',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StoreScreen(homeVm: _vm),
+                                ),
+                              );
+                            },
                             child: const Text('🛒 Cửa hàng'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              );
+                            },
                             child: const Text('👥 Bạn bè'),
                           ),
                         ),
@@ -138,14 +180,27 @@ class _HomeScreenState extends State<HomeScreen> {
             type: BottomNavigationBarType.fixed,
             selectedItemColor: const Color(0xFF2563EB),
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
-              BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Xếp hạng'),
-              BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Lịch sử'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Trang chủ',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.emoji_events),
+                label: 'Xếp hạng',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.history),
+                label: 'Lịch sử',
+              ),
               BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
             ],
-            // TODO: chuyển tab khi các màn S18/S19/S10 xong (Ngọc, Vương, TV4)
             onTap: (i) {
-              if (i != 0) {
+              if (i == 3) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              } else if (i == 1 || i == 2) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Màn này đang làm ở tuần 2')),
                 );

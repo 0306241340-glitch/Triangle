@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../models/topic_model.dart';
-import '../auth_quiz/quiz_set_detail_screen.dart';
-import 'profile_screen.dart';
-
 import '../../viewmodels/home_profile_vm.dart';
+import '../auth_quiz/quiz_set_detail_screen.dart';
+import 'friends_screen.dart';
+import 'profile_screen.dart';
+import 'store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.vm});
+
+  final HomeViewModel? vm;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -19,13 +22,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _vm = HomeViewModel();
+    _vm = widget.vm ?? HomeViewModel();
     _vm.load();
+    _vm.loadCurrentUserCoins();
   }
 
   @override
   void dispose() {
-    _vm.dispose();
+    if (widget.vm == null) {
+      _vm.dispose();
+    }
     super.dispose();
   }
 
@@ -181,14 +187,28 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => StoreScreen(homeVm: _vm),
+                                ),
+                              );
+                            },
                             child: const Text('🛒 Cửa hàng'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              );
+                            },
                             child: const Text('👥 Bạn bè'),
                           ),
                         ),

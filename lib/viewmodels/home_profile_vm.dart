@@ -1,11 +1,12 @@
 // ViewModel Trang chủ (S05) — TV1 An.
 // Lấy dữ liệu thật từ Firestore (topics, quiz_sets, user info).
-// Nếu Firestore lỗi, fallback mock để app vẫn chạy.
+// Tích hợp logic Cửa hàng & Túi đồ (coins, ownedItems).
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/app_constants.dart';
+import '../models/item_model.dart';
 import '../models/quiz_set_model.dart';
 import '../models/topic_model.dart';
 
@@ -19,6 +20,8 @@ class HomeViewModel extends ChangeNotifier {
   String displayName = '';
   int userScore = 0;
   int userCoins = AppConstants.initialCoins;
+  int coins = AppConstants.initialCoins;
+  final Map<String, int> ownedItems = {};
 
   // Danh sách chủ đề & bộ đề (từ Firestore)
   List<Topic> topics = [];
@@ -41,6 +44,49 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadCurrentUserCoins() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      coins = AppConstants.initialCoins;
+      userCoins = AppConstants.initialCoins;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .doc(user.uid)
+          .get();
+      final currentCoins =
+          (snapshot.data()?['coins'] as num?)?.toInt() ??
+          AppConstants.initialCoins;
+      coins = currentCoins;
+      userCoins = currentCoins;
+    } catch (_) {
+      coins = AppConstants.initialCoins;
+      userCoins = AppConstants.initialCoins;
+    }
+    notifyListeners();
+  }
+
+  void syncCatalog(StoreCatalog catalog) {
+    final safeCoins = catalog.coins ?? coins;
+    coins = safeCoins;
+    userCoins = safeCoins;
+    ownedItems
+      ..clear()
+      ..addAll(catalog.ownedQuantities);
+    notifyListeners();
+  }
+
+  void updateAfterPurchase(StoreItem item, int remainingCoins, int quantity) {
+    coins = remainingCoins;
+    userCoins = remainingCoins;
+    ownedItems[item.id] = quantity;
+    notifyListeners();
+  }
+
   Future<void> load() async {
     isLoading = true;
     error = null;
@@ -59,7 +105,9 @@ class HomeViewModel extends ChangeNotifier {
         final d = snap.data();
         if (d != null) {
           userScore = (d['score'] as num?)?.toInt() ?? 0;
-          userCoins = (d['coins'] as num?)?.toInt() ?? AppConstants.initialCoins;
+          final c = (d['coins'] as num?)?.toInt() ?? AppConstants.initialCoins;
+          userCoins = c;
+          coins = c;
           if ((d['displayName'] as String?)?.isNotEmpty == true) {
             displayName = d['displayName'] as String;
           }
