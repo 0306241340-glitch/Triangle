@@ -81,6 +81,10 @@ router.post('/submit', async (req, res) => {
     const userRef = db.collection('users').doc(req.user.uid);
     const userSnap = await tx.get(userRef);
     const user = userSnap.data();
+    const setRef = db.collection('quiz_sets').doc(quizSetId);
+    const setSnap = await tx.get(setRef);
+    const prevCount = setSnap.data().attemptCount || 0;
+    const prevAvg = setSnap.data().avgScore || 0;
     tx.set(historyRef, {
       userId: req.user.uid, quizSetId, topicId: attempt.topicId,
       score, correctCount, totalCount: attempt.answers.length,
@@ -99,10 +103,6 @@ router.post('/submit', async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     tx.update(attemptRef, { submitted: true });
-    const setRef = db.collection('quiz_sets').doc(quizSetId);
-    const setSnap = await tx.get(setRef);
-    const prevCount = setSnap.data().attemptCount || 0;
-    const prevAvg = setSnap.data().avgScore || 0;
     tx.update(setRef, {
       attemptCount: prevCount + 1,
       avgScore: Math.round(((prevAvg * prevCount) + score) / (prevCount + 1)),
