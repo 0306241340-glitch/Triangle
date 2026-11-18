@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Khi bấm vào topic → lấy QuizSet đầu tiên của topic đó (từ Firestore).
   /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
-  void _openTopic(Topic topic) {
+  Future<void> _openTopic(Topic topic) async {
     final sets = _vm.quizSetsForTopic(topic.id);
     if (sets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -45,7 +45,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => QuizSetDetailScreen(
@@ -54,6 +54,10 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+    if (mounted) {
+      _vm.load();
+      _vm.loadCurrentUserCoins();
+    }
   }
 
   @override

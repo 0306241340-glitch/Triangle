@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
   final String message;
@@ -26,7 +26,6 @@ class ApiClient {
     defaultValue: 'https://triangle-api-n25s.onrender.com',
   );
 
-  static const _connectionTimeout = Duration(seconds: 10);
   static const _requestTimeout = Duration(seconds: 60);
 
   final String _baseUrl;
@@ -36,80 +35,51 @@ class ApiClient {
     _idToken = token;
   }
 
-  void _applyHeaders(HttpClientRequest req) {
-    req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-
-    if (_idToken != null) {
-      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_idToken');
-    }
-  }
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_idToken != null) 'Authorization': 'Bearer $_idToken',
+  };
 
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
-    final client = HttpClient()..connectionTimeout = _connectionTimeout;
-
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-
-      final req = await client.getUrl(uri).timeout(_requestTimeout);
-
-      _applyHeaders(req);
-
-      final res = await req.close().timeout(_requestTimeout);
-
-      return await _handle(res);
+      final res = await http.get(uri, headers: _headers).timeout(_requestTimeout);
+      return _handle(res);
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Khong the ket noi may chu: $e', 503);
-    } finally {
-      client.close(force: true);
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
     }
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
-    final client = HttpClient()..connectionTimeout = _connectionTimeout;
-
     try {
       final uri = Uri.parse('$_baseUrl$path');
-
-      final req = await client.postUrl(uri).timeout(_requestTimeout);
-
-      _applyHeaders(req);
-      req.write(jsonEncode(body));
-
-      final res = await req.close().timeout(_requestTimeout);
-
-      return await _handle(res);
+      final res = await http
+          .post(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
     } on ApiException {
       rethrow;
     } catch (e) {
-      throw ApiException('Khong the ket noi may chu: $e', 503);
-    } finally {
-      client.close(force: true);
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
     }
   }
 
-  Future<dynamic> _handle(HttpClientResponse res) async {
-    final responseText = await res
-        .transform(utf8.decoder)
-        .join()
-        .timeout(_requestTimeout);
-
+  dynamic _handle(http.Response res) {
     dynamic decoded;
-
     try {
-      decoded = jsonDecode(responseText);
+      decoded = jsonDecode(utf8.decode(res.bodyBytes));
     } on FormatException {
       throw ApiException(
-        'API tra ve du lieu khong hop le (HTTP ${res.statusCode}). '
-        'Kiểm tra URL API và trạng thái máy chủ',
+        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). Kiểm tra URL API và trạng thái máy chủ',
         res.statusCode,
       );
     }
 
     if (decoded is! Map<String, dynamic>) {
       throw ApiException(
-        'Dinh dang phan hoi API khong hop le (HTTP ${res.statusCode}).',
+        'Định dạng phản hồi API không hợp lệ (HTTP ${res.statusCode}).',
         res.statusCode,
       );
     }
@@ -121,9 +91,8 @@ class ApiClient {
     }
 
     final err = decoded['error'];
-
     throw ApiException(
-      err is Map ? (err['message']?.toString() ?? 'Loi server') : 'Loi server',
+      err is Map ? (err['message']?.toString() ?? 'Lỗi máy chủ') : 'Lỗi máy chủ',
       res.statusCode,
     );
   }
