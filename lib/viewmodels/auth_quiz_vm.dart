@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
+import '../core/app_constants.dart';
 import '../models/question_model.dart';
 import '../services/auth_service.dart';
 
@@ -119,23 +121,113 @@ class QuizPlayViewModel extends ChangeNotifier {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  Future<void> load(String quizSetId) async {
+  Future<void> load(String quizSetId, {String? topicId}) async {
     this.quizSetId = quizSetId;
     isLoading = true;
+    error = null;
     notifyListeners();
+
+    // Suy luận topicId từ quizSetId nếu chưa truyền
+    String effectiveTopicId = topicId ?? '';
+    if (effectiveTopicId.isEmpty) {
+      if (quizSetId.contains('do_meo')) {
+        effectiveTopicId = 'topic_do_meo';
+      } else if (quizSetId.contains('giai_tri')) {
+        effectiveTopicId = 'topic_giai_tri';
+      } else {
+        effectiveTopicId = 'topic_tong_hop';
+      }
+    }
+
+    final db = FirebaseFirestore.instance;
+    final user = FirebaseAuth.instance.currentUser;
+
+    // ── Bước 1: Gán Firebase ID Token vào ApiClient ──
     try {
-      final data = await _api.post('/quiz/start', {'quizSetId': quizSetId});
+      if (user != null) {
+        final token = await user.getIdToken();
+        _api.setToken(token);
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Không lấy được Firebase token: $e');
+    }
+
+    // ── Bước 2: Lấy số xu từ Firestore users/{uid} ──
+    try {
+      if (user != null) {
+        final snap = await db
+            .collection(AppConstants.usersCollection)
+            .doc(user.uid)
+            .get();
+        final coins = (snap.data()?['coins'] as num?)?.toInt();
+        if (coins != null) userCoins = coins;
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Không lấy được coins từ Firestore: $e');
+    }
+
+    // ── Bước 3: Đọc thông tin bộ đề từ Firestore quiz_sets (thời gian, topic) ──
+    try {
+      final setSnap = await db
+          .collection(AppConstants.quizSetsCollection)
+          .doc(quizSetId)
+          .get();
+      if (setSnap.exists) {
+        final data = setSnap.data()!;
+        final tId = data['topicId'] as String?;
+        if (tId != null && tId.isNotEmpty) effectiveTopicId = tId;
+        final dSec = (data['durationSec'] as num?)?.toInt();
+        if (dSec != null && dSec > 0) remainingSec = dSec;
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Không đọc được quiz_set từ Firestore: $e');
+    }
+
+    // ── Bước 4: Thử gọi API lấy câu hỏi từ server (timeout 3s) ──
+    bool apiSuccess = false;
+    try {
+      final data = await _api
+          .post('/quiz/start', {'quizSetId': quizSetId})
+          .timeout(const Duration(seconds: 3));
 
       attemptId = data['attemptId'] as String?;
-      remainingSec = (data['durationSec'] as num?)?.toInt() ?? 300;
-      userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
+      remainingSec = (data['durationSec'] as num?)?.toInt() ?? remainingSec;
+      final serverCoins = (data['userCoins'] as num?)?.toInt();
+      if (serverCoins != null) userCoins = serverCoins;
       questions = (data['questions'] as List)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
-      questions = List.of(_mockMathQuestions);
-      remainingSec = 300;
+      apiSuccess = true;
+      debugPrint('[QuizVM] Tải ${questions.length} câu từ API server thành công');
+    } catch (e) {
+      debugPrint('[QuizVM] API server không phản hồi ($e), thử đọc Firestore hoặc seed');
     }
+
+    // ── Bước 5: Nếu API thất bại, thử đọc trực tiếp từ Firestore questions (Admin SDK hoặc rules cho phép) ──
+    if (!apiSuccess) {
+      try {
+        final qSnap = await db
+            .collection(AppConstants.questionsCollection)
+            .where('topicId', isEqualTo: effectiveTopicId)
+            .where('isActive', isEqualTo: true)
+            .get();
+        if (qSnap.docs.isNotEmpty) {
+          questions = qSnap.docs
+              .map((d) => Question.fromJson({...d.data(), 'id': d.id}))
+              .toList();
+          debugPrint('[QuizVM] Tải ${questions.length} câu thật từ Firestore questions thành công');
+        }
+      } catch (e) {
+        debugPrint('[QuizVM] Firestore questions bị chặn hoặc lỗi ($e) — dùng 10 câu thật từ seed');
+      }
+    }
+
+    // ── Bước 6: Nếu vẫn chưa có câu hỏi, dùng 10 câu thật từ seed-data.json theo đúng topic ──
+    if (questions.isEmpty) {
+      questions = List.of(_getRealSeedQuestions(effectiveTopicId));
+      debugPrint('[QuizVM] Dùng ${questions.length} câu thật seed cho topic $effectiveTopicId');
+    }
+
     _initialDuration = remainingSec;
     isLoading = false;
     notifyListeners();
@@ -282,6 +374,24 @@ class QuizPlayViewModel extends ChangeNotifier {
       _scoreLocally();
     }
     _submitting = false;
+
+    // ── Cập nhật điểm và xu vào Firestore users/{uid} ──
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && (score > 0 || coins > 0)) {
+        FirebaseFirestore.instance
+            .collection(AppConstants.usersCollection)
+            .doc(user.uid)
+            .update({
+          'score': FieldValue.increment(score),
+          'coins': FieldValue.increment(coins),
+          'weeklyScore': FieldValue.increment(score),
+        });
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Lỗi cập nhật điểm vào Firestore: $e');
+    }
+
     notifyListeners();
   }
 
@@ -306,97 +416,298 @@ class QuizPlayViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  // 10 câu Toán thật trong seed-data.json (4 Dễ / 4 TB / 2 Khó = 180đ / 90xu).
-  static const _mockMathQuestions = [
+  /// 30 câu hỏi thật theo đúng 3 chủ đề trong seed-data.json của đồ án.
+  static List<Question> _getRealSeedQuestions(String topicId) {
+    switch (topicId) {
+      case 'topic_do_meo':
+        return _seedDoMeo;
+      case 'topic_giai_tri':
+        return _seedGiaiTri;
+      case 'topic_tong_hop':
+      default:
+        return _seedTongHop;
+    }
+  }
+
+  // ── 1. Chủ đề: Kiến thức tổng hợp / Đời sống (10 câu thật từ seed-data.json) ──
+  static const _seedTongHop = [
     Question(
-      id: 'q_math_01',
-      topicId: 'topic_math',
-      content: '7 + 8 bằng bao nhiêu?',
-      options: ['14', '15', '16', '17'],
-      correctIndex: 1,
-      level: 'easy',
-      explanation: '7 + 8 = 15.',
-    ),
-    Question(
-      id: 'q_math_02',
-      topicId: 'topic_math',
-      content: '12 × 3 bằng bao nhiêu?',
-      options: ['33', '36', '39', '42'],
-      correctIndex: 1,
-      level: 'easy',
-      explanation: '12 × 3 = 36.',
-    ),
-    Question(
-      id: 'q_math_03',
-      topicId: 'topic_math',
-      content: '100 − 37 bằng bao nhiêu?',
-      options: ['63', '67', '73', '53'],
+      id: 'q_th_01',
+      topicId: 'topic_tong_hop',
+      content: 'Nước nào có diện tích lớn nhất thế giới?',
+      options: ['Nga', 'Canada', 'Mỹ', 'Trung Quốc'],
       correctIndex: 0,
       level: 'easy',
-      explanation: '100 − 37 = 63.',
+      explanation: 'Nga có diện tích hơn 17 triệu km², lớn nhất thế giới.',
     ),
     Question(
-      id: 'q_math_04',
-      topicId: 'topic_math',
-      content: '5² bằng bao nhiêu?',
-      options: ['10', '20', '25', '30'],
-      correctIndex: 2,
+      id: 'q_th_02',
+      topicId: 'topic_tong_hop',
+      content: 'Hành tinh nào gần Mặt Trời nhất?',
+      options: ['Sao Kim', 'Sao Thủy', 'Sao Hỏa', 'Trái Đất'],
+      correctIndex: 1,
       level: 'easy',
-      explanation: '5² = 5 × 5 = 25.',
+      explanation: 'Sao Thủy (Mercury) là hành tinh gần Mặt Trời nhất.',
     ),
     Question(
-      id: 'q_math_05',
-      topicId: 'topic_math',
-      content: 'Căn bậc hai của 144 bằng bao nhiêu?',
-      options: ['11', '12', '13', '14'],
+      id: 'q_th_03',
+      topicId: 'topic_tong_hop',
+      content: 'Một giờ có bao nhiêu phút?',
+      options: ['50 phút', '60 phút', '70 phút', '100 phút'],
       correctIndex: 1,
-      level: 'medium',
-      explanation: '12 × 12 = 144 nên √144 = 12.',
+      level: 'easy',
+      explanation: 'Theo quy ước quốc tế 1 giờ = 60 phút.',
     ),
     Question(
-      id: 'q_math_06',
-      topicId: 'topic_math',
-      content: '3/4 của 80 bằng bao nhiêu?',
-      options: ['50', '55', '60', '65'],
+      id: 'q_th_04',
+      topicId: 'topic_tong_hop',
+      content: 'Con vật nào được gọi là “chúa tể sơn lâm”?',
+      options: ['Hổ', 'Sư tử', 'Voi', 'Báo'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Trong văn hóa phương Đông, hổ thường được gọi là chúa sơn lâm.',
+    ),
+    Question(
+      id: 'q_th_05',
+      topicId: 'topic_tong_hop',
+      content: 'Công thức hóa học của nước là gì?',
+      options: ['CO₂', 'H₂O', 'O₂', 'NaCl'],
+      correctIndex: 1,
+      level: 'easy',
+      explanation: 'Nước gồm 2 nguyên tử Hydro và 1 nguyên tử Oxy: H₂O.',
+    ),
+    Question(
+      id: 'q_th_06',
+      topicId: 'topic_tong_hop',
+      content: 'Thủ đô của Nhật Bản là thành phố nào?',
+      options: ['Kyoto', 'Osaka', 'Tokyo', 'Hiroshima'],
       correctIndex: 2,
       level: 'medium',
-      explanation: '80 × 3/4 = 60.',
+      explanation: 'Tokyo là thủ đô hiện tại của Nhật Bản từ năm 1868.',
     ),
     Question(
-      id: 'q_math_07',
-      topicId: 'topic_math',
-      content: 'Giải phương trình 2x + 5 = 17, x bằng bao nhiêu?',
-      options: ['5', '6', '7', '8'],
-      correctIndex: 1,
-      level: 'medium',
-      explanation: '2x = 12 nên x = 6.',
-    ),
-    Question(
-      id: 'q_math_08',
-      topicId: 'topic_math',
-      content: '15% của 200 bằng bao nhiêu?',
-      options: ['20', '25', '30', '35'],
+      id: 'q_th_07',
+      topicId: 'topic_tong_hop',
+      content: 'Ai là tác giả bức tranh Mona Lisa?',
+      options: ['Vincent van Gogh', 'Pablo Picasso', 'Leonardo da Vinci', 'Claude Monet'],
       correctIndex: 2,
       level: 'medium',
-      explanation: '200 × 15% = 30.',
+      explanation: 'Leonardo da Vinci vẽ bức Mona Lisa vào đầu thế kỷ 16.',
     ),
     Question(
-      id: 'q_math_09',
-      topicId: 'topic_math',
-      content: 'Tổng 1 + 2 + ... + 20 bằng bao nhiêu?',
-      options: ['200', '210', '220', '190'],
-      correctIndex: 1,
-      level: 'hard',
-      explanation: 'Tổng = 20 × 21 / 2 = 210.',
+      id: 'q_th_08',
+      topicId: 'topic_tong_hop',
+      content: 'Số nguyên tố nhỏ nhất là số nào?',
+      options: ['0', '1', '2', '3'],
+      correctIndex: 2,
+      level: 'medium',
+      explanation: 'Số 2 là số nguyên tố chẵn duy nhất và nhỏ nhất.',
     ),
     Question(
-      id: 'q_math_10',
-      topicId: 'topic_math',
-      content: '2 mũ bao nhiêu thì bằng 128?',
-      options: ['6', '7', '8', '9'],
+      id: 'q_th_09',
+      topicId: 'topic_tong_hop',
+      content: 'Nguyên tố nào có ký hiệu hóa học là Au?',
+      options: ['Bạc', 'Đồng', 'Vàng', 'Nhôm'],
+      correctIndex: 2,
+      level: 'hard',
+      explanation: 'Au bắt nguồn từ tiếng Latin "Aurum", nghĩa là vàng.',
+    ),
+    Question(
+      id: 'q_th_10',
+      topicId: 'topic_tong_hop',
+      content: 'Con người lần đầu đặt chân lên Mặt Trăng vào năm nào?',
+      options: ['1965', '1969', '1972', '1975'],
       correctIndex: 1,
       level: 'hard',
-      explanation: '2^7 = 128.',
+      explanation: 'Tàu Apollo 11 hạ cánh xuống Mặt Trăng ngày 20/7/1969.',
+    ),
+  ];
+
+  // ── 2. Chủ đề: Đố dân gian & Câu đố mẹo (10 câu thật từ seed-data.json) ──
+  static const _seedDoMeo = [
+    Question(
+      id: 'q_dm_01',
+      topicId: 'topic_do_meo',
+      content: 'Con gì đập thì sống, không đập thì chết?',
+      options: ['Con tim', 'Con gà', 'Con cá', 'Con chó'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Tim phải đập thì người mới sống.',
+    ),
+    Question(
+      id: 'q_dm_02',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì có răng mà không cắn được ai?',
+      options: ['Cái lược', 'Cái búa', 'Cái kéo', 'Con dao'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Lược có răng nhưng chỉ để chải tóc.',
+    ),
+    Question(
+      id: 'q_dm_03',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì càng kéo càng ngắn?',
+      options: ['Điếu thuốc', 'Sợi dây', 'Cái thước', 'Cây nến'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Điếu thuốc càng hút (kéo hơi) càng ngắn lại.',
+    ),
+    Question(
+      id: 'q_dm_04',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì có cổ mà không có đầu?',
+      options: ['Cái chai', 'Cái áo', 'Cái ly', 'Cái bát'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Chai có cổ chai nhưng không có đầu.',
+    ),
+    Question(
+      id: 'q_dm_05',
+      topicId: 'topic_do_meo',
+      content: 'Tôi có thành phố nhưng không có nhà, có rừng nhưng không có cây, có sông nhưng không có nước. Tôi là gì?',
+      options: ['Bản đồ', 'Bức tranh', 'Quyển sách', 'Quả địa cầu'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Bản đồ vẽ thành phố, rừng, sông nhưng chúng không có thật.',
+    ),
+    Question(
+      id: 'q_dm_06',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì cho đi càng nhiều thì càng còn nhiều?',
+      options: ['Kiến thức', 'Tiền bạc', 'Đồ ăn', 'Quần áo'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Kiến thức chia sẻ cho người khác vẫn còn nguyên trong đầu mình.',
+    ),
+    Question(
+      id: 'q_dm_07',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì có chân mà không đi được?',
+      options: ['Cái bàn', 'Con chó', 'Con người', 'Chiếc xe'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Cái bàn, cái ghế có chân nhưng đứng yên một chỗ.',
+    ),
+    Question(
+      id: 'q_dm_08',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì của bạn nhưng người khác dùng nhiều hơn bạn?',
+      options: ['Tên của bạn', 'Điện thoại của bạn', 'Xe của bạn', 'Quần áo của bạn'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Tên của bạn chủ yếu do người khác gọi.',
+    ),
+    Question(
+      id: 'q_dm_09',
+      topicId: 'topic_do_meo',
+      content: 'Một người đàn ông đẩy xe vào khách sạn rồi mất hết tài sản. Vì sao?',
+      options: ['Đang chơi cờ tỷ phú', 'Bị cướp', 'Bị lừa đảo', 'Đánh bạc'],
+      correctIndex: 0,
+      level: 'hard',
+      explanation: 'Trong trò chơi cờ tỷ phú (Monopoly), đi vào ô có khách sạn của người khác là mất tiền.',
+    ),
+    Question(
+      id: 'q_dm_10',
+      topicId: 'topic_do_meo',
+      content: 'Cái gì đi khắp thế giới mà vẫn ở nguyên một góc?',
+      options: ['Con tem', 'Bưu thiếp', 'La bàn', 'Bản đồ'],
+      correctIndex: 0,
+      level: 'hard',
+      explanation: 'Con tem dán ở góc bức thư đi khắp thế giới.',
+    ),
+  ];
+
+  // ── 3. Chủ đề: Giải trí – Âm nhạc – Phim ảnh (10 câu thật từ seed-data.json) ──
+  static const _seedGiaiTri = [
+    Question(
+      id: 'q_gt_01',
+      topicId: 'topic_giai_tri',
+      content: 'Nhân vật hoạt hình nào có đôi tai tròn màu đen?',
+      options: ['Chuột Mickey', 'Vịt Donald', 'Gấu Pooh', 'Chó Snoopy'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Mickey Mouse là biểu tượng nổi tiếng của Disney với đôi tai tròn.',
+    ),
+    Question(
+      id: 'q_gt_02',
+      topicId: 'topic_giai_tri',
+      content: 'Ca sĩ nào được mệnh danh là “Ông hoàng nhạc Việt”?',
+      options: ['Đàm Vĩnh Hưng', 'Sơn Tùng M-TP', 'Tuấn Hưng', 'Đan Trường'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Biệt danh truyền thông thường dành cho Đàm Vĩnh Hưng.',
+    ),
+    Question(
+      id: 'q_gt_03',
+      topicId: 'topic_giai_tri',
+      content: 'Bài Quốc ca của Việt Nam có tên là gì?',
+      options: ['Tiến quân ca', 'Như có Bác Hồ trong ngày vui đại thắng', 'Hát mãi khúc quân hành', 'Đoàn quân Việt Nam'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: '“Tiến quân ca” được nhạc sĩ Văn Cao sáng tác năm 1944.',
+    ),
+    Question(
+      id: 'q_gt_04',
+      topicId: 'topic_giai_tri',
+      content: 'Bộ phim nào có nhân vật Tôn Ngộ Không?',
+      options: ['Tây Du Ký', 'Tam Quốc Diễn Nghĩa', 'Thủy Hử', 'Hồng Lâu Mộng'],
+      correctIndex: 0,
+      level: 'easy',
+      explanation: 'Tôn Ngộ Không là nhân vật chính trong tiểu thuyết và phim Tây Du Ký.',
+    ),
+    Question(
+      id: 'q_gt_05',
+      topicId: 'topic_giai_tri',
+      content: 'Ai là đạo diễn phim “Tôi thấy hoa vàng trên cỏ xanh”?',
+      options: ['Victor Vũ', 'Trấn Thành', 'Charlie Nguyễn', 'Nguyễn Quang Dũng'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Phim chuyển thể từ truyện của Nguyễn Nhật Ánh do Victor Vũ đạo diễn (2015).',
+    ),
+    Question(
+      id: 'q_gt_06',
+      topicId: 'topic_giai_tri',
+      content: 'Nhạc cụ nào có 88 phím?',
+      options: ['Piano', 'Organ', 'Guitar', 'Violon'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Đàn piano tiêu chuẩn hiện đại có 52 phím trắng và 36 phím đen (tổng 88).',
+    ),
+    Question(
+      id: 'q_gt_07',
+      topicId: 'topic_giai_tri',
+      content: 'Nhân vật Người Sắt (Iron Man) xuất hiện trong bộ phim nào?',
+      options: ['Iron Man', 'Batman', 'Spider-Man', 'Superman'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Iron Man (Tony Stark) là siêu anh hùng của vũ trụ điện ảnh Marvel (MCU).',
+    ),
+    Question(
+      id: 'q_gt_08',
+      topicId: 'topic_giai_tri',
+      content: 'Ca khúc “Nối vòng tay lớn” là của nhạc sĩ nào?',
+      options: ['Trịnh Công Sơn', 'Văn Cao', 'Phạm Tuyên', 'Hoàng Vân'],
+      correctIndex: 0,
+      level: 'medium',
+      explanation: 'Nhạc sĩ Trịnh Công Sơn sáng tác bài này năm 1968.',
+    ),
+    Question(
+      id: 'q_gt_09',
+      topicId: 'topic_giai_tri',
+      content: 'Giải Oscar được trao lần đầu tiên vào năm nào?',
+      options: ['1929', '1935', '1940', '1950'],
+      correctIndex: 0,
+      level: 'hard',
+      explanation: 'Lễ trao giải Oscar đầu tiên diễn ra ngày 16/5/1929 tại Hollywood Roosevelt Hotel.',
+    ),
+    Question(
+      id: 'q_gt_10',
+      topicId: 'topic_giai_tri',
+      content: 'Bộ phim nào có doanh thu phòng vé cao nhất mọi thời đại?',
+      options: ['Avatar', 'Avengers: Endgame', 'Titanic', 'Star Wars'],
+      correctIndex: 0,
+      level: 'hard',
+      explanation: 'Avatar (2009) của đạo diễn James Cameron hiện giữ kỷ lục doanh thu hơn 2,9 tỷ USD.',
     ),
   ];
 }
