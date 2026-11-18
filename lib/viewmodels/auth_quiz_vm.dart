@@ -353,6 +353,13 @@ class QuizPlayViewModel extends ChangeNotifier {
     bool serverOk = false;
     try {
       if (attemptId != null) {
+        try {
+          final user = FirebaseAuth.instance.currentUser;
+          if (user != null) {
+            final token = await user.getIdToken();
+            _api.setToken(token);
+          }
+        } catch (_) {}
         final data = await _api.post('/quiz/submit', {
           'attemptId': attemptId,
           'quizSetId': quizSetId,
