@@ -145,7 +145,7 @@ class QuizPlayViewModel extends ChangeNotifier {
     // ── Bước 1: Gán Firebase ID Token vào ApiClient ──
     try {
       if (user != null) {
-        final token = await user.getIdToken();
+        final token = await user.getIdToken(true);
         _api.setToken(token);
       }
     } catch (e) {
@@ -198,9 +198,13 @@ class QuizPlayViewModel extends ChangeNotifier {
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
       apiSuccess = true;
-      debugPrint('[QuizVM] Tải ${questions.length} câu từ API server thành công');
+      debugPrint(
+        '[QuizVM] Tải ${questions.length} câu từ API server thành công',
+      );
     } catch (e) {
-      debugPrint('[QuizVM] API server không phản hồi ($e), thử đọc Firestore hoặc seed');
+      debugPrint(
+        '[QuizVM] API server không phản hồi ($e), thử đọc Firestore hoặc seed',
+      );
     }
 
     // ── Bước 5: Nếu API thất bại, thử đọc trực tiếp từ Firestore questions (Admin SDK hoặc rules cho phép) ──
@@ -215,17 +219,23 @@ class QuizPlayViewModel extends ChangeNotifier {
           questions = qSnap.docs
               .map((d) => Question.fromJson({...d.data(), 'id': d.id}))
               .toList();
-          debugPrint('[QuizVM] Tải ${questions.length} câu thật từ Firestore questions thành công');
+          debugPrint(
+            '[QuizVM] Tải ${questions.length} câu thật từ Firestore questions thành công',
+          );
         }
       } catch (e) {
-        debugPrint('[QuizVM] Firestore questions bị chặn hoặc lỗi ($e) — dùng 10 câu thật từ seed');
+        debugPrint(
+          '[QuizVM] Firestore questions bị chặn hoặc lỗi ($e) — dùng 10 câu thật từ seed',
+        );
       }
     }
 
     // ── Bước 6: Nếu vẫn chưa có câu hỏi, dùng 10 câu thật từ seed-data.json theo đúng topic ──
     if (questions.isEmpty) {
       questions = List.of(_getRealSeedQuestions(effectiveTopicId));
-      debugPrint('[QuizVM] Dùng ${questions.length} câu thật seed cho topic $effectiveTopicId');
+      debugPrint(
+        '[QuizVM] Dùng ${questions.length} câu thật seed cho topic $effectiveTopicId',
+      );
     }
 
     _initialDuration = remainingSec;
@@ -290,7 +300,7 @@ class QuizPlayViewModel extends ChangeNotifier {
         'questionId': q.id,
         'selectedIndex': answers[currentIndex],
       });
-      final hide = (data['hide'] as List)
+      final hide = (data['hiddenIndices'] as List? ?? [])
           .map((e) => (e as num).toInt())
           .toSet();
       hiddenOptions[currentIndex] = hide;
@@ -393,10 +403,10 @@ class QuizPlayViewModel extends ChangeNotifier {
               .collection(AppConstants.usersCollection)
               .doc(user.uid)
               .update({
-            'score': FieldValue.increment(score),
-            'coins': FieldValue.increment(coins),
-            'weeklyScore': FieldValue.increment(score),
-          });
+                'score': FieldValue.increment(score),
+                'coins': FieldValue.increment(coins),
+                'weeklyScore': FieldValue.increment(score),
+              });
         }
       } catch (e) {
         debugPrint('[QuizVM] Lỗi cập nhật điểm vào Firestore: $e');
@@ -476,7 +486,8 @@ class QuizPlayViewModel extends ChangeNotifier {
       options: ['Hổ', 'Sư tử', 'Voi', 'Báo'],
       correctIndex: 0,
       level: 'easy',
-      explanation: 'Trong văn hóa phương Đông, hổ thường được gọi là chúa sơn lâm.',
+      explanation:
+          'Trong văn hóa phương Đông, hổ thường được gọi là chúa sơn lâm.',
     ),
     Question(
       id: 'q_th_05',
@@ -500,7 +511,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       id: 'q_th_07',
       topicId: 'topic_tong_hop',
       content: 'Ai là tác giả bức tranh Mona Lisa?',
-      options: ['Vincent van Gogh', 'Pablo Picasso', 'Leonardo da Vinci', 'Claude Monet'],
+      options: [
+        'Vincent van Gogh',
+        'Pablo Picasso',
+        'Leonardo da Vinci',
+        'Claude Monet',
+      ],
       correctIndex: 2,
       level: 'medium',
       explanation: 'Leonardo da Vinci vẽ bức Mona Lisa vào đầu thế kỷ 16.',
@@ -588,7 +604,8 @@ class QuizPlayViewModel extends ChangeNotifier {
       options: ['Kiến thức', 'Tiền bạc', 'Đồ ăn', 'Quần áo'],
       correctIndex: 0,
       level: 'medium',
-      explanation: 'Kiến thức chia sẻ cho người khác vẫn còn nguyên trong đầu mình.',
+      explanation:
+          'Kiến thức chia sẻ cho người khác vẫn còn nguyên trong đầu mình.',
     ),
     Question(
       id: 'q_dm_07',
@@ -603,7 +620,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       id: 'q_dm_08',
       topicId: 'topic_do_meo',
       content: 'Cái gì của bạn nhưng người khác dùng nhiều hơn bạn?',
-      options: ['Tên của bạn', 'Điện thoại của bạn', 'Xe của bạn', 'Quần áo của bạn'],
+      options: [
+        'Tên của bạn',
+        'Điện thoại của bạn',
+        'Xe của bạn',
+        'Quần áo của bạn',
+      ],
       correctIndex: 0,
       level: 'medium',
       explanation: 'Tên của bạn chủ yếu do người khác gọi.',
@@ -611,7 +633,8 @@ class QuizPlayViewModel extends ChangeNotifier {
     Question(
       id: 'q_dm_09',
       topicId: 'topic_do_meo',
-      content: 'Một người đàn ông đẩy xe vào khách sạn rồi mất hết tài sản. Vì sao?',
+      content:
+          'Một người đàn ông đẩy xe vào khách sạn rồi mất hết tài sản. Vì sao?',
       options: ['Đang chơi cờ tỷ phú', 'Bị cướp', 'Bị lừa đảo', 'Đánh bạc'],
       correctIndex: 0,
       level: 'hard',
@@ -637,7 +660,8 @@ class QuizPlayViewModel extends ChangeNotifier {
       options: ['Chuột Mickey', 'Vịt Donald', 'Gấu Pooh', 'Chó Snoopy'],
       correctIndex: 0,
       level: 'easy',
-      explanation: 'Mickey Mouse là biểu tượng nổi tiếng của Disney với đôi tai tròn.',
+      explanation:
+          'Mickey Mouse là biểu tượng nổi tiếng của Disney với đôi tai tròn.',
     ),
     Question(
       id: 'q_gt_02',
@@ -652,7 +676,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       id: 'q_gt_03',
       topicId: 'topic_giai_tri',
       content: 'Bài Quốc ca của Việt Nam có tên là gì?',
-      options: ['Tiến quân ca', 'Như có Bác Hồ trong ngày vui đại thắng', 'Hát mãi khúc quân hành', 'Đoàn quân Việt Nam'],
+      options: [
+        'Tiến quân ca',
+        'Như có Bác Hồ trong ngày vui đại thắng',
+        'Hát mãi khúc quân hành',
+        'Đoàn quân Việt Nam',
+      ],
       correctIndex: 0,
       level: 'easy',
       explanation: '“Tiến quân ca” được nhạc sĩ Văn Cao sáng tác năm 1944.',
@@ -670,7 +699,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       id: 'q_gt_05',
       topicId: 'topic_giai_tri',
       content: 'Ai là đạo diễn phim “Tôi thấy hoa vàng trên cỏ xanh”?',
-      options: ['Victor Vũ', 'Trấn Thành', 'Charlie Nguyễn', 'Nguyễn Quang Dũng'],
+      options: [
+        'Victor Vũ',
+        'Trấn Thành',
+        'Charlie Nguyễn',
+        'Nguyễn Quang Dũng',
+      ],
       correctIndex: 0,
       level: 'medium',
       explanation: 'Phim chuyển thể từ truyện của Nguyễn Nhật Ánh do Victor Vũ đạo diễn (2015).',
