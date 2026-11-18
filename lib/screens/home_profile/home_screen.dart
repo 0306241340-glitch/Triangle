@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../models/topic_model.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
 import 'profile_screen.dart';
 
@@ -30,8 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Khi bấm vào topic → lấy QuizSet đầu tiên của topic đó (từ Firestore).
   /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
-  void _openTopic(dynamic topic) {
-    final sets = _vm.quizSetsForTopic(topic.id as String);
+  void _openTopic(Topic topic) {
+    final sets = _vm.quizSetsForTopic(topic.id);
     if (sets.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Chủ đề này chưa có bộ đề nào')),

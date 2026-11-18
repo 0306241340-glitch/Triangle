@@ -21,7 +21,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
     super.initState();
     _vm = QuizPlayViewModel();
     _vm.addListener(_onSubmitted);
-    _vm.load(widget.quizSet.id);
+    _vm.load(widget.quizSet.id, topicId: widget.quizSet.topicId);
   }
 
   // ──── Hàm dùng chung: gọi trợ giúp → hiện SnackBar nếu lỗi ────
@@ -457,32 +457,33 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                 // ── Hàng nút điều hướng ──
                 Row(
                   children: [
-                    OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(100, 44),
+                    SizedBox(
+                      width: 100,
+                      height: 44,
+                      child: OutlinedButton(
+                        onPressed: _vm.currentIndex == 0
+                            ? null
+                            : () => _vm.goTo(_vm.currentIndex - 1),
+                        child: const Text('← Trước'),
                       ),
-                      onPressed: _vm.currentIndex == 0
-                          ? null
-                          : () => _vm.goTo(_vm.currentIndex - 1),
-                      child: const Text('← Trước'),
                     ),
                     const Spacer(),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(110, 44),
-                        backgroundColor: _vm.isLast
-                            ? AppColors.success
-                            : AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 20,
+                    SizedBox(
+                      width: 110,
+                      height: 44,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _vm.isLast
+                              ? AppColors.success
+                              : AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.zero,
                         ),
+                        onPressed: _vm.isLast
+                            ? () => _vm.submit()
+                            : () => _vm.goTo(_vm.currentIndex + 1),
+                        child: Text(_vm.isLast ? 'Nộp bài' : 'Sau →'),
                       ),
-                      onPressed: _vm.isLast
-                          ? () => _vm.submit()
-                          : () => _vm.goTo(_vm.currentIndex + 1),
-                      child: Text(_vm.isLast ? 'Nộp bài' : 'Sau →'),
                     ),
                   ],
                 ),

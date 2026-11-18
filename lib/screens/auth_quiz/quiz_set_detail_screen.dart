@@ -1,6 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/app_constants.dart';
 import '../../core/app_theme.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/review_model.dart';
@@ -33,11 +35,13 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
     _loadRealSet();
   }
 
-  // Lấy bộ đề thật từ API (số lượt làm, điểm TB, bình luận).
-  // API lỗi thì giữ bộ đề được truyền vào, màn hình vẫn chạy được.
+  // Lấy bộ đề thật từ API hoặc Firestore (số lượt làm, điểm TB, bình luận).
   Future<void> _loadRealSet() async {
+    // 1. Thử gọi API
     try {
-      final data = await ApiClient().get('/quiz-sets/${widget.quizSet.id}');
+      final data = await ApiClient()
+          .get('/quiz-sets/${widget.quizSet.id}')
+          .timeout(const Duration(seconds: 3));
       final m = data as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
@@ -54,8 +58,24 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
           );
         }).toList();
       });
+      return;
     } catch (_) {
-      // Giữ nguyên bộ đề được truyền vào.
+      // API lỗi, thử Firestore
+    }
+
+    // 2. Thử đọc từ Firestore quiz_sets
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection(AppConstants.quizSetsCollection)
+          .doc(widget.quizSet.id)
+          .get();
+      if (snap.exists && mounted) {
+        setState(() {
+          _set = QuizSet.fromJson({...snap.data()!, 'id': snap.id});
+        });
+      }
+    } catch (e) {
+      debugPrint('[QuizSetDetail] Lỗi load Firestore: $e');
     }
   }
 

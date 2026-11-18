@@ -138,19 +138,45 @@ class HomeViewModel extends ChangeNotifier {
   static final _mockQuizSets = <String, List<QuizSet>>{
     'topic_tong_hop': [
       const QuizSet(
-        id: 'set_math_1',
+        id: 'set_tong_hop_1',
         topicId: 'topic_tong_hop',
-        title: 'Toán tư duy căn bản',
+        title: 'Kiến thức tổng hợp / Đời sống — Bộ 1',
         description:
-            '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
+            '10 câu trắc nghiệm bao quát kiến thức đời sống, khoa học thường thức, địa lý và lịch sử.',
         level: 'medium',
         questionCount: 10,
         durationSec: 300,
-        attemptCount: 128,
-        avgScore: 142.5,
+        attemptCount: 1,
+        avgScore: 50.0,
       ),
     ],
-    'topic_do_meo': [],
-    'topic_giai_tri': [],
+    'topic_do_meo': [
+      const QuizSet(
+        id: 'set_do_meo_1',
+        topicId: 'topic_do_meo',
+        title: 'Đố dân gian & Câu đố mẹo — Bộ 1',
+        description:
+            '10 câu đố chữ, câu đố dân gian hài hước thử thách trí tưởng tượng và sự nhanh nhạy.',
+        level: 'easy',
+        questionCount: 10,
+        durationSec: 300,
+        attemptCount: 0,
+        avgScore: 0.0,
+      ),
+    ],
+    'topic_giai_tri': [
+      const QuizSet(
+        id: 'set_giai_tri_1',
+        topicId: 'topic_giai_tri',
+        title: 'Giải trí – Âm nhạc – Phim ảnh — Bộ 1',
+        description:
+            '10 câu hỏi về các bộ phim kinh điển, ca khúc nổi tiếng, ca sĩ và các giải thưởng nghệ thuật.',
+        level: 'medium',
+        questionCount: 10,
+        durationSec: 300,
+        attemptCount: 0,
+        avgScore: 0.0,
+      ),
+    ],
   };
 }
