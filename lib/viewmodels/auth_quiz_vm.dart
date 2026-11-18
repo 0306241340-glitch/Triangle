@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
+import '../core/app_constants.dart';
 import '../models/question_model.dart';
 import '../services/auth_service.dart';
 
@@ -122,20 +124,56 @@ class QuizPlayViewModel extends ChangeNotifier {
   Future<void> load(String quizSetId) async {
     this.quizSetId = quizSetId;
     isLoading = true;
+    error = null;
     notifyListeners();
+
+    // ── Bước 1: Lấy Firebase ID Token để gửi lên server ──
     try {
-      final data = await _api.post('/quiz/start', {'quizSetId': quizSetId});
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final token = await user.getIdToken();
+        _api.setToken(token);
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Không lấy được Firebase token: $e');
+    }
+
+    // ── Bước 2: Lấy số xu từ Firestore ──
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final snap = await FirebaseFirestore.instance
+            .collection(AppConstants.usersCollection)
+            .doc(uid)
+            .get();
+        userCoins = (snap.data()?['coins'] as num?)?.toInt() ?? userCoins;
+      }
+    } catch (e) {
+      debugPrint('[QuizVM] Không lấy được coins từ Firestore: $e');
+    }
+
+    // ── Bước 3: Gọi API lấy câu hỏi (timeout 8s, nếu lỗi dùng mock) ──
+    try {
+      final data = await _api
+          .post('/quiz/start', {'quizSetId': quizSetId})
+          .timeout(const Duration(seconds: 8));
 
       attemptId = data['attemptId'] as String?;
       remainingSec = (data['durationSec'] as num?)?.toInt() ?? 300;
-      userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
+      // userCoins có thể do server trả (ưu tiên hơn Firestore vừa lấy)
+      final serverCoins = (data['userCoins'] as num?)?.toInt();
+      if (serverCoins != null) userCoins = serverCoins;
       questions = (data['questions'] as List)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+      debugPrint('[QuizVM] Tải ${questions.length} câu từ server thành công');
+    } catch (e) {
+      debugPrint('[QuizVM] Lỗi API: $e — dùng câu hỏi mẫu');
       questions = List.of(_mockMathQuestions);
       remainingSec = 300;
+      // Không set error ở đây để không làm crash UI; dùng mock silently
     }
+
     _initialDuration = remainingSec;
     isLoading = false;
     notifyListeners();
