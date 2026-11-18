@@ -13,7 +13,7 @@ class AppColors {
 
   // Màu trạng thái (Đáp án đúng / sai)
   static const Color success = Color(0xFF10B981); // Xanh lá
-  static const Color error = Color(0xFFEF4444);   // Đỏ
+  static const Color error = Color(0xFFEF4444); // Đỏ
 
   // Màu nền & chữ trung tính
   static const Color background = Color(0xFFF8FAFC);
@@ -33,5 +33,4 @@ class AppColors {
       default:
         return primaryLight;
     }
-  }
-}
+  }}

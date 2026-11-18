@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../core/app_theme.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/review_model.dart';
@@ -23,15 +23,50 @@ class QuizSetDetailScreen extends StatefulWidget {
 
 class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
   bool _isFavorite = false;
+  late QuizSet _set;
+  List<Review> _reviews = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _set = widget.quizSet;
+    _loadRealSet();
+  }
+
+  // Lấy bộ đề thật từ API (số lượt làm, điểm TB, bình luận).
+  // API lỗi thì giữ bộ đề được truyền vào, màn hình vẫn chạy được.
+  Future<void> _loadRealSet() async {
+    try {
+      final data = await ApiClient().get('/quiz-sets/${widget.quizSet.id}');
+      final m = data as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _set = QuizSet.fromJson(m);
+        _reviews = (m['comments'] as List? ?? []).map((e) {
+          final c = e as Map<String, dynamic>;
+          return Review(
+            id: c['id']?.toString() ?? '',
+            quizSetId: c['quizSetId']?.toString() ?? widget.quizSet.id,
+            userName: c['userName']?.toString() ?? 'Người chơi',
+            rating: (c['rating'] as num?)?.toInt() ?? 5,
+            comment: c['comment']?.toString() ?? '',
+            createdAt: c['createdAt']?.toString() ?? '',
+          );
+        }).toList();
+      });
+    } catch (_) {
+      // Giữ nguyên bộ đề được truyền vào.
+    }
+  }
 
   // bộ 10 câu chuẩn tối đa 180đ, ghi cứng tạm
   int get maxScore => 180;
 
-  Color get levelColor => AppColors.levelColor(widget.quizSet.level);
+  Color get levelColor => AppColors.levelColor(_set.level);
 
   @override
   Widget build(BuildContext context) {
-    final quizSet = widget.quizSet;
+    final quizSet = _set;
     final topic = widget.topic;
     return Scaffold(
       appBar: AppBar(
@@ -169,16 +204,24 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          ..._mockReviews.map(
-            (r) => Card(
+          if (_reviews.isEmpty)
+            const Card(
               child: ListTile(
-                leading: CircleAvatar(child: Text(r.userName[0])),
-                title: Text(r.userName),
-                subtitle: Text(r.comment),
-                trailing: Text('⭐' * r.rating),
+                title: Text('Chưa có đánh giá nào.'),
+                subtitle: Text('Hãy là người đầu tiên đánh giá bộ đề này.'),
+              ),
+            )
+          else
+            ..._reviews.map(
+              (r) => Card(
+                child: ListTile(
+                  leading: CircleAvatar(child: Text(r.userName[0])),
+                  title: Text(r.userName),
+                  subtitle: Text(r.comment),
+                  trailing: Text('⭐' * r.rating),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -223,31 +266,3 @@ class _StatBox extends StatelessWidget {
     );
   }
 }
-
-// đánh giá mẫu, đánh giá thật cần API
-const _mockReviews = [
-  Review(
-    id: 'r1',
-    quizSetId: 'set_math_1',
-    userName: 'Ngọc',
-    rating: 5,
-    comment: 'Bộ đề hay, câu hỏi rõ ràng, giải thích dễ hiểu.',
-    createdAt: '2026-11-14',
-  ),
-  Review(
-    id: 'r2',
-    quizSetId: 'set_math_1',
-    userName: 'Vương',
-    rating: 4,
-    comment: 'Câu khó hơi ít, mong thêm câu nâng cao.',
-    createdAt: '2026-11-14',
-  ),
-  Review(
-    id: 'r3',
-    quizSetId: 'set_math_1',
-    userName: 'An',
-    rating: 5,
-    comment: 'Làm xong 10 câu được 180 điểm, rất đã.',
-    createdAt: '2026-11-15',
-  ),
-];

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-
 import 'profile_screen.dart';
 import 'store_screen.dart';
 import 'friends_screen.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
-
+import '../../models/quiz_set_model.dart';
+import '../../models/topic_model.dart';
+import '../auth_quiz/quiz_set_detail_screen.dart';
+import 'profile_screen.dart';
 import '../../viewmodels/home_profile_vm.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -148,7 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.white,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(12),
-                          // TODO: bấm vào mở Danh sách bộ đề S06 (commit sau)
                           onTap: () {
                             Navigator.push(
                               context,
