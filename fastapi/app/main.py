@@ -5,6 +5,7 @@
 - Cung Bearer Firebase ID token.
 - KEM CORS allow-all (ban Express khong co CORS — day la 1 trong cac loi sang nay)."""
 from fastapi import Depends, FastAPI, Request
+import traceback
 
 from .auth import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,7 +27,10 @@ async def api_error_handler(request: Request, exc: ApiError):
 
 @app.exception_handler(Exception)
 async def unhandled_handler(request: Request, exc: Exception):
-    return JSONResponse(status_code=500, content=fail_body("INTERNAL", str(exc)))
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content=fail_body("INTERNAL", str(exc)),
+                        headers={"Access-Control-Allow-Origin": "*"})
+
 
 @app.get("/health")
 def health():
