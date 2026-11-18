@@ -23,7 +23,7 @@ else:
     connect_args = {}
 
 engine_kwargs = {"connect_args": connect_args}
-if "pgbouncer=true" in DATABASE_URL:
+if "pooler.supabase.com" in DATABASE_URL or ":6543" in DATABASE_URL:
     engine_kwargs["poolclass"] = NullPool
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
