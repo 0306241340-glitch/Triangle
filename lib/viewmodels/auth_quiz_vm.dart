@@ -366,7 +366,7 @@ class QuizPlayViewModel extends ChangeNotifier {
         try {
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
-            final token = await user.getIdToken();
+            final token = await user.getIdToken(true);
             _api.setToken(token);
           }
         } catch (_) {}
