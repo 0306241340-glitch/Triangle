@@ -1,18 +1,30 @@
-// ViewModel Trang chủ (S05) — TV1 An giữ.
-// Gọi API lấy danh sách chủ đề; API chưa deploy thì dùng dữ liệu mẫu
-// (3 chủ đề trong seed-data.json) để màn hình vẫn chạy demo được.
+// ViewModel Trang chủ (S05) — TV1 An.
+// Lấy dữ liệu thật từ Firestore (topics, quiz_sets, user info).
+// Nếu Firestore lỗi, fallback mock để app vẫn chạy.
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
-import '../core/api_client.dart';
+import '../core/app_constants.dart';
+import '../models/quiz_set_model.dart';
 import '../models/topic_model.dart';
 
 class HomeViewModel extends ChangeNotifier {
-  HomeViewModel({ApiClient? api}) : _api = api ?? ApiClient();
+  HomeViewModel();
 
-  final ApiClient _api;
   bool isLoading = false;
   String? error;
+
+  // Dữ liệu user
+  String displayName = '';
+  int userScore = 0;
+  int userCoins = AppConstants.initialCoins;
+
+  // Danh sách chủ đề & bộ đề (từ Firestore)
   List<Topic> topics = [];
+  // Map topicId -> danh sách QuizSet
+  Map<String, List<QuizSet>> quizSetsByTopic = {};
+
   String query = '';
 
   List<Topic> get filteredTopics {
@@ -20,6 +32,9 @@ class HomeViewModel extends ChangeNotifier {
     final q = query.toLowerCase();
     return topics.where((t) => t.name.toLowerCase().contains(q)).toList();
   }
+
+  List<QuizSet> quizSetsForTopic(String topicId) =>
+      quizSetsByTopic[topicId] ?? [];
 
   void setQuery(String value) {
     query = value;
@@ -30,41 +45,112 @@ class HomeViewModel extends ChangeNotifier {
     isLoading = true;
     error = null;
     notifyListeners();
+
+    final db = FirebaseFirestore.instance;
+    final auth = FirebaseAuth.instance;
+
+    // ── 1. Thông tin user ──
     try {
-      final data = await _api.get('/topics');
-      final list = (data is Map ? data['topics'] : null) ?? data;
-      topics = (list as List)
-          .map((e) => Topic.fromJson(e as Map<String, dynamic>))
+      final uid = auth.currentUser?.uid;
+      displayName = auth.currentUser?.displayName ?? 'Bạn';
+      if (uid != null) {
+        final snap =
+            await db.collection(AppConstants.usersCollection).doc(uid).get();
+        final d = snap.data();
+        if (d != null) {
+          userScore = (d['score'] as num?)?.toInt() ?? 0;
+          userCoins = (d['coins'] as num?)?.toInt() ?? AppConstants.initialCoins;
+          if ((d['displayName'] as String?)?.isNotEmpty == true) {
+            displayName = d['displayName'] as String;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[HomeVM] Lỗi load user: $e');
+    }
+
+    // ── 2. Danh sách Topics từ Firestore ──
+    try {
+      final snap = await db
+          .collection(AppConstants.topicsCollection)
+          .where('isActive', isEqualTo: true)
+          .get();
+      topics = snap.docs
+          .map((d) => Topic.fromJson({...d.data(), 'id': d.id}))
           .toList();
-    } catch (_) {
-      // API chưa deploy: dùng dữ liệu mẫu, app vẫn chạy được.
+      debugPrint('[HomeVM] Tải ${topics.length} topics từ Firestore');
+    } catch (e) {
+      debugPrint('[HomeVM] Lỗi load topics: $e — dùng mock');
       topics = _mockTopics;
     }
+
+    // ── 3. QuizSets cho từng topic ──
+    try {
+      final snap = await db
+          .collection(AppConstants.quizSetsCollection)
+          .where('isActive', isEqualTo: true)
+          .get();
+      final allSets = snap.docs
+          .map((d) => QuizSet.fromJson({...d.data(), 'id': d.id}))
+          .toList();
+      quizSetsByTopic = {};
+      for (final qs in allSets) {
+        quizSetsByTopic.putIfAbsent(qs.topicId, () => []).add(qs);
+      }
+      debugPrint('[HomeVM] Tải ${allSets.length} quiz_sets từ Firestore');
+    } catch (e) {
+      debugPrint('[HomeVM] Lỗi load quiz_sets: $e — dùng mock');
+      quizSetsByTopic = _mockQuizSets;
+    }
+
     isLoading = false;
     notifyListeners();
   }
 
+  // ── Mock fallback khi Firestore không trả dữ liệu ──
   static const _mockTopics = [
     Topic(
       id: 'topic_tong_hop',
       name: 'Kiến thức tổng hợp / Đời sống',
-      description: 'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
+      description:
+          'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
       icon: '🌍',
       questionCount: 10,
     ),
     Topic(
       id: 'topic_do_meo',
       name: 'Đố dân gian & Câu đố mẹo',
-      description: 'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
+      description:
+          'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
       icon: '🧩',
       questionCount: 10,
     ),
     Topic(
       id: 'topic_giai_tri',
       name: 'Giải trí – Âm nhạc – Phim ảnh',
-      description: 'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
+      description:
+          'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
       icon: '🎬',
       questionCount: 10,
     ),
   ];
+
+  static final _mockQuizSets = <String, List<QuizSet>>{
+    'topic_tong_hop': [
+      const QuizSet(
+        id: 'set_math_1',
+        topicId: 'topic_tong_hop',
+        title: 'Toán tư duy căn bản',
+        description:
+            '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
+        level: 'medium',
+        questionCount: 10,
+        durationSec: 300,
+        attemptCount: 128,
+        avgScore: 142.5,
+      ),
+    ],
+    'topic_do_meo': [],
+    'topic_giai_tri': [],
+  };
 }
