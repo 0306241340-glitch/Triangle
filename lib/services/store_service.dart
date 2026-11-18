@@ -5,8 +5,13 @@ import '../models/item_model.dart';
 
 class StoreService {
   StoreService({ApiClient? api, FirebaseAuth? auth})
-    : _api = api ?? ApiClient(),
+    : _api = api ?? ApiClient(baseUrl: _storeApiBaseUrl),
       _auth = auth ?? FirebaseAuth.instance;
+
+  static const _storeApiBaseUrl = String.fromEnvironment(
+    'STORE_API_BASE_URL',
+    defaultValue: 'https://triangle-store-api.onrender.com',
+  );
 
   final ApiClient _api;
   final FirebaseAuth _auth;
