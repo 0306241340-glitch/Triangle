@@ -183,12 +183,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       debugPrint('[QuizVM] Không đọc được quiz_set từ Firestore: $e');
     }
 
-    // ── Bước 4: Thử gọi API lấy câu hỏi từ server (timeout 3s) ──
+    // ── Bước 4: Thử gọi API lấy câu hỏi từ server (timeout 60s cho Render khởi động) ──
     bool apiSuccess = false;
     try {
       final data = await _api
           .post('/quiz/start', {'quizSetId': quizSetId})
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 60));
 
       attemptId = data['attemptId'] as String?;
       remainingSec = (data['durationSec'] as num?)?.toInt() ?? remainingSec;
@@ -350,6 +350,7 @@ class QuizPlayViewModel extends ChangeNotifier {
     _timer?.cancel();
     submitted = true;
     final timeTakenSec = _initialDuration - remainingSec;
+    bool serverOk = false;
     try {
       if (attemptId != null) {
         final data = await _api.post('/quiz/submit', {
@@ -367,6 +368,7 @@ class QuizPlayViewModel extends ChangeNotifier {
         skippedCount =
             total -
             ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
+        serverOk = true;
       } else {
         _scoreLocally();
       }
@@ -375,21 +377,23 @@ class QuizPlayViewModel extends ChangeNotifier {
     }
     _submitting = false;
 
-    // ── Cập nhật điểm và xu vào Firestore users/{uid} ──
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && (score > 0 || coins > 0)) {
-        FirebaseFirestore.instance
-            .collection(AppConstants.usersCollection)
-            .doc(user.uid)
-            .update({
-          'score': FieldValue.increment(score),
-          'coins': FieldValue.increment(coins),
-          'weeklyScore': FieldValue.increment(score),
-        });
+    // ── Cập nhật điểm và xu vào Firestore users/{uid} (chỉ khi server không lưu được) ──
+    if (!serverOk) {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null && (score > 0 || coins > 0)) {
+          FirebaseFirestore.instance
+              .collection(AppConstants.usersCollection)
+              .doc(user.uid)
+              .update({
+            'score': FieldValue.increment(score),
+            'coins': FieldValue.increment(coins),
+            'weeklyScore': FieldValue.increment(score),
+          });
+        }
+      } catch (e) {
+        debugPrint('[QuizVM] Lỗi cập nhật điểm vào Firestore: $e');
       }
-    } catch (e) {
-      debugPrint('[QuizVM] Lỗi cập nhật điểm vào Firestore: $e');
     }
 
     notifyListeners();
