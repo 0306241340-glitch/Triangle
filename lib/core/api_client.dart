@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
@@ -23,7 +24,7 @@ class ApiClient {
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://triangle-api-n25s.onrender.com',
+    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
   );
 
   static const _requestTimeout = Duration(seconds: 60);
@@ -43,7 +44,9 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final res = await http.get(uri, headers: _headers).timeout(_requestTimeout);
+      final res = await http
+          .get(uri, headers: _headers)
+          .timeout(_requestTimeout);
       return _handle(res);
     } on ApiException {
       rethrow;
@@ -92,7 +95,9 @@ class ApiClient {
 
     final err = decoded['error'];
     throw ApiException(
-      err is Map ? (err['message']?.toString() ?? 'Lỗi máy chủ') : 'Lỗi máy chủ',
+      err is Map
+          ? (err['message']?.toString() ?? 'Lỗi máy chủ')
+          : 'Lỗi máy chủ',
       res.statusCode,
     );
   }
