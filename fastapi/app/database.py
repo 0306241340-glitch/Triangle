@@ -18,7 +18,7 @@ elif DATABASE_URL.startswith("postgresql://"):
 if DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 elif DATABASE_URL.startswith("postgresql"):
-    connect_args = {"prepare_threshold": 0}
+    connect_args = {"prepare_threshold": None}
 else:
     connect_args = {}
 
