@@ -1,24 +1,23 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'core/api_client.dart';
 import 'core/app_theme.dart';
 import 'firebase_options.dart';
 import 'screens/auth_quiz/login_screen.dart';
 import 'screens/auth_quiz/splash_screen.dart';
-import 'screens/home_profile/home_profile_screen.dart';
+import 'screens/home_profile/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  final user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    ApiClient().setToken(await user.getIdToken());
-  }
+
+  FirebaseAuth.instance.idTokenChanges().listen((user) async {
+    final token = user != null ? await user.getIdToken() : null;
+    ApiClient().setToken(token);
+  });
 
   runApp(const QuizApp());
 }
@@ -31,10 +30,7 @@ class QuizApp extends StatelessWidget {
     return MaterialApp(
       title: 'Đố Vui AI Thưởng',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF2563EB),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.lightTheme,
       home: const SplashScreen(),
     );
   }
@@ -54,7 +50,11 @@ class AuthGate extends StatelessWidget {
           );
         }
 
-        return snapshot.hasData ? const HomeScreen() : const LoginScreen();
+        if (snapshot.hasData) {
+          return const HomeScreen();
+        }
+
+        return const LoginScreen();
       },
     );
   }

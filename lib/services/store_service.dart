@@ -5,8 +5,8 @@ import '../models/item_model.dart';
 
 class StoreService {
   StoreService({ApiClient? api, FirebaseAuth? auth})
-      : _api = api ?? ApiClient(),
-        _auth = auth ?? FirebaseAuth.instance;
+    : _api = api ?? ApiClient(),
+      _auth = auth ?? FirebaseAuth.instance;
 
   final ApiClient _api;
   final FirebaseAuth _auth;
@@ -19,11 +19,15 @@ class StoreService {
 
   Future<StorePurchaseResult> purchase(String itemId) async {
     await _attachToken();
-    final data = await _api.post(
-      '/store/purchase',
-      {'itemId': itemId},
-    ) as Map<String, dynamic>;
+    final data = await _api.post('/store/purchase', {
+      'itemId': itemId,
+    }) as Map<String, dynamic>;
     return StorePurchaseResult.fromJson(data);
+  }
+
+  Future<void> setEquipped(String itemId, {required bool equipped}) async {
+    await _attachToken();
+    await _api.post('/store/equip', {'itemId': itemId, 'equipped': equipped});
   }
 
   Future<void> _attachToken() async {

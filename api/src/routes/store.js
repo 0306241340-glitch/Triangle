@@ -141,4 +141,79 @@ router.post('/purchase', async (req, res) => {
   return res.ok(result);
 });
 
+router.post('/equip', async (req, res) => {
+  const { itemId, equipped } = req.body || {};
+  if (typeof itemId !== 'string' || !itemId.trim()) {
+    return res.fail(400, 'VALIDATION', 'Thiếu itemId hợp lệ.');
+  }
+  if (typeof equipped !== 'boolean') {
+    return res.fail(400, 'VALIDATION', 'Thiếu trạng thái trang bị hợp lệ.');
+  }
+
+  const normalizedItemId = itemId.trim();
+  const db = getDb();
+  const itemRef = db.collection('items').doc(normalizedItemId);
+  const userRef = db.collection('users').doc(req.user.uid);
+  const userItemsQuery = db.collection('user_items')
+    .where('userId', '==', req.user.uid);
+
+  const result = await db.runTransaction(async (tx) => {
+    const [itemSnap, userSnap, inventorySnap] = await Promise.all([
+      tx.get(itemRef),
+      tx.get(userRef),
+      tx.get(userItemsQuery),
+    ]);
+
+    if (!itemSnap.exists || itemSnap.data().isActive !== true) {
+      return { status: 404, code: 'NOT_FOUND', message: 'Vật phẩm không tồn tại hoặc đã ngừng hoạt động.' };
+    }
+    if (!userSnap.exists) {
+      return { status: 404, code: 'NOT_FOUND', message: 'Không tìm thấy hồ sơ người dùng.' };
+    }
+
+    const item = itemSnap.data();
+    if (item.type !== 'frame' && item.type !== 'title') {
+      return { status: 400, code: 'NOT_EQUIPPABLE', message: 'Vật phẩm này không thể trang bị.' };
+    }
+
+    const sameTypeItemsSnap = await tx.get(
+      db.collection('items').where('type', '==', item.type),
+    );
+    const sameTypeItemIds = new Set(sameTypeItemsSnap.docs.map((doc) => doc.id));
+    const matchingItems = inventorySnap.docs.filter(
+      (doc) => {
+        const data = doc.data();
+        const quantity = Number.isSafeInteger(data.quantity) ? data.quantity : 1;
+        return data.itemId === normalizedItemId && quantity > 0;
+      },
+    );
+    if (matchingItems.length === 0) {
+      return { status: 403, code: 'NOT_OWNED', message: 'Bạn chưa sở hữu vật phẩm này.' };
+    }
+
+    const equippedField = item.type === 'frame' ? 'frameId' : 'titleId';
+    const ownedSameTypeItems = inventorySnap.docs.filter(
+      (doc) => sameTypeItemIds.has(doc.data().itemId),
+    );
+    const matchingIds = new Set(matchingItems.map((doc) => doc.id));
+    for (const doc of ownedSameTypeItems) {
+      tx.update(doc.ref, {
+        equipped: equipped && matchingIds.has(doc.id),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    tx.update(userRef, {
+      [equippedField]: equipped ? normalizedItemId : null,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return { itemId: normalizedItemId, equipped };
+  });
+
+  if (result.status) {
+    return res.fail(result.status, result.code, result.message);
+  }
+  return res.ok(result);
+});
+
 module.exports = router;

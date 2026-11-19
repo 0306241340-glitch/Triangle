@@ -8,6 +8,7 @@ import '../../main.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
+
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
@@ -16,8 +17,10 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+
     Timer(const Duration(seconds: 2), () {
       if (!mounted) return;
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const AuthGate()),
@@ -54,17 +57,15 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                 ],
               ),
-              child:   ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ),
-                        child: Image.asset(
-                          'assets/logo.jpg',
-                          width: 140,
-                          height: 140,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/logo.jpg',
+                  width: 140,
+                  height: 140,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
             const Text(
               AppConstants.appName,

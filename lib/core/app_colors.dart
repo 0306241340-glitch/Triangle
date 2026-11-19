@@ -33,4 +33,5 @@ class AppColors {
       default:
         return primaryLight;
     }
-  }}
+  }
+}

@@ -1,4 +1,3 @@
-
 class StoreItem {
   const StoreItem({
     required this.id,
@@ -7,6 +6,7 @@ class StoreItem {
     required this.type,
     required this.effect,
     required this.price,
+    this.imageUrl = '',
   });
 
   final String id;
@@ -15,6 +15,7 @@ class StoreItem {
   final String type;
   final String effect;
   final int price;
+  final String imageUrl;
 
   bool get isStackable => type == 'help';
 
@@ -24,8 +25,9 @@ class StoreItem {
       name: json['name'] as String,
       description: json['description'] as String? ?? '',
       type: json['type'] as String,
-      effect: json['effect'] as String? ?? '',
+      effect: (json['effect'] ?? json['lifelineCode'])?.toString() ?? '',
       price: (json['price'] as num).toInt(),
+      imageUrl: json['imageUrl']?.toString() ?? '',
     );
   }
 }
@@ -41,10 +43,7 @@ class StoreCatalog {
   final List<StoreItem> items;
   final Map<String, int> ownedQuantities;
 
-  StoreCatalog copyWith({
-    int? coins,
-    Map<String, int>? ownedQuantities,
-  }) {
+  StoreCatalog copyWith({int? coins, Map<String, int>? ownedQuantities}) {
     return StoreCatalog(
       coins: coins ?? this.coins,
       items: items,
@@ -116,10 +115,7 @@ class StoreCatalog {
 }
 
 class StorePurchaseResult {
-  const StorePurchaseResult({
-    required this.coins,
-    required this.quantity,
-  });
+  const StorePurchaseResult({required this.coins, required this.quantity});
 
   final int coins;
   final int quantity;

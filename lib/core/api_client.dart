@@ -13,16 +13,28 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl})
-    : _baseUrl =
-          baseUrl ??
-          'https://asia-southeast1-do-vui-ai-thuong.cloudfunctions.net/api';
+  static final ApiClient _instance = ApiClient._internal();
+
+  factory ApiClient({String? baseUrl}) {
+    return baseUrl == null ? _instance : ApiClient._internal(baseUrl: baseUrl);
+  }
+
+  ApiClient._internal({String? baseUrl})
+    : _baseUrl = baseUrl ?? _defaultBaseUrl;
+
+  static const _defaultBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
+  );
+
+  static const _requestTimeout = Duration(seconds: 60);
 
   final String _baseUrl;
   String? _idToken;
 
-  // Gắn token sau khi đăng nhập
-  void setToken(String? token) => _idToken = token;
+  void setToken(String? token) {
+    _idToken = token;
+  }
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -32,11 +44,12 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
-      final req = await client.getUrl(uri).timeout(const Duration(seconds: 2));
-      _applyHeaders(req);
-      final res = await req.close().timeout(const Duration(seconds: 2));
-      return await _handle(res);
+      final res = await http
+          .get(uri, headers: _headers)
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       throw ApiException('Không thể kết nối máy chủ: $e', 503);
     }
@@ -45,36 +58,46 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
-      final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
-      final req = await client.postUrl(uri).timeout(const Duration(seconds: 2));
-      _applyHeaders(req);
-      req.write(jsonEncode(body));
-      final res = await req.close().timeout(const Duration(seconds: 2));
-      return await _handle(res);
+      final res = await http
+          .post(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
     } catch (e) {
       throw ApiException('Không thể kết nối máy chủ: $e', 503);
     }
   }
 
-  void _applyHeaders(HttpClientRequest req) {
-    req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-    if (_idToken != null) {
-      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_idToken');
-    }
-  }
-
-  // server trả {ok: true, data} hoặc {ok: false, error}
-  Future<dynamic> _handle(HttpClientResponse res) async {
-    final text = await res.transform(utf8.decoder).join();
-    final json = jsonDecode(text) as Map<String, dynamic>;
-    if (res.statusCode >= 200 && res.statusCode < 300 && json['ok'] == true) {
-      return json['data'];
+  dynamic _handle(http.Response res) {
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(res.bodyBytes));
+    } on FormatException {
+      throw ApiException(
+        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). Kiểm tra URL API và trạng thái máy chủ',
+        res.statusCode,
+      );
     }
 
-    final err = json['error'];
+    if (decoded is! Map<String, dynamic>) {
+      throw ApiException(
+        'Định dạng phản hồi API không hợp lệ (HTTP ${res.statusCode}).',
+        res.statusCode,
+      );
+    }
 
+    if (res.statusCode >= 200 &&
+        res.statusCode < 300 &&
+        decoded['ok'] == true) {
+      return decoded['data'];
+    }
+
+    final err = decoded['error'];
     throw ApiException(
-      err is Map ? (err['message']?.toString() ?? 'Lỗi server') : 'Lỗi server',
+      err is Map
+          ? (err['message']?.toString() ?? 'Lỗi máy chủ')
+          : 'Lỗi máy chủ',
       res.statusCode,
     );
   }
