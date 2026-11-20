@@ -177,3 +177,12 @@ class Friend(Base):
     status = Column(String, default="accepted")
     user = relationship("User", foreign_keys=[user_id])
     friend = relationship("User", foreign_keys=[friend_id])
+
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False)
+    target_id = Column(String, nullable=False)
+    target_type = Column(String, nullable=False)  # 'topic' hoặc 'quiz_set'
+    created_at = Column(DateTime, default=_now)

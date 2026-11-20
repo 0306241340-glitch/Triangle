@@ -33,6 +33,51 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
     super.initState();
     _set = widget.quizSet;
     _loadRealSet();
+    _loadFavoriteStatus();
+  }
+
+  // Gọi GET /favorites/ids từ FastAPI để kiểm tra bộ đề này đã thích chưa
+  Future<void> _loadFavoriteStatus() async {
+    try {
+      final data = await ApiClient()
+          .get('/favorites/ids')
+          .timeout(const Duration(seconds: 3));
+      final ids = (data as List? ?? []).map((e) => e.toString()).toList();
+      if (mounted) {
+        setState(() {
+          _isFavorite = ids.contains(widget.quizSet.id);
+        });
+      }
+    } catch (e) {
+      debugPrint('[QuizSetDetail] Lỗi load favorite ids từ API: $e');
+    }
+  }
+
+  // Gọi POST /favorites/{set_id}/toggle sang FastAPI + PostgreSQL
+  Future<void> _toggleFavorite() async {
+    final prevState = _isFavorite;
+    setState(() => _isFavorite = !prevState);
+
+    try {
+      final res = await ApiClient()
+          .post('/favorites/${widget.quizSet.id}/toggle', const {})
+          .timeout(const Duration(seconds: 3));
+
+      if (mounted &&
+          res is Map<String, dynamic> &&
+          res.containsKey('isFavorite')) {
+        setState(() {
+          _isFavorite = res['isFavorite'] == true;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isFavorite = prevState);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi kết nối server: $e')),
+        );
+      }
+    }
   }
 
   // Lấy bộ đề thật từ API hoặc Firestore (số lượt làm, điểm TB, bình luận).
@@ -103,7 +148,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // thẻ tiêu đề + mô tả + huy hiệu độ khó
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -145,7 +189,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // 2 hàng ô thống kê, mỗi hàng 3 cột — đồng bộ màu trắng hết
           Row(
             children: [
               _StatBox(label: 'Số câu', value: '${quizSet.questionCount} câu'),
@@ -171,7 +214,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // 2 nút ngay dưới ô thống kê
           Row(
             children: [
               Expanded(
@@ -206,9 +248,7 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
                       color: _isFavorite ? AppColors.error : AppColors.primary,
                     ),
                   ),
-                  onPressed: () {
-                    setState(() => _isFavorite = !_isFavorite);
-                  },
+                  onPressed: _toggleFavorite,
                   icon: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: _isFavorite ? AppColors.error : AppColors.primary,

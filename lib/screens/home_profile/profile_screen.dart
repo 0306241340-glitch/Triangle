@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'favorites_screen.dart';
 import '../../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'inventory_screen.dart';
@@ -195,12 +196,6 @@ class ProfileScreen extends StatelessWidget {
                           child: _buildStatCard('${profile.coins}', 'xu'),
                         ),
                         const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildStatCard(
-                            '${profile.gamesPlayed}',
-                            'lượt chơi',
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -240,9 +235,10 @@ class ProfileScreen extends StatelessWidget {
                       title: 'Yêu thích của tôi',
                       subtitle: '3 bộ đề • 2 chủ đề',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Mở danh sách Yêu thích'),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FavoritesScreen(),
                           ),
                         );
                       },
@@ -254,13 +250,13 @@ class ProfileScreen extends StatelessWidget {
                       subtitle: 'Quản lý danh sách & lời mời kết bạn',
                       isHighlighted: true,
                       onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const FriendsScreen(),
-    ),
-  );
-},
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const FriendsScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 14),
                     SizedBox(

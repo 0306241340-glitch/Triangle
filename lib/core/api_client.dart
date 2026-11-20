@@ -24,7 +24,8 @@ class ApiClient {
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
+    defaultValue: 'http://10.0.2.2:8000',
+    //https://quiz-app-api-fastapi.onrender.com//
   );
 
   static const _requestTimeout = Duration(seconds: 60);

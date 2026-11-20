@@ -12,7 +12,6 @@ class UserModel {
   final int score;
   final int weeklyScore;
   final int streakDays;
-  final int gamesPlayed;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -28,7 +27,6 @@ class UserModel {
     this.score = 0,
     this.weeklyScore = 0,
     this.streakDays = 0,
-    this.gamesPlayed = 0,
     this.createdAt,
     this.updatedAt,
   });
@@ -52,7 +50,6 @@ class UserModel {
       score: (data['score'] as num?)?.toInt() ?? 0,
       weeklyScore: (data['weeklyScore'] as num?)?.toInt() ?? 0,
       streakDays: (data['streakDays'] as num?)?.toInt() ?? 0,
-      gamesPlayed: (data['gamesPlayed'] as num?)?.toInt() ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -72,7 +69,6 @@ class UserModel {
       'score': score,
       'weeklyScore': weeklyScore,
       'streakDays': streakDays,
-      'gamesPlayed': gamesPlayed,
       if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
       'updatedAt': FieldValue.serverTimestamp(),
     };

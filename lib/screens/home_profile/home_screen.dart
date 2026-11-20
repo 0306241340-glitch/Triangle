@@ -7,13 +7,6 @@ import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../../viewmodels/home_profile_vm.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
-import 'friends_screen.dart';
-import '../../models/quiz_set_model.dart';
-import '../../models/topic_model.dart';
-import '../auth_quiz/quiz_set_detail_screen.dart';
-import 'profile_screen.dart';
-import 'store_screen.dart';
-import '../../viewmodels/home_profile_vm.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.vm});
@@ -194,72 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                    ...filteredTopics.map(
-                      (topic) => Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        elevation: 0,
-                        color: Colors.white,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => QuizSetDetailScreen(
-                                  quizSet: const QuizSet(
-                                    id: 'set_math_1',
-                                    topicId: 'topic_math',
-                                    title: 'Toán tư duy căn bản',
-                                    description: '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
-                                    level: 'medium',
-                                    questionCount: 10,
-                                    durationSec: 300,
-                                    attemptCount: 128,
-                                    avgScore: 142.5,
-                                  ),
-                                  topic: Topic(
-                                    id: 'topic_math',
-                                    name: topic['title']!,
-                                    description: topic['description']!,
-                                    icon: '📐',
-                                    questionCount: 10,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  topic['title']!,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  topic['description']!,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: Color(0xFF64748B),
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [

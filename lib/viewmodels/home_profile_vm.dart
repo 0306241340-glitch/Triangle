@@ -1,5 +1,5 @@
 // ViewModel Trang chủ (S05) — TV1 An.
-// Lấy dữ liệu thật từ Firestore (topics, quiz_sets, user info).
+// Lấy dữ liệu thật từ Firestore (topics, quiz_sets, user info, favorites).
 // Tích hợp logic Cửa hàng & Túi đồ (coins, ownedItems).
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +28,9 @@ class HomeViewModel extends ChangeNotifier {
   // Map topicId -> danh sách QuizSet
   Map<String, List<QuizSet>> quizSetsByTopic = {};
 
+  // Danh sách ID các bộ đề yêu thích
+  final Set<String> favoriteIds = {};
+
   String query = '';
 
   List<Topic> get filteredTopics {
@@ -39,9 +42,54 @@ class HomeViewModel extends ChangeNotifier {
   List<QuizSet> quizSetsForTopic(String topicId) =>
       quizSetsByTopic[topicId] ?? [];
 
+  bool isFavorite(String quizSetId) => favoriteIds.contains(quizSetId);
+
+  List<QuizSet> get favoriteQuizSets {
+    final all = quizSetsByTopic.values.expand((list) => list);
+    return all.where((qs) => favoriteIds.contains(qs.id)).toList();
+  }
+
   void setQuery(String value) {
     query = value;
     notifyListeners();
+  }
+
+  Future<void> toggleFavorite(String quizSetId) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final wasFavorite = favoriteIds.contains(quizSetId);
+    if (wasFavorite) {
+      favoriteIds.remove(quizSetId);
+    } else {
+      favoriteIds.add(quizSetId);
+    }
+    notifyListeners();
+
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection(AppConstants.usersCollection)
+          .doc(uid)
+          .collection('favorites')
+          .doc(quizSetId);
+
+      if (wasFavorite) {
+        await docRef.delete();
+      } else {
+        await docRef.set({
+          'quizSetId': quizSetId,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      if (wasFavorite) {
+        favoriteIds.add(quizSetId);
+      } else {
+        favoriteIds.remove(quizSetId);
+      }
+      notifyListeners();
+      debugPrint('[HomeVM] Lỗi toggleFavorite: $e');
+    }
   }
 
   Future<void> loadCurrentUserCoins() async {
@@ -149,6 +197,23 @@ class HomeViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('[HomeVM] Lỗi load quiz_sets: $e — dùng mock');
       quizSetsByTopic = _mockQuizSets;
+    }
+
+    // ── 4. Danh sách Favorite của user ──
+    try {
+      final uid = auth.currentUser?.uid;
+      favoriteIds.clear();
+      if (uid != null) {
+        final favSnap = await db
+            .collection(AppConstants.usersCollection)
+            .doc(uid)
+            .collection('favorites')
+            .get();
+        favoriteIds.addAll(favSnap.docs.map((d) => d.id));
+      }
+      debugPrint('[HomeVM] Tải ${favoriteIds.length} favorites từ Firestore');
+    } catch (e) {
+      debugPrint('[HomeVM] Lỗi load favorites: $e');
     }
 
     isLoading = false;

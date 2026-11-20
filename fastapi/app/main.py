@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from .database import Base, engine
 from .errors import ApiError, fail_body, ok
-from .routers import admin, leaderboard, quiz, quiz_sets, topics
+from .routers import admin, leaderboard, quiz, quiz_sets, topics,favorites
 
 app = FastAPI(title="Quiz App API (FastAPI + SQL)", version="2.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
@@ -52,3 +52,5 @@ app.include_router(quiz_sets.router, prefix="/quiz-sets")
 app.include_router(quiz.router, prefix="/quiz")
 app.include_router(leaderboard.router, prefix="/leaderboard")
 app.include_router(admin.router, prefix="/admin")
+app.include_router(favorites.router, prefix="/favorites")
+
