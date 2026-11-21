@@ -6,6 +6,7 @@ import '../auth_quiz/quiz_set_detail_screen.dart';
 import 'friends_screen.dart';
 import 'profile_screen.dart';
 import 'store_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.vm});
@@ -48,10 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuizSetDetailScreen(
-          quizSet: sets.first,
-          topic: topic,
-        ),
+        builder: (_) => QuizSetDetailScreen(quizSet: sets.first, topic: topic),
       ),
     );
     if (mounted) {
@@ -109,7 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             const Text(
-                                'Thách đấu bạn bè, 10 câu – 15 giây/câu'),
+                              'Thách đấu bạn bè, 10 câu – 15 giây/câu',
+                            ),
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,
@@ -118,7 +117,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
-                                          'Phòng đấu 1vs1 — đang làm ở tuần 2'),
+                                        'Phòng đấu 1vs1 — đang làm ở tuần 2',
+                                      ),
                                     ),
                                   );
                                 },
@@ -237,19 +237,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.history),
                 label: 'Lịch sử',
               ),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.person), label: 'Hồ sơ'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
             ],
             onTap: (i) {
-              if (i == 3) {
+              if (i == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+                );
+              } else if (i == 3) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 );
               } else if (i != 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Màn này đang làm ở tuần 2')),
+                  const SnackBar(content: Text('Màn này đang làm ở tuần 2')),
                 );
               }
             },
