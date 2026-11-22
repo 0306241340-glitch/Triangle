@@ -1,6 +1,7 @@
 """Smoke test khong can Firebase: override auth bang user gia.
 Chay:  python -m pytest test_smoke.py -q   (hoac: python test_smoke.py)"""
 import os, sys
+from datetime import datetime, timedelta
 os.environ["DATABASE_URL"] = "sqlite:///./test_quiz.db"
 if os.path.exists("test_quiz.db"):
     os.remove("test_quiz.db")
@@ -102,6 +103,99 @@ assert r.status_code == 200 and r.json()["data"]["status"] == "accepted", r.text
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
 r = c.get("/friends")
 assert [item["id"] for item in r.json()["data"]] == [friendship_id], r.text
+
+# Random matchmaking and friend challenges use persisted PostgreSQL room state.
+from app.models import MatchHistory, Room
+r = c.post("/pvp/queue")
+assert r.status_code == 200 and r.json()["data"]["status"] == "waiting", r.text
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+r = c.post("/pvp/queue")
+assert r.status_code == 200 and r.json()["data"]["status"] == "matched", r.text
+random_room_id = r.json()["data"]["roomId"]
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
+r = c.get(f"/pvp/rooms/{random_room_id}")
+assert r.status_code == 200 and "correctIndex" not in str(r.json()["data"]), r.text
+
+
+def finish_match(room_id, start_index=0):
+    for question_index in range(start_index, 10):
+        db = SessionLocal()
+        room = db.query(Room).filter(Room.id == room_id).first()
+        snapshot = room.question_ids[question_index]
+        correct_index = snapshot["correctIndex"]
+        db.close()
+        for player_uid in (UID, ADMIN_UID):
+            app.dependency_overrides[get_current_user] = lambda uid=player_uid: CurrentUser(
+                uid=uid, role="user"
+            )
+            response = c.post(
+                f"/pvp/rooms/{room_id}/answer",
+                json={
+                    "questionIndex": question_index,
+                    "selectedIndex": correct_index,
+                },
+            )
+            assert response.status_code == 200, response.text
+            data = response.json()["data"]
+            if player_uid == UID and question_index == 0:
+                assert data["myAnswered"] is True and data["questionIndex"] == 0, data
+                duplicate = c.post(
+                    f"/pvp/rooms/{room_id}/answer",
+                    json={
+                        "questionIndex": question_index,
+                        "selectedIndex": correct_index,
+                    },
+                )
+                assert duplicate.status_code == 409, duplicate.text
+            if player_uid == ADMIN_UID and question_index < 9:
+                assert data["questionIndex"] == question_index + 1, data
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        uid=UID, role="user"
+    )
+    result = c.get(f"/pvp/rooms/{room_id}")
+    assert result.status_code == 200 and result.json()["data"]["status"] == "finished"
+    db = SessionLocal()
+    history = db.query(MatchHistory).filter(
+        MatchHistory.room_id == room_id
+    ).first()
+    assert history is not None
+    expected_score = (10 - start_index) * 10
+    assert (history.score1, history.score2, history.winner_id) == (
+        expected_score, expected_score, None
+    )
+    assert len(history.details) == 10
+    db.close()
+
+
+finish_match(random_room_id)
+invite = c.post(f"/pvp/invite/{ADMIN_UID}")
+assert invite.status_code == 200 and invite.json()["data"]["status"] == "waiting", invite.text
+friend_room_id = invite.json()["data"]["roomId"]
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+incoming = c.get("/pvp/invitations")
+assert incoming.status_code == 200
+assert any(row["roomId"] == friend_room_id for row in incoming.json()["data"])
+assert c.post("/pvp/queue").status_code == 409
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
+assert c.post("/pvp/queue").status_code == 409
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+accepted = c.post(f"/pvp/rooms/{friend_room_id}/accept")
+assert accepted.status_code == 200 and accepted.json()["data"]["status"] == "playing"
+db = SessionLocal()
+friend_room = db.query(Room).filter(Room.id == friend_room_id).first()
+friend_room.question_start_time = datetime.utcnow() - timedelta(seconds=16)
+db.commit()
+db.close()
+timed_out = c.get(f"/pvp/rooms/{friend_room_id}")
+assert timed_out.status_code == 200
+assert timed_out.json()["data"]["questionIndex"] == 1, timed_out.text
+finish_match(friend_room_id, start_index=1)
 
 r = c.post("/favorites", json={"targetId": "set_tong_hop_1", "targetType": "quizSet"})
 assert r.status_code == 200, r.text

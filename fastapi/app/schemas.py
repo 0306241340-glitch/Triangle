@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class StartIn(BaseModel):
     quizSetId: str
@@ -40,6 +40,10 @@ class PurchaseIn(BaseModel):
 class EquipIn(BaseModel):
     itemId: str
     equipped: bool
+
+class PvpAnswerIn(BaseModel):
+    questionIndex: int = Field(ge=0)
+    selectedIndex: int = Field(ge=0, le=7)
 
 class FavoriteIn(BaseModel):
     targetId: str

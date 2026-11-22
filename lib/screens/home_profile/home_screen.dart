@@ -7,6 +7,7 @@ import 'friends_screen.dart';
 import 'profile_screen.dart';
 import 'store_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
+import '../pvp_social/pvp_social_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.vm});
@@ -131,15 +132,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Phòng đấu 1vs1 — đang làm ở tuần 2',
-                                      ),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PvpSocialScreen(),
+                                  ),
+                                ),
                                 child: const Text('Tìm trận ngay'),
                               ),
                             ),

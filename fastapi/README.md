@@ -11,7 +11,7 @@ Firebase Auth; FastAPI xác thực Firebase ID token trước khi truy cập Pos
 | Ngôn ngữ / framework | Node + Express | Python + FastAPI |
 | CSDL | Firestore (NoSQL) | **PostgreSQL qua SQLAlchemy** (SQLite chỉ để phát triển/test local) |
 | Đăng nhập | Firebase Auth, Bearer ID token | **Giữ nguyên** — Firebase chỉ xác thực; dữ liệu ứng dụng không lưu ở Firebase |
-| Dữ liệu | đọc/ghi trực tiếp từ app | qua API: `/me`, `/topics`, `/quiz-sets`, `/quiz/*`, `/friends/*`, `/favorites`, `/store/*`, `/leaderboard`, `/admin/*` |
+| Dữ liệu | đọc/ghi trực tiếp từ app | qua API: `/me`, `/topics`, `/quiz-sets`, `/quiz/*`, `/friends/*`, `/favorites`, `/store/*`, `/pvp/*`, `/leaderboard`, `/admin/*` |
 | Trả về | `{ok:true, data}` / `{ok:false, error:{code,message}}` | **Giữ nguyên y hệt** — `api_client.dart` đọc được luôn |
 | Chấm điểm | Dễ 10đ/5xu, TB 20đ/10xu, Khó 30đ/15xu | **Giữ nguyên** — làm đúng hết 10 câu = 180đ/90xu |
 | CORS | Không có (1 trong các lỗi sáng 18/11) | **Có sẵn, allow-all** |
@@ -21,6 +21,18 @@ SQL dùng **PostgreSQL trên Supabase** (An đã tạo project), không dùng MS
 Server trong file Bài 09: file đó chạy SQL Server local trên máy, không
 deploy lên Render/demo được. Postgres vẫn là CSDL quan hệ, đúng yêu cầu
 của thầy, và Supabase có gói Free.
+
+## Đấu 1vs1
+
+`/pvp/queue` ghép người chơi đang chờ theo điểm gần nhất; `/pvp/invite/{uid}`
+gửi lời mời tới bạn đã kết nối. Người nhận xem lời mời tại
+`/pvp/invitations`, rồi chấp nhận hoặc từ chối qua
+`/pvp/rooms/{id}/accept` và `/pvp/rooms/{id}/decline`. Trong trận, app tải
+trạng thái bằng `GET /pvp/rooms/{id}` và gửi một đáp án cho mỗi câu qua
+`POST /pvp/rooms/{id}/answer`. Trận gồm đúng 10 câu, 15 giây mỗi câu; đáp án
+đúng được 10 điểm. Máy chủ giữ đáp án đúng và chỉ trả nội dung/lựa chọn cho
+người chơi. Phòng, hàng đợi, kết quả và diễn biến được lưu vào các bảng
+`rooms`, `match_queue`, `match_histories` và `notifications`.
 
 ## Bảng SQL
 

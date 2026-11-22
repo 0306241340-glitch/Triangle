@@ -16,7 +16,7 @@ from datetime import datetime
 from .database import Base, engine, get_db
 from .errors import ApiError, fail_body, ok
 from .models import Item, QuizHistory, User, UserItem
-from .routers import admin, favorites, friends, leaderboard, quiz, quiz_sets, store, topics
+from .routers import admin, favorites, friends, leaderboard, pvp, quiz, quiz_sets, store, topics
 from .schemas import ProfileUpdateIn
 
 app = FastAPI(title="Quiz App API (FastAPI + SQL)", version="2.0.0")
@@ -93,3 +93,4 @@ app.include_router(admin.router, prefix="/admin")
 app.include_router(friends.router, prefix="/friends")
 app.include_router(store.router, prefix="/store")
 app.include_router(favorites.router, prefix="/favorites")
+app.include_router(pvp.router, prefix="/pvp")
