@@ -18,6 +18,13 @@ class ApiClient {
     'API_BASE_URL',
     defaultValue: 'https://triangle-api-n25s.onrender.com',
   );
+  static const vuongApiBaseUrl = String.fromEnvironment(
+    'VUONG_API_BASE_URL',
+    defaultValue: String.fromEnvironment(
+      'STORE_API_BASE_URL',
+      defaultValue: 'https://triangle-store-api-vuong-2026.onrender.com',
+    ),
+  );
   static const _connectionTimeout = Duration(seconds: 10);
   static const _requestTimeout = Duration(seconds: 60);
   final String _baseUrl;
@@ -51,6 +58,23 @@ class ApiClient {
       final req = await client.postUrl(uri).timeout(_requestTimeout);
       _applyHeaders(req);
       req.write(jsonEncode(body));
+
+      final res = await req.close().timeout(_requestTimeout);
+      return await _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
+  Future<dynamic> delete(String path, {Map<String, String>? query}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final client = HttpClient()..connectionTimeout = _connectionTimeout;
+
+      final req = await client.deleteUrl(uri).timeout(_requestTimeout);
+      _applyHeaders(req);
 
       final res = await req.close().timeout(_requestTimeout);
       return await _handle(res);

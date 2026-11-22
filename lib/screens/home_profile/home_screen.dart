@@ -6,14 +6,12 @@ import 'friends_screen.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
+import '../pvp_social/pvp_social_screen.dart';
 
 import '../../viewmodels/home_profile_vm.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({
-    super.key,
-    this.vm,
-  });
+  const HomeScreen({super.key, this.vm});
 
   final HomeViewModel? vm;
 
@@ -119,16 +117,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                // TODO: mở phòng đấu 1vs1 (S15) khi Vương làm xong màn đó
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Phòng đấu 1vs1 — đang làm ở tuần 2',
-                                      ),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PvpSocialScreen(),
+                                  ),
+                                ),
                                 child: const Text('Tìm trận ngay'),
                               ),
                             ),

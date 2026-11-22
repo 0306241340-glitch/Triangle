@@ -1,14 +1,13 @@
 // ViewModel Trang chủ (S05) — TV1 An giữ.
 // Gọi API lấy danh sách chủ đề; API chưa deploy thì dùng dữ liệu mẫu
 // (3 chủ đề trong seed-data.json) để màn hình vẫn chạy demo được.
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../core/api_client.dart';
 import '../core/app_constants.dart';
 import '../models/item_model.dart';
 import '../models/topic_model.dart';
+import '../services/store_service.dart';
 
 class HomeViewModel extends ChangeNotifier {
   HomeViewModel({ApiClient? api}) : _api = api ?? ApiClient();
@@ -33,24 +32,12 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   Future<void> loadCurrentUserCoins() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      coins = AppConstants.initialCoins;
-      notifyListeners();
-      return;
-    }
-
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection(AppConstants.usersCollection)
-          .doc(user.uid)
-          .get();
-      final userCoins =
-          (snapshot.data()?['coins'] as num?)?.toInt() ??
-          AppConstants.initialCoins;
-      coins = userCoins;
-    } catch (_) {
-      coins = AppConstants.initialCoins;
+      final catalog = await StoreService().loadCatalog();
+      syncCatalog(catalog);
+    } catch (error, stackTrace) {
+      debugPrint('Không thể tải số dư cửa hàng từ máy chủ: $error');
+      debugPrintStack(stackTrace: stackTrace);
     }
     notifyListeners();
   }

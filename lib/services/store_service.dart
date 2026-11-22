@@ -5,13 +5,8 @@ import '../models/item_model.dart';
 
 class StoreService {
   StoreService({ApiClient? api, FirebaseAuth? auth})
-    : _api = api ?? ApiClient(baseUrl: _storeApiBaseUrl),
+    : _api = api ?? ApiClient(baseUrl: ApiClient.vuongApiBaseUrl),
       _auth = auth ?? FirebaseAuth.instance;
-
-  static const _storeApiBaseUrl = String.fromEnvironment(
-    'STORE_API_BASE_URL',
-    defaultValue: 'https://triangle-store-api.onrender.com',
-  );
 
   final ApiClient _api;
   final FirebaseAuth _auth;
@@ -20,6 +15,11 @@ class StoreService {
     await _attachToken();
     final data = await _api.get('/store/items') as Map<String, dynamic>;
     return StoreCatalog.fromJson(data);
+  }
+
+  Future<Map<String, dynamic>> loadInventory() async {
+    await _attachToken();
+    return await _api.get('/store/inventory') as Map<String, dynamic>;
   }
 
   Future<StorePurchaseResult> purchase(String itemId) async {

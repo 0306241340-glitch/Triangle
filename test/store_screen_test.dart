@@ -64,7 +64,7 @@ void main() {
     expect(find.textContaining('Đang có: 1'), findsOneWidget);
   });
 
-  testWidgets('does not claim a purchase when the shop API is down', (
+  testWidgets('does not show mock products when the shop API is down', (
     tester,
   ) async {
     final service = _FakeStoreService()..loadError = Exception('HTTP 404');
@@ -76,45 +76,26 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('50/50'), findsOneWidget);
-    expect(find.text('30 xu'), findsWidgets);
-    expect(find.text('200 xu'), findsOneWidget);
+    expect(find.text('50/50'), findsNothing);
+    expect(find.text('Chưa tải được'), findsOneWidget);
     expect(
-      find.textContaining('Máy chủ cửa hàng hiện chưa khả dụng'),
+      find.textContaining('Không thể tải cửa hàng từ PostgreSQL'),
       findsOneWidget,
     );
-    await tester.scrollUntilVisible(
-      find.text('Khung avatar Vàng'),
-      300,
-      scrollable: find.byWidgetPredicate(
-        (widget) =>
-            widget is Scrollable && widget.axisDirection == AxisDirection.down,
-      ),
-    );
-    expect(find.text('Khung avatar Vàng'), findsOneWidget);
-
-    await tester.drag(find.byType(ListView), const Offset(0, 600));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Chi tiết').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Giá: 30 xu'), findsOneWidget);
-    await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.text('Mua')),
-    );
-    await tester.pumpAndSettle();
-
+    expect(find.widgetWithText(FilledButton, 'Chi tiết'), findsNothing);
     expect(service.purchasedItemId, isEmpty);
-    final buyButton = tester.widget<FilledButton>(
-      find.widgetWithText(FilledButton, 'Mua'),
-    );
-    expect(buyButton.onPressed, isNull);
-    expect(find.text('200 xu'), findsOneWidget);
   });
 }
 
 class _FakeStoreService implements StoreService {
   var purchasedItemId = '';
   Object? loadError;
+
+  @override
+  Future<Map<String, dynamic>> loadInventory() async => {
+    'items': <Map<String, dynamic>>[],
+    'userItems': <Map<String, dynamic>>[],
+  };
 
   @override
   Future<void> setEquipped(String itemId, {required bool equipped}) async {}
