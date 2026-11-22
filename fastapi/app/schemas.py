@@ -19,6 +19,28 @@ class FiftyFiftyIn(BaseModel):
     questionId: str
     selectedIndex: Optional[int] = None
 
+class HelpIn(BaseModel):
+    attemptId: str
+    questionId: str = ""
+    answerId: str = ""
+    helpType: str
+    selectedIndex: Optional[int] = None
+
 class CommentIn(BaseModel):
     rating: int = 5
     content: str = ""
+
+class ProfileUpdateIn(BaseModel):
+    displayName: str
+    avatarUrl: str = ""
+
+class PurchaseIn(BaseModel):
+    itemId: str
+
+class EquipIn(BaseModel):
+    itemId: str
+    equipped: bool
+
+class FavoriteIn(BaseModel):
+    targetId: str
+    targetType: str

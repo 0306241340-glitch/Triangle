@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..errors import ApiError, ok
-from ..models import Comment, QuizSet
+from ..models import Comment, QuizSet, User
 from ..schemas import CommentIn
 
 router = APIRouter()
@@ -35,18 +35,25 @@ def get_set(set_id: str, user: CurrentUser = Depends(get_current_user),
     s = db.query(QuizSet).filter(QuizSet.id == set_id).first()
     if not s:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy bộ đề.")
-    comments = (db.query(Comment).filter(Comment.quiz_set_id == set_id)
+    comments = (db.query(Comment, User.display_name)
+                .join(User, User.uid == Comment.user_id)
+                .filter(Comment.quiz_set_id == set_id)
                 .order_by(Comment.created_at.desc()).limit(20).all())
     d = _set_dict(s)
-    d["comments"] = [{"id": c.id, "quizSetId": c.quiz_set_id, "userId": c.user_id,
-                      "rating": c.rating, "content": c.content,
-                      "createdAt": c.created_at.isoformat() if c.created_at else None}
-                     for c in comments]
+    d["comments"] = [
+        {"id": c.id, "quizSetId": c.quiz_set_id, "userId": c.user_id,
+         "userName": display_name or "Người chơi", "rating": c.rating,
+         "comment": c.content,
+         "createdAt": c.created_at.isoformat() if c.created_at else None}
+        for c, display_name in comments
+    ]
     return ok(d)
 
 @router.post("/{set_id}/comments")
 def add_comment(set_id: str, body: CommentIn,
                 user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not 1 <= body.rating <= 5 or len(body.content) > 2000:
+        raise ApiError(400, "VALIDATION", "Đánh giá cần từ 1 đến 5 sao và tối đa 2.000 ký tự.")
     s = db.query(QuizSet).filter(QuizSet.id == set_id).first()
     if not s:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy bộ đề.")

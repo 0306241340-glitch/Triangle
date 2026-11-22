@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _vm = widget.vm ?? HomeViewModel();
     _vm.load();
-    _vm.loadCurrentUserCoins();
   }
 
   @override
@@ -36,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// Khi bấm vào topic → lấy QuizSet đầu tiên của topic đó (từ Firestore).
+  /// Khi bấm vào topic → lấy QuizSet đầu tiên đã tải từ API.
   /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
   Future<void> _openTopic(Topic topic) async {
     final sets = _vm.quizSetsForTopic(topic.id);
@@ -54,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (mounted) {
       _vm.load();
-      _vm.loadCurrentUserCoins();
     }
   }
 
@@ -79,6 +77,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: _vm.isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _vm.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Không thể tải dữ liệu từ máy chủ.\n${_vm.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _vm.load,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [

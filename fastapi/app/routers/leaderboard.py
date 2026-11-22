@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
@@ -22,6 +23,19 @@ def leaderboard(scope: str = Query(default="all"), topicId: str = Query(default=
             t = totals.setdefault(h.user_id, {"score": 0, "plays": 0})
             t["score"] += h.score or 0
             t["plays"] += 1
+        if scope == "friends":
+            relationships = db.query(Friend).filter(
+                Friend.status == "accepted",
+                or_(Friend.user_id == user.uid, Friend.friend_id == user.uid),
+            ).all()
+            ids = {user.uid}
+            for relation in relationships:
+                ids.add(
+                    relation.friend_id
+                    if relation.user_id == user.uid
+                    else relation.user_id
+                )
+            totals = {uid: total for uid, total in totals.items() if uid in ids}
         users = {u.uid: u for u in db.query(User).all()}
         entries = sorted(
             [{"uid": uid, "displayName": users[uid].display_name or "",
@@ -34,9 +48,17 @@ def leaderboard(scope: str = Query(default="all"), topicId: str = Query(default=
                    "myRank": me["rank"] if me else None, "myScore": me["score"] if me else 0})
     users = [u for u in db.query(User).all() if u.status != "locked"]
     if scope == "friends":
-        ids = {user.uid} | {f.friend_id for f in
-                            db.query(Friend).filter(Friend.user_id == user.uid,
-                                                   Friend.status == "accepted").all()}
+        relationships = db.query(Friend).filter(
+            Friend.status == "accepted",
+            or_(Friend.user_id == user.uid, Friend.friend_id == user.uid),
+        ).all()
+        ids = {user.uid}
+        for relation in relationships:
+            ids.add(
+                relation.friend_id
+                if relation.user_id == user.uid
+                else relation.user_id
+            )
         users = [u for u in users if u.uid in ids]
     field = "score" if scope == "friends" else FIELDS[scope]
     users.sort(key=lambda u: (-(getattr(u, field) or 0), str(u.updated_at or "")))

@@ -63,55 +63,6 @@ class StoreCatalog {
       ),
     );
   }
-
-  static const previewItems = [
-    StoreItem(
-      id: 'item_5050',
-      name: '50/50',
-      description: 'Loại bỏ 2 đáp án sai trong câu hỏi hiện tại.',
-      type: 'help',
-      effect: 'fifty_fifty',
-      price: 30,
-    ),
-    StoreItem(
-      id: 'item_extra_time',
-      name: 'Thêm thời gian',
-      description: 'Cộng thêm 30 giây cho lượt chơi hiện tại.',
-      type: 'help',
-      effect: 'extra_time',
-      price: 20,
-    ),
-    StoreItem(
-      id: 'item_change_q',
-      name: 'Đổi câu hỏi',
-      description: 'Đổi sang một câu hỏi khác cùng chủ đề.',
-      type: 'help',
-      effect: 'change_question',
-      price: 30,
-    ),
-    StoreItem(
-      id: 'item_frame_gold',
-      name: 'Khung avatar Vàng',
-      description: 'Khung avatar màu vàng, trang bị ở Hồ sơ.',
-      type: 'frame',
-      effect: '',
-      price: 100,
-    ),
-    StoreItem(
-      id: 'item_title_master',
-      name: 'Danh hiệu “Cao thủ”',
-      description: 'Danh hiệu hiển thị cạnh tên người chơi.',
-      type: 'title',
-      effect: '',
-      price: 150,
-    ),
-  ];
-
-  static const preview = StoreCatalog(
-    coins: null,
-    items: previewItems,
-    ownedQuantities: {},
-  );
 }
 
 class StorePurchaseResult {
@@ -154,7 +105,7 @@ class ItemModel {
       id: docId,
       name: (map['name'] ?? '').toString(),
       type: (map['type'] ?? 'lifeline').toString(),
-      lifelineCode: map['lifelineCode']?.toString(),
+      lifelineCode: (map['effect'] ?? map['lifelineCode'])?.toString(),
       price: (map['price'] is num) ? (map['price'] as num).toInt() : 0,
       description: (map['description'] ?? '').toString(),
       imageUrl: (map['imageUrl'] ?? '').toString(),

@@ -69,6 +69,34 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> put(String path, Map<String, dynamic> body) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path');
+      final res = await http
+          .put(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
+  Future<dynamic> delete(String path, {Map<String, String>? query}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final res = await http
+          .delete(uri, headers: _headers)
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
   dynamic _handle(http.Response res) {
     dynamic decoded;
     try {

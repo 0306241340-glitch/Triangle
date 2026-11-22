@@ -1,17 +1,25 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'inventory_screen.dart';
 import 'friends_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Future<Map<String, dynamic>>? _profileFuture;
+  String? _profileUid;
 
   String _getInitials(String name) {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -52,34 +60,20 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
-  Future<Map<String, String?>> _fetchEquippedDetails(
-    String? frameId,
-    String? titleId,
-  ) async {
-    String? frameName;
-    String? titleName;
-
-    if (frameId != null && frameId.isNotEmpty) {
-      final frameDoc = await FirebaseFirestore.instance
-          .collection('items')
-          .doc(frameId)
-          .get();
-      if (frameDoc.exists) {
-        frameName = frameDoc.data()?['name']?.toString();
-      }
+  Future<Map<String, dynamic>> _loadProfile(User user) async {
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
     }
+    final api = ApiClient()..setToken(token);
+    return await api.get('/me') as Map<String, dynamic>;
+  }
 
-    if (titleId != null && titleId.isNotEmpty) {
-      final titleDoc = await FirebaseFirestore.instance
-          .collection('items')
-          .doc(titleId)
-          .get();
-      if (titleDoc.exists) {
-        titleName = titleDoc.data()?['name']?.toString();
-      }
-    }
-
-    return {'frameName': frameName, 'titleName': titleName};
+  void _reloadProfile(User user) {
+    setState(() {
+      _profileUid = user.uid;
+      _profileFuture = _loadProfile(user);
+    });
   }
 
   @override
@@ -88,6 +82,10 @@ class ProfileScreen extends StatelessWidget {
 
     if (user == null) {
       return const Scaffold(body: Center(child: Text('Chưa đăng nhập')));
+    }
+    if (_profileUid != user.uid || _profileFuture == null) {
+      _profileUid = user.uid;
+      _profileFuture = _loadProfile(user);
     }
 
     return Scaffold(
@@ -110,187 +108,161 @@ class ProfileScreen extends StatelessWidget {
         centerTitle: true,
       ),
       body: SafeArea(
-        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .snapshots(),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _profileFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return const Center(
-                child: Text('Không thể tải hồ sơ người dùng'),
+              return Center(
+                child: Text(
+                  'Không thể tải hồ sơ người dùng: ${snapshot.error}',
+                ),
               );
             }
 
-            final data = snapshot.data?.data() ?? <String, dynamic>{};
-            final profile = UserModel.fromMap({
-              ...data,
-              'email': data['email'] ?? user.email ?? '',
-              'displayName': data['displayName'] ?? user.displayName ?? '',
-            }, user.uid);
+            final data = snapshot.data ?? <String, dynamic>{};
+            final profile = UserModel.fromMap(data, user.uid);
             final initials = _getInitials(profile.displayName);
 
-            final equippedFrameId = data['frameId']?.toString();
-            final equippedTitleId = data['titleId']?.toString();
+            final equippedFrameId = profile.frameId;
+            final titleName = profile.titleName;
+            final frameName = profile.frameName;
+            final hasFrame = equippedFrameId?.isNotEmpty == true;
 
-            return FutureBuilder<Map<String, String?>>(
-              future: _fetchEquippedDetails(equippedFrameId, equippedTitleId),
-              builder: (context, itemSnap) {
-                final frameName = itemSnap.data?['frameName'];
-                final titleName = itemSnap.data?['titleName'];
-                final hasFrame =
-                    equippedFrameId != null && equippedFrameId.isNotEmpty;
-
-                return ListView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+            return ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                Center(
+                  child: _buildAvatarWithFrame(
+                    avatarUrl: profile.avatarUrl,
+                    initials: initials,
+                    hasFrame: hasFrame,
+                    frameId: equippedFrameId,
+                    frameName: frameName,
                   ),
+                ),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    profile.displayName,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+                if (titleName != null && titleName.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Center(child: _buildTitleBadge(titleName)),
+                ],
+                const SizedBox(height: 6),
+                Center(
+                  child: Text(
+                    'Mã kết bạn: ${profile.userCode}',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
                   children: [
-                    Center(
-                      child: _buildAvatarWithFrame(
-                        avatarUrl: profile.avatarUrl,
-                        initials: initials,
-                        hasFrame: hasFrame,
-                        frameId: equippedFrameId,
-                        frameName: frameName,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Text(
-                        profile.displayName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                    ),
-                    if (titleName != null && titleName.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Center(child: _buildTitleBadge(titleName)),
-                    ],
-                    const SizedBox(height: 6),
-                    Center(
-                      child: Text(
-                        'Mã kết bạn: ${profile.userCode}',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard('${profile.score}', 'điểm'),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildStatCard('${profile.coins}', 'xu'),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _buildStatCard(
-                            '${profile.gamesPlayed}',
-                            'lượt chơi',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMenuCard(
-                      context,
-                      icon: '✏️',
-                      title: 'Sửa hồ sơ',
-                      subtitle: 'Tên, avatar, đổi mật khẩu',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                EditProfileScreen(userModel: profile),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      icon: '🎒',
-                      title: 'Túi đồ',
-                      subtitle:
-                          'Quản lý quyền trợ giúp, khung avatar & danh hiệu',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const InventoryScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      icon: '❤️',
-                      title: 'Yêu thích của tôi',
-                      subtitle: '3 bộ đề • 2 chủ đề',
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Mở danh sách Yêu thích'),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildMenuCard(
-                      context,
-                      icon: '👥',
-                      title: 'Bạn bè',
-                      subtitle: 'Quản lý danh sách & lời mời kết bạn',
-                      isHighlighted: true,
-                      onTap: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const FriendsScreen(),
-    ),
-  );
-},
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 46,
-                      child: OutlinedButton(
-                        onPressed: () => _handleSignOut(context),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFDC2626),
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(
-                            color: Color(0xFFEF4444),
-                            width: 1.2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Đăng xuất',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                    Expanded(child: _buildStatCard('${profile.score}', 'điểm')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _buildStatCard('${profile.coins}', 'xu')),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildStatCard(
+                        '${profile.gamesPlayed}',
+                        'lượt chơi',
                       ),
                     ),
                   ],
-                );
-              },
+                ),
+                const SizedBox(height: 16),
+                _buildMenuCard(
+                  context,
+                  icon: '✏️',
+                  title: 'Sửa hồ sơ',
+                  subtitle: 'Tên, avatar, đổi mật khẩu',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileScreen(userModel: profile),
+                      ),
+                    ).then((_) => _reloadProfile(user));
+                  },
+                ),
+                _buildMenuCard(
+                  context,
+                  icon: '🎒',
+                  title: 'Túi đồ',
+                  subtitle: 'Quản lý quyền trợ giúp, khung avatar & danh hiệu',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const InventoryScreen(),
+                      ),
+                    ).then((_) => _reloadProfile(user));
+                  },
+                ),
+                _buildMenuCard(
+                  context,
+                  icon: '❤️',
+                  title: 'Yêu thích của tôi',
+                  subtitle: '3 bộ đề • 2 chủ đề',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Mở danh sách Yêu thích')),
+                    );
+                  },
+                ),
+                _buildMenuCard(
+                  context,
+                  icon: '👥',
+                  title: 'Bạn bè',
+                  subtitle: 'Quản lý danh sách & lời mời kết bạn',
+                  isHighlighted: true,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: OutlinedButton(
+                    onPressed: () => _handleSignOut(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFDC2626),
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(
+                        color: Color(0xFFEF4444),
+                        width: 1.2,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Đăng xuất',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),

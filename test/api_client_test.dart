@@ -7,12 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late HttpServer server;
   late String? authorizationHeader;
+  final requests = <String>[];
 
   setUp(() async {
     authorizationHeader = null;
+    requests.clear();
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
 
     server.listen((request) async {
+      requests.add('${request.method} ${request.uri.path}');
       authorizationHeader = request.headers.value(
         HttpHeaders.authorizationHeader,
       );
@@ -65,5 +68,14 @@ void main() {
             ),
       ),
     );
+  });
+
+  test('supports profile updates and deleting saved records', () async {
+    final api = ApiClient(baseUrl: 'http://127.0.0.1:${server.port}');
+
+    await api.put('/me/profile', {'displayName': 'Player'});
+    await api.delete('/favorites', query: {'targetId': 'set-1'});
+
+    expect(requests, ['PUT /me/profile', 'DELETE /favorites']);
   });
 }

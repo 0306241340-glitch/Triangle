@@ -17,6 +17,11 @@ class StoreService {
     return StoreCatalog.fromJson(data);
   }
 
+  Future<Map<String, dynamic>> loadInventory() async {
+    await _attachToken();
+    return await _api.get('/store/inventory') as Map<String, dynamic>;
+  }
+
   Future<StorePurchaseResult> purchase(String itemId) async {
     await _attachToken();
     final data = await _api.post('/store/purchase', {

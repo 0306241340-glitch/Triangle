@@ -1,8 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
-import '../../core/app_constants.dart';
 import '../../core/app_theme.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/review_model.dart';
@@ -25,6 +24,8 @@ class QuizSetDetailScreen extends StatefulWidget {
 
 class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
   bool _isFavorite = false;
+  bool _isFavoriteLoading = false;
+  String? _loadError;
   late QuizSet _set;
   List<Review> _reviews = [];
 
@@ -33,49 +34,83 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
     super.initState();
     _set = widget.quizSet;
     _loadRealSet();
+    _loadFavorite();
   }
 
-  // Lấy bộ đề thật từ API hoặc Firestore (số lượt làm, điểm TB, bình luận).
+  Future<void> _attachToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw StateError('Bạn cần đăng nhập.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('Phiên đăng nhập hết hạn.');
+    }
+    ApiClient().setToken(token);
+  }
+
   Future<void> _loadRealSet() async {
-    // 1. Thử gọi API
     try {
-      final data = await ApiClient()
-          .get('/quiz-sets/${widget.quizSet.id}')
-          .timeout(const Duration(seconds: 3));
-      final m = data as Map<String, dynamic>;
+      await _attachToken();
+      final m = await ApiClient().get(
+        '/quiz-sets/${widget.quizSet.id}',
+      ) as Map<String, dynamic>;
       if (!mounted) return;
       setState(() {
         _set = QuizSet.fromJson(m);
         _reviews = (m['comments'] as List? ?? []).map((e) {
-          final c = e as Map<String, dynamic>;
-          return Review(
-            id: c['id']?.toString() ?? '',
-            quizSetId: c['quizSetId']?.toString() ?? widget.quizSet.id,
-            userName: c['userName']?.toString() ?? 'Người chơi',
-            rating: (c['rating'] as num?)?.toInt() ?? 5,
-            comment: c['comment']?.toString() ?? '',
-            createdAt: c['createdAt']?.toString() ?? '',
-          );
+          return Review.fromJson(e as Map<String, dynamic>);
         }).toList();
+        _loadError = null;
       });
-      return;
     } catch (_) {
-      // API lỗi, thử Firestore
+      if (mounted) {
+        setState(
+          () => _loadError = 'Không thể tải thông tin bộ đề từ máy chủ.',
+        );
+      }
     }
+  }
 
-    // 2. Thử đọc từ Firestore quiz_sets
+  Future<void> _loadFavorite() async {
     try {
-      final snap = await FirebaseFirestore.instance
-          .collection(AppConstants.quizSetsCollection)
-          .doc(widget.quizSet.id)
-          .get();
-      if (snap.exists && mounted) {
-        setState(() {
-          _set = QuizSet.fromJson({...snap.data()!, 'id': snap.id});
+      await _attachToken();
+      final response = await ApiClient().get(
+        '/favorites/status',
+        query: {'targetId': widget.quizSet.id, 'targetType': 'quizSet'},
+      ) as Map<String, dynamic>;
+      if (mounted) setState(() => _isFavorite = response['isFavorite'] == true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể tải trạng thái yêu thích.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() => _isFavoriteLoading = true);
+    try {
+      await _attachToken();
+      if (_isFavorite) {
+        await ApiClient().delete(
+          '/favorites',
+          query: {'targetId': widget.quizSet.id, 'targetType': 'quizSet'},
+        );
+      } else {
+        await ApiClient().post('/favorites', {
+          'targetId': widget.quizSet.id,
+          'targetType': 'quizSet',
         });
       }
-    } catch (e) {
-      debugPrint('[QuizSetDetail] Lỗi load Firestore: $e');
+      if (mounted) setState(() => _isFavorite = !_isFavorite);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật yêu thích: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isFavoriteLoading = false);
     }
   }
 
@@ -103,6 +138,19 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_loadError != null)
+            Card(
+              color: Colors.red.shade50,
+              child: ListTile(
+                leading: const Icon(Icons.error_outline, color: Colors.red),
+                title: Text(_loadError!),
+                trailing: IconButton(
+                  tooltip: 'Thử lại',
+                  onPressed: _loadRealSet,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
+            ),
           // thẻ tiêu đề + mô tả + huy hiệu độ khó
           Card(
             child: Padding(
@@ -206,9 +254,7 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
                       color: _isFavorite ? AppColors.error : AppColors.primary,
                     ),
                   ),
-                  onPressed: () {
-                    setState(() => _isFavorite = !_isFavorite);
-                  },
+                  onPressed: _isFavoriteLoading ? null : _toggleFavorite,
                   icon: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: _isFavorite ? AppColors.error : AppColors.primary,
