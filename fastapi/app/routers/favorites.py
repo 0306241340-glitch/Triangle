@@ -10,81 +10,28 @@ from ..schemas import FavoriteIn
 router = APIRouter()
 
 
-def _validate_target(body: FavoriteIn, db: Session) -> None:
-    if body.targetType == "topic":
+def _normalize_target_type(target_type: str) -> str:
+    if target_type == "topic":
+        return "topic"
+    if target_type in {"quizSet", "quiz_set"}:
+        return "quizSet"
+    raise ApiError(400, "VALIDATION", "Loại mục yêu thích không hợp lệ.")
+
+
+def _target_type_aliases(target_type: str) -> tuple[str, ...]:
+    normalized = _normalize_target_type(target_type)
+    return ("quizSet", "quiz_set") if normalized == "quizSet" else ("topic",)
+
+
+def _validate_target(body: FavoriteIn, db: Session) -> str:
+    target_type = _normalize_target_type(body.targetType)
+    if target_type == "topic":
         exists = db.query(Topic.id).filter(Topic.id == body.targetId).first()
-    elif body.targetType == "quizSet":
-        exists = db.query(QuizSet.id).filter(QuizSet.id == body.targetId).first()
     else:
-        raise ApiError(400, "VALIDATION", "Loại mục yêu thích không hợp lệ.")
+        exists = db.query(QuizSet.id).filter(QuizSet.id == body.targetId).first()
     if exists is None:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy mục cần lưu.")
-
-
-@router.get("/status")
-def status(targetId: str = Query(min_length=1),
-           targetType: str = Query(min_length=1),
-           user: CurrentUser = Depends(get_current_user),
-           db: Session = Depends(get_db)):
-    favorite = db.query(Favorite.id).filter(
-        Favorite.user_id == user.uid,
-        Favorite.target_id == targetId,
-        Favorite.target_type == targetType,
-    ).first()
-    return ok({"isFavorite": favorite is not None})
-
-
-@router.get("")
-def list_favorites(user: CurrentUser = Depends(get_current_user),
-                   db: Session = Depends(get_db)):
-    rows = db.query(Favorite).filter(Favorite.user_id == user.uid).all()
-    return ok([
-        {"id": row.id, "targetId": row.target_id, "targetType": row.target_type}
-        for row in rows
-    ])
-
-
-@router.post("")
-def add_favorite(body: FavoriteIn, user: CurrentUser = Depends(get_current_user),
-                 db: Session = Depends(get_db)):
-    _validate_target(body, db)
-    existing = db.query(Favorite).filter(
-        Favorite.user_id == user.uid,
-        Favorite.target_id == body.targetId,
-        Favorite.target_type == body.targetType,
-    ).first()
-    if existing is None:
-        db.add(Favorite(
-            user_id=user.uid,
-            target_id=body.targetId,
-            target_type=body.targetType,
-        ))
-        db.commit()
-    return ok({"isFavorite": True})
-
-
-@router.delete("")
-def remove_favorite(targetId: str = Query(min_length=1),
-                    targetType: str = Query(min_length=1),
-                    user: CurrentUser = Depends(get_current_user),
-                    db: Session = Depends(get_db)):
-    db.query(Favorite).filter(
-        Favorite.user_id == user.uid,
-        Favorite.target_id == targetId,
-        Favorite.target_type == targetType,
-    ).delete(synchronize_session=False)
-    db.commit()
-    return ok({"isFavorite": False})
-
-from fastapi import APIRouter, Body, Depends
-from sqlalchemy.orm import Session
-from ..auth import CurrentUser, get_current_user
-from ..database import get_db
-from ..errors import ok
-from ..models import Favorite, QuizSet, Topic
-from .quiz_sets import _set_dict
-
-router = APIRouter()
+    return target_type
 
 
 @router.get("")
@@ -93,75 +40,131 @@ def list_favorites(
     db: Session = Depends(get_db),
 ):
     rows = (
-        db.query(QuizSet)
-        .join(Favorite, Favorite.target_id == QuizSet.id)
-        .filter(
-            Favorite.user_id == user.uid,
-            Favorite.target_type == "quiz_set",
-            QuizSet.is_active == True,
-        )
+        db.query(Favorite)
+        .filter(Favorite.user_id == user.uid)
         .order_by(Favorite.created_at.desc())
         .all()
     )
-    return ok([_set_dict(s) for s in rows])
+    return ok([
+        {
+            "id": row.id,
+            "targetId": row.target_id,
+            "targetType": _normalize_target_type(row.target_type),
+            "createdAt": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ])
 
 
 @router.get("/ids")
 def list_favorite_ids(
+    targetType: str = Query(default="quizSet"),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    aliases = _target_type_aliases(targetType)
     rows = (
         db.query(Favorite.target_id)
-        .filter(Favorite.user_id == user.uid, Favorite.target_type == "quiz_set")
+        .filter(
+            Favorite.user_id == user.uid,
+            Favorite.target_type.in_(aliases),
+        )
         .all()
     )
-    return ok([r[0] for r in rows])
+    return ok([row[0] for row in rows])
+
+
+@router.get("/status")
+def status(
+    targetId: str = Query(min_length=1),
+    targetType: str = Query(min_length=1),
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    aliases = _target_type_aliases(targetType)
+    favorite = (
+        db.query(Favorite.id)
+        .filter(
+            Favorite.user_id == user.uid,
+            Favorite.target_id == targetId,
+            Favorite.target_type.in_(aliases),
+        )
+        .first()
+    )
+    return ok({"isFavorite": favorite is not None})
+
+
+@router.post("")
+def add_favorite(
+    body: FavoriteIn,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    target_type = _validate_target(body, db)
+    existing = (
+        db.query(Favorite)
+        .filter(
+            Favorite.user_id == user.uid,
+            Favorite.target_id == body.targetId,
+            Favorite.target_type.in_(_target_type_aliases(target_type)),
+        )
+        .first()
+    )
+    if existing is None:
+        db.add(
+            Favorite(
+                user_id=user.uid,
+                target_id=body.targetId,
+                target_type=target_type,
+            )
+        )
+        db.commit()
+    return ok({"isFavorite": True})
+
+
+@router.delete("")
+def remove_favorite(
+    targetId: str = Query(min_length=1),
+    targetType: str = Query(min_length=1),
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    aliases = _target_type_aliases(targetType)
+    (
+        db.query(Favorite)
+        .filter(
+            Favorite.user_id == user.uid,
+            Favorite.target_id == targetId,
+            Favorite.target_type.in_(aliases),
+        )
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return ok({"isFavorite": False})
 
 
 @router.post("/{set_id}/toggle")
 def toggle_favorite(
     set_id: str,
-    payload: dict | None = Body(default=None),
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    payload = payload or {}
-    quiz_set = db.query(QuizSet).filter(QuizSet.id == set_id).first()
-
-    # Tự động tạo bản ghi QuizSet vào DB nếu bộ đề chưa có sẵn trong bảng quiz_sets
-    if not quiz_set:
-        topic_id = str(payload.get("topicId") or "general")
-        if not db.query(Topic).filter(Topic.id == topic_id).first():
-            db.add(Topic(id=topic_id, name=str(payload.get("topicName") or "Tổng hợp")))
-            db.flush()
-
-        quiz_set = QuizSet(
-            id=set_id,
-            topic_id=topic_id,
-            name=str(payload.get("title") or f"Bộ đề {set_id}"),
-            duration_sec=int(payload.get("durationSec") or 300),
-            question_count=int(payload.get("questionCount") or 10),
-            is_active=True,
-        )
-        db.add(quiz_set)
-        db.flush()
-
+    body = FavoriteIn(targetId=set_id, targetType="quizSet")
+    _validate_target(body, db)
     existing = (
         db.query(Favorite)
         .filter(
             Favorite.user_id == user.uid,
             Favorite.target_id == set_id,
-            Favorite.target_type == "quiz_set",
+            Favorite.target_type.in_(_target_type_aliases("quizSet")),
         )
         .first()
     )
-    if existing:
+    if existing is not None:
         db.delete(existing)
         db.commit()
         return ok({"quizSetId": set_id, "isFavorite": False})
 
-    fav = Favorite(user_id=user.uid, target_id=set_id, target_type="quiz_set")
-    db.add(fav)
+    db.add(Favorite(user_id=user.uid, target_id=set_id, target_type="quizSet"))
     db.commit()
     return ok({"quizSetId": set_id, "isFavorite": True})

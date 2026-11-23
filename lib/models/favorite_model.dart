@@ -1,32 +1,33 @@
 class FavoriteModel {
-    final String id;
-    final String user_id;
-    final String target_id;
-    final String target_type;
-    final DateTime? createdAt;
-    FavoriteModel({
-        required this.id,
-        required this.user_id,
-        required this.target_id,
-        required this.target_type,
-        this.createdAt
-    });
-    factory FavoriteModel.fromJson(Map <String,dynamic>json){
-        return FavoriteModel(
-            id:json['id']?.toString()??'',
-            user_id: json['user_id']?.toString()??'',
-            target_id: json['target_id']?.toString()??'',
-            target_type: json['target_type']?.toString()??'',
-            createdAt: json['createAt'] !=null
-                ? DateTime.tryParse(json['createAt'].toString())
-                :null,
-        );
-    }
-    Map<String,dynamic> toJson() {
-        return {
-            'user_id':user_id,
-            'target_id':target_id,
-            'target_type':target_type,
-        };
-    }
+  const FavoriteModel({
+    required this.id,
+    required this.targetId,
+    required this.targetType,
+    this.createdAt,
+  });
+
+  final String id;
+  final String targetId;
+  final String targetType;
+  final DateTime? createdAt;
+
+  factory FavoriteModel.fromJson(Map<String, dynamic> json) {
+    final rawTargetType =
+        (json['targetType'] ?? json['target_type'] ?? '').toString();
+    return FavoriteModel(
+      id: json['id']?.toString() ?? '',
+      targetId: (json['targetId'] ?? json['target_id'])?.toString() ?? '',
+      targetType: rawTargetType == 'quiz_set' ? 'quizSet' : rawTargetType,
+      createdAt: DateTime.tryParse(
+        (json['createdAt'] ?? json['created_at'] ?? json['createAt'])
+                ?.toString() ??
+            '',
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'targetId': targetId,
+    'targetType': targetType,
+  };
 }

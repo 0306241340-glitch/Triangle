@@ -2,7 +2,7 @@ import copy
 import random
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
@@ -450,3 +450,110 @@ def submit_answer(room_id: str, body: PvpAnswerIn,
     _advance_if_due(room, history, now)
     db.commit()
     return ok(_room_payload(db, room, user.uid))
+
+
+@router.get("/history")
+def match_history(page: int = Query(default=1, ge=1),
+                  user: CurrentUser = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    rows = (
+        db.query(MatchHistory)
+        .join(Room, MatchHistory.room_id == Room.id)
+        .filter(
+            Room.status == "finished",
+            or_(
+                MatchHistory.player1_id == user.uid,
+                MatchHistory.player2_id == user.uid,
+            ),
+        )
+        .order_by(MatchHistory.created_at.desc())
+        .offset((page - 1) * 20)
+        .limit(20)
+        .all()
+    )
+    opponent_ids = {
+        row.player2_id if row.player1_id == user.uid else row.player1_id
+        for row in rows
+    }
+    users = {
+        account.uid: account.display_name
+        for account in db.query(User).filter(User.uid.in_(opponent_ids)).all()
+    } if opponent_ids else {}
+    return ok([
+        {
+            "id": row.id,
+            "opponentName": users.get(
+                row.player2_id if row.player1_id == user.uid else row.player1_id,
+                "Người chơi",
+            ),
+            "myScore": row.score1 if row.player1_id == user.uid else row.score2,
+            "opponentScore": row.score2 if row.player1_id == user.uid else row.score1,
+            "result": (
+                "draw" if row.winner_id is None
+                else "win" if row.winner_id == user.uid
+                else "loss"
+            ),
+            "createdAt": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ])
+
+
+@router.get("/history/{history_id}")
+def match_history_detail(history_id: str,
+                         user: CurrentUser = Depends(get_current_user),
+                         db: Session = Depends(get_db)):
+    history = (
+        db.query(MatchHistory)
+        .join(Room, MatchHistory.room_id == Room.id)
+        .filter(
+            MatchHistory.id == history_id,
+            Room.status == "finished",
+            or_(
+                MatchHistory.player1_id == user.uid,
+                MatchHistory.player2_id == user.uid,
+            ),
+        )
+        .first()
+    )
+    if history is None:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy trận đấu.")
+
+    is_player1 = history.player1_id == user.uid
+    opponent_id = history.player2_id if is_player1 else history.player1_id
+    opponent = db.query(User).filter(User.uid == opponent_id).first()
+    room = db.query(Room).filter(Room.id == history.room_id).first()
+    questions = {
+        question.get("id"): question
+        for question in (room.question_ids if room else [])
+        if isinstance(question, dict)
+    }
+    details = []
+    for detail in history.details or []:
+        question = questions.get(detail.get("questionId"), {})
+        my_player = "host" if is_player1 else "guest"
+        opponent_player = "guest" if is_player1 else "host"
+        details.append({
+            "questionId": detail.get("questionId", ""),
+            "content": question.get("content", ""),
+            "options": question.get("options", []),
+            "correctIndex": question.get("correctIndex", -1),
+            "mySelectedIndex": detail.get(f"{my_player}SelectedIndex"),
+            "opponentSelectedIndex": detail.get(f"{opponent_player}SelectedIndex"),
+            "myCorrect": bool(detail.get(f"{my_player}Correct")),
+            "opponentCorrect": bool(detail.get(f"{opponent_player}Correct")),
+        })
+
+    return ok({
+        "id": history.id,
+        "opponentName": opponent.display_name if opponent else "Người chơi",
+        "myScore": history.score1 if is_player1 else history.score2,
+        "opponentScore": history.score2 if is_player1 else history.score1,
+        "result": (
+            "draw" if history.winner_id is None
+            else "win" if history.winner_id == user.uid
+            else "loss"
+        ),
+        "createdAt": history.created_at.isoformat() if history.created_at else None,
+        "details": details,
+    })
