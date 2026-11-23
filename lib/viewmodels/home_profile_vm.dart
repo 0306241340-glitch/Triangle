@@ -38,13 +38,6 @@ class HomeViewModel extends ChangeNotifier {
   List<QuizSet> quizSetsForTopic(String topicId) =>
       quizSetsByTopic[topicId] ?? [];
 
-  bool isFavorite(String quizSetId) => favoriteIds.contains(quizSetId);
-
-  List<QuizSet> get favoriteQuizSets {
-    final all = quizSetsByTopic.values.expand((list) => list);
-    return all.where((qs) => favoriteIds.contains(qs.id)).toList();
-  }
-
   void setQuery(String value) {
     query = value;
     notifyListeners();

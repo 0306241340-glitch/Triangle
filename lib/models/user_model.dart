@@ -10,6 +10,7 @@ class UserModel {
   final int score;
   final int weeklyScore;
   final int streakDays;
+  final int gamesPlayed;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final String? frameId;
@@ -29,6 +30,7 @@ class UserModel {
     this.score = 0,
     this.weeklyScore = 0,
     this.streakDays = 0,
+    this.gamesPlayed = 0,
     this.createdAt,
     this.updatedAt,
     this.frameId,

@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'profile_screen.dart';
-import 'store_screen.dart';
-import 'friends_screen.dart';
-import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../../viewmodels/home_profile_vm.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
 import 'friends_screen.dart';
 import 'profile_screen.dart';
 import 'store_screen.dart';
+import 'history_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../pvp_social/pvp_social_screen.dart';
 
@@ -158,6 +155,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    if (_vm.topicFavoriteLoadError != null)
+                      Card(
+                        color: const Color(0xFFFFFBEB),
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFD97706),
+                          ),
+                          title: const Text('Chưa tải được trạng thái yêu thích'),
+                          subtitle: Text(_vm.topicFavoriteLoadError!),
+                          trailing: IconButton(
+                            tooltip: 'Thử lại',
+                            onPressed: _vm.loadTopicFavorites,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ),
+                      ),
                     if (topics.isEmpty)
                       const Center(
                         child: Padding(
@@ -183,15 +197,72 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '${topic.icon}  ${topic.name}',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0F172A),
-                                    ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${topic.icon}  ${topic.name}',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: _vm.isTopicFavorite(topic.id)
+                                            ? 'Bỏ chủ đề yêu thích'
+                                            : 'Lưu chủ đề yêu thích',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed:
+                                            _vm.isUpdatingTopicFavorite(
+                                              topic.id,
+                                            )
+                                            ? null
+                                            : () async {
+                                                final error = await _vm
+                                                    .toggleTopicFavorite(
+                                                      topic.id,
+                                                    );
+                                                if (error != null &&
+                                                    context.mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Không thể cập nhật yêu thích: $error',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                        icon:
+                                            _vm.isUpdatingTopicFavorite(
+                                              topic.id,
+                                            )
+                                            ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                _vm.isTopicFavorite(topic.id)
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                color:
+                                                    _vm.isTopicFavorite(
+                                                      topic.id,
+                                                    )
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
                                   Text(
                                     topic.description,
                                     style: const TextStyle(
@@ -269,6 +340,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              } else if (i == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryScreen(homeViewModel: _vm),
+                  ),
                 );
               } else if (i != 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
