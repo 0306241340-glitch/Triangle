@@ -1,6 +1,7 @@
 """Xac thuc: giu nguyen Firebase Auth nhu ban Express.
 App Flutter dang nhap nhu cu, lay ID token, gui header Bearer — khong doi gi.
 FastAPI chi verify token bang firebase-admin, roi lay role tu bang users."""
+import base64
 import json
 import os
 import secrets
@@ -30,6 +31,7 @@ def _init_firebase():
         return _firebase_app
     import firebase_admin
     from firebase_admin import credentials
+
     raw = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
     if raw.strip():
         cred = credentials.Certificate(json.loads(raw))
@@ -38,8 +40,23 @@ def _init_firebase():
         cred = credentials.Certificate("serviceAccountKey.json")
         _firebase_app = firebase_admin.initialize_app(cred)
     else:
-        _firebase_app = firebase_admin.initialize_app()  # ADC (neu co)
+        _firebase_app = firebase_admin.initialize_app()
     return _firebase_app
+
+
+def _decode_jwt_unverified(token: str) -> dict:
+    """Giải mã payload JWT khi chạy local chưa có serviceAccountKey.json."""
+    parts = token.split(".")
+    if len(parts) < 2:
+        raise ValueError("Invalid JWT")
+    payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+    data = json.loads(base64.urlsafe_b64decode(payload_b64).decode("utf-8"))
+    uid = data.get("user_id") or data.get("sub") or data.get("uid")
+    if not uid:
+        raise ValueError("Missing uid in JWT")
+    data["uid"] = uid
+    return data
+
 
 @dataclass
 class CurrentUser:
@@ -47,17 +64,33 @@ class CurrentUser:
     role: str = "user"
     email: str = ""
 
-def get_current_user(authorization: str = Header(default=""),
-                     db: Session = Depends(get_db)) -> CurrentUser:
+
+def get_current_user(
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+) -> CurrentUser:
     token = authorization[7:] if authorization.startswith("Bearer ") else ""
-    if not token:
-        raise ApiError(401, "UNAUTHENTICATED", "Thiếu token đăng nhập.")
-    try:
-        from firebase_admin import auth as fb_auth
-        _init_firebase()
-        decoded = fb_auth.verify_id_token(token)
-    except Exception:
-        raise ApiError(401, "UNAUTHENTICATED", "Token không hợp lệ hoặc đã hết hạn.")
+
+    if _has_firebase_credentials():
+        if not token:
+            raise ApiError(401, "UNAUTHENTICATED", "Thiếu token đăng nhập.")
+        try:
+            from firebase_admin import auth as fb_auth
+
+            _init_firebase()
+            decoded = fb_auth.verify_id_token(token)
+        except Exception:
+            raise ApiError(401, "UNAUTHENTICATED", "Token không hợp lệ hoặc đã hết hạn.")
+    else:
+        # Chế độ local dev (không có serviceAccountKey.json)
+        if token:
+            try:
+                decoded = _decode_jwt_unverified(token)
+            except Exception:
+                decoded = {"uid": "local-dev-user", "email": "dev@local.test", "name": "Dev User"}
+        else:
+            decoded = {"uid": "local-dev-user", "email": "dev@local.test", "name": "Dev User"}
+
     uid = decoded["uid"]
     user = db.query(User).filter(User.uid == uid).first()
     if user is None:  # dang nhap lan dau: tao ho so nhu seed (0 diem, 100 xu)
@@ -70,6 +103,7 @@ def get_current_user(authorization: str = Header(default=""),
         user.user_code = _new_user_code(db)
         db.commit()
     return CurrentUser(uid=uid, role=user.role, email=user.email)
+
 
 def require_admin(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
     if user.role != "admin":

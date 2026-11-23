@@ -78,6 +78,10 @@ r = c.get("/leaderboard")
 assert r.json()["data"]["myScore"] == 180 and r.json()["data"]["myRank"] == 1, r.text
 r = c.get("/quiz/history")
 assert len(r.json()["data"]) == 1 and r.json()["data"][0]["score"] == 180, r.text
+quiz_history_id = r.json()["data"][0]["id"]
+r = c.get(f"/quiz/history/{quiz_history_id}")
+assert r.status_code == 200 and len(r.json()["data"]["details"]) == 10, r.text
+assert r.json()["data"]["details"][0]["content"], r.text
 
 # Profile, friends, favorites, and store data all remain in SQL.
 profile = c.get("/me").json()["data"]
@@ -170,6 +174,12 @@ def finish_match(room_id, start_index=0):
 
 
 finish_match(random_room_id)
+r = c.get("/pvp/history")
+assert r.status_code == 200 and len(r.json()["data"]) == 1, r.text
+match_history_id = r.json()["data"][0]["id"]
+r = c.get(f"/pvp/history/{match_history_id}")
+assert r.status_code == 200 and len(r.json()["data"]["details"]) == 10, r.text
+assert r.json()["data"]["details"][0]["content"], r.text
 invite = c.post(f"/pvp/invite/{ADMIN_UID}")
 assert invite.status_code == 200 and invite.json()["data"]["status"] == "waiting", invite.text
 friend_room_id = invite.json()["data"]["roomId"]
@@ -199,12 +209,29 @@ finish_match(friend_room_id, start_index=1)
 
 r = c.post("/favorites", json={"targetId": "set_tong_hop_1", "targetType": "quizSet"})
 assert r.status_code == 200, r.text
+r = c.get("/favorites")
+assert r.status_code == 200 and any(
+    item["targetId"] == "set_tong_hop_1" and item["targetType"] == "quizSet"
+    for item in r.json()["data"]
+), r.text
 r = c.get("/favorites/status", params={
     "targetId": "set_tong_hop_1", "targetType": "quizSet"
 })
 assert r.json()["data"]["isFavorite"] is True, r.text
+r = c.get("/favorites/ids", params={"targetType": "quizSet"})
+assert "set_tong_hop_1" in r.json()["data"], r.text
 r = c.delete("/favorites", params={
     "targetId": "set_tong_hop_1", "targetType": "quizSet"
+})
+assert r.status_code == 200, r.text
+r = c.post("/favorites", json={"targetId": "topic_tong_hop", "targetType": "topic"})
+assert r.status_code == 200 and r.json()["data"]["isFavorite"] is True, r.text
+r = c.get("/favorites/status", params={
+    "targetId": "topic_tong_hop", "targetType": "topic"
+})
+assert r.json()["data"]["isFavorite"] is True, r.text
+r = c.delete("/favorites", params={
+    "targetId": "topic_tong_hop", "targetType": "topic"
 })
 assert r.status_code == 200, r.text
 

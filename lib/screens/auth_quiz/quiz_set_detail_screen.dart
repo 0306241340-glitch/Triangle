@@ -193,7 +193,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // 2 hàng ô thống kê, mỗi hàng 3 cột — đồng bộ màu trắng hết
           Row(
             children: [
               _StatBox(label: 'Số câu', value: '${quizSet.questionCount} câu'),
@@ -219,7 +218,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // 2 nút ngay dưới ô thống kê
           Row(
             children: [
               Expanded(

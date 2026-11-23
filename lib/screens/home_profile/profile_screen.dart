@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-
+import '../admin/admin_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'inventory_screen.dart';
 import 'friends_screen.dart';
+import 'favorites_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -216,10 +217,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   context,
                   icon: '❤️',
                   title: 'Yêu thích của tôi',
-                  subtitle: '3 bộ đề • 2 chủ đề',
+                  subtitle: 'Chủ đề và bộ đề đã lưu',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Mở danh sách Yêu thích')),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FavoritesScreen(),
+                      ),
                     );
                   },
                 ),
@@ -233,6 +237,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const FriendsScreen()),
+                    );
+                  },
+                ),
+                _buildMenuCard(
+                  context,
+                  icon: '📊',
+                  title: 'Thống kê',
+                  subtitle: 'Tổng lượt thi, điểm theo bộ đề & chủ đề',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => AdminStatsScreen()),
                     );
                   },
                 ),

@@ -262,9 +262,17 @@ def history_detail(hid: str, user: CurrentUser = Depends(get_current_user),
     if not h:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy lượt chơi.")
     ds = db.query(HistoryDetail).filter(HistoryDetail.history_id == hid).all()
+    question_ids = {detail.question_id for detail in ds}
+    questions = {
+        question.id: question
+        for question in db.query(Question).filter(Question.id.in_(question_ids)).all()
+    } if question_ids else {}
     return ok({"id": h.id, "quizSetId": h.quiz_set_id, "score": h.score,
                "correctCount": h.correct_count, "totalCount": h.total_count,
                "coinsEarned": h.coins_earned, "timeTakenSec": h.time_taken_sec,
-               "details": [{"questionId": d.question_id, "selectedIndex": d.selected_index,
+               "details": [{"questionId": d.question_id,
+                            "content": questions[d.question_id].content
+                            if d.question_id in questions else "",
+                            "selectedIndex": d.selected_index,
                             "correctIndex": d.correct_index, "isCorrect": d.is_correct,
                             "level": d.level} for d in ds]})
