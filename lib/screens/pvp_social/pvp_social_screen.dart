@@ -52,12 +52,16 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
   }
 
   void _refreshFriends() {
-    setState(() => _friendsFuture = _friendService.loadFriends());
+    setState(() {
+      _friendsFuture = _friendService.loadFriends();
+    });
   }
 
   void _refreshInvitations() {
     if (mounted) {
-      setState(() => _invitationsFuture = _service.loadInvitations());
+      setState(() {
+        _invitationsFuture = _service.loadInvitations();
+      });
     }
   }
 
