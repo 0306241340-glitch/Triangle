@@ -1,6 +1,7 @@
 """Xac thuc: giu nguyen Firebase Auth nhu ban Express.
 App Flutter dang nhap nhu cu, lay ID token, gui header Bearer — khong doi gi.
 FastAPI chi verify token bang firebase-admin, roi lay role tu bang users."""
+_has_firebase_credentials = bool(firebase_admin._apps)
 import base64
 import json
 import os
