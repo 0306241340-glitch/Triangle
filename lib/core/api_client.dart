@@ -24,7 +24,7 @@ class ApiClient {
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://triangle-store-api-vuong-2026.onrender.com',
+    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
   );
 
   static const _requestTimeout = Duration(seconds: 60);
