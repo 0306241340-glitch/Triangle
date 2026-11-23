@@ -9,7 +9,7 @@ from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..errors import ApiError, ok
 from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, Transaction, User
-from ..schemas import FiftyFiftyIn, StartIn, SubmitIn
+from ..schemas import FiftyFiftyIn, HelpIn, StartIn, SubmitIn
 
 router = APIRouter()
 POINTS = {"easy": (10, 5), "medium": (20, 10), "hard": (30, 15)}
@@ -34,15 +34,22 @@ def start(body: StartIn, user: CurrentUser = Depends(get_current_user),
     att = Attempt(id=attempt_id, user_id=user.uid, quiz_set_id=s.id,
                   topic_id=s.topic_id, duration_sec=s.duration_sec or 300)
     db.add(att)
+    db.flush()
     out_qs = []
     for q in qs:
         order = _shuffle([0, 1, 2, 3])
-        db.add(AttemptAnswer(attempt_id=attempt_id, question_id=q.id,
-                             correct_index=order.index(q.correct_index), level=q.level))
-        out_qs.append({"id": q.id, "content": q.content,
-                       "options": [q.options[i] for i in order], "level": q.level})
+        answer = AttemptAnswer(attempt_id=attempt_id, question_id=q.id,
+                               correct_index=order.index(q.correct_index), level=q.level)
+        db.add(answer)
+        db.flush()
+        out_qs.append({"id": q.id, "topicId": q.topic_id, "content": q.content,
+                       "options": [q.options[i] for i in order], "level": q.level,
+                       "slotId": str(answer.id)})
     db.commit()
+    db.flush()
+    account = db.query(User).filter(User.uid == user.uid).first()
     return ok({"attemptId": attempt_id, "durationSec": s.duration_sec or 300,
+               "topicId": s.topic_id, "userCoins": account.coins or 0,
                "questions": out_qs})
 
 @router.post("/submit")
@@ -55,8 +62,13 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
         raise ApiError(409, "CONFLICT", "Lượt chơi này đã nộp rồi, không cộng điểm lần 2.")
     if att.user_id != user.uid:
         raise ApiError(403, "FORBIDDEN", "Không phải lượt chơi của bạn.")
+    if att.quiz_set_id != body.quizSetId:
+        raise ApiError(400, "VALIDATION", "Bộ đề không khớp với lượt chơi.")
     keys = {a.question_id: a for a in
             db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == att.id).all()}
+    answer_ids = [answer.questionId for answer in body.answers]
+    if len(answer_ids) != len(set(answer_ids)) or any(qid not in keys for qid in answer_ids):
+        raise ApiError(400, "VALIDATION", "Danh sách đáp án không hợp lệ.")
     score = coins = correct = 0
     details = []
     for a in body.answers:
@@ -94,7 +106,8 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
         s.attempt_count = (s.attempt_count or 0) + 1
     db.commit()
     return ok({"score": score, "correctCount": correct, "totalCount": len(keys),
-               "coinsEarned": coins, "historyId": hist.id})
+               "answeredCount": len(body.answers), "coinsEarned": coins,
+               "userCoins": u.coins, "historyId": hist.id})
 
 def _fifty_fifty(body: FiftyFiftyIn, user, db):
     att = db.query(Attempt).filter(Attempt.id == body.attemptId).first()
@@ -134,6 +147,99 @@ def fifty_fifty(body: FiftyFiftyIn, user: CurrentUser = Depends(get_current_user
 def use_help(body: FiftyFiftyIn, user: CurrentUser = Depends(get_current_user),
              db: Session = Depends(get_db)):
     return _fifty_fifty(body, user, db)  # alias, phong khi Flutter goi ten cu
+
+
+@router.post("/help")
+def use_other_help(body: HelpIn, user: CurrentUser = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    att = db.query(Attempt).filter(Attempt.id == body.attemptId).first()
+    if not att:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy lượt chơi này.")
+    if att.user_id != user.uid:
+        raise ApiError(403, "FORBIDDEN", "Không phải lượt chơi của bạn.")
+    if att.submitted:
+        raise ApiError(409, "CONFLICT", "Lượt chơi này đã nộp rồi.")
+
+    account = db.query(User).filter(User.uid == user.uid).with_for_update().first()
+    used = dict(att.helps_used or {})
+    if body.helpType == "extra_time":
+        key, cost, response = "extra_time", 20, {"addedSeconds": 30}
+        if used.get(key):
+            raise ApiError(409, "CONFLICT", "Bạn đã dùng thêm thời gian rồi.")
+    elif body.helpType == "change_question":
+        try:
+            answer_id = int(body.answerId)
+        except ValueError:
+            raise ApiError(400, "VALIDATION", "Vị trí câu hỏi không hợp lệ.")
+        answer = db.query(AttemptAnswer).filter(
+            AttemptAnswer.attempt_id == att.id,
+            AttemptAnswer.id == answer_id,
+        ).first()
+        if answer is None:
+            raise ApiError(404, "NOT_FOUND", "Câu hỏi không thuộc lượt chơi này.")
+        if body.questionId and answer.question_id != body.questionId:
+            raise ApiError(409, "CONFLICT", "Câu hỏi đã thay đổi, hãy thử lại.")
+        key, cost, response = f"change_slot:{answer.id}", 30, {}
+        if used.get(key):
+            raise ApiError(409, "CONFLICT", "Câu hỏi này đã được đổi.")
+        other_answers = db.query(AttemptAnswer).filter(
+            AttemptAnswer.attempt_id == att.id,
+            AttemptAnswer.id != answer.id,
+        ).all()
+        if not other_answers:
+            raise ApiError(400, "VALIDATION", "Không có câu hỏi khác để thay thế.")
+        other_answer = random.choice(other_answers)
+        current_question = db.query(Question).filter(
+            Question.id == answer.question_id,
+        ).first()
+        other_question = db.query(Question).filter(
+            Question.id == other_answer.question_id,
+        ).first()
+        if (current_question is None or other_question is None or
+                len(current_question.options or []) < 2 or
+                len(other_question.options or []) < 2):
+            raise ApiError(400, "VALIDATION", "Câu hỏi thay thế không hợp lệ.")
+
+        answer.question_id, other_answer.question_id = (
+            other_answer.question_id, answer.question_id,
+        )
+        current_order = _shuffle(list(range(len(other_question.options))))
+        other_order = _shuffle(list(range(len(current_question.options))))
+        answer.correct_index = current_order.index(other_question.correct_index)
+        answer.level = other_question.level
+        other_answer.correct_index = other_order.index(current_question.correct_index)
+        other_answer.level = current_question.level
+        response = {
+            "question": {
+                "id": other_question.id,
+                "topicId": other_question.topic_id,
+                "content": other_question.content,
+                "options": [other_question.options[i] for i in current_order],
+                "level": other_question.level,
+                "slotId": str(answer.id),
+            },
+            "otherQuestion": {
+                "id": current_question.id,
+                "topicId": current_question.topic_id,
+                "content": current_question.content,
+                "options": [current_question.options[i] for i in other_order],
+                "level": current_question.level,
+                "slotId": str(other_answer.id),
+            },
+            "otherSlotId": str(other_answer.id),
+        }
+    else:
+        raise ApiError(400, "VALIDATION", "Loại trợ giúp không hợp lệ.")
+
+    if (account.coins or 0) < cost:
+        raise ApiError(400, "INSUFFICIENT_COINS", f"Không đủ {cost} xu.")
+    account.coins -= cost
+    used[key] = True
+    att.helps_used = used
+    db.add(Transaction(user_id=user.uid, type="spend", amount=-cost,
+                       reason=body.helpType, related_id=att.id))
+    db.commit()
+    return ok({**response, "coins": account.coins})
 
 @router.get("/history")
 def history(topicId: str = Query(default=""), page: int = Query(default=1),

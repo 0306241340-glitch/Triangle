@@ -36,6 +36,12 @@ class User(Base):
     histories = relationship("QuizHistory", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
     comments = relationship("Comment", back_populates="user")
+    favorites = relationship("Favorite", back_populates="user")
+    user_items = relationship("UserItem", back_populates="user")
+    match_queue_entries = relationship("MatchQueue", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
+    hosted_rooms = relationship("Room", back_populates="host", foreign_keys="Room.host_id")
+    guest_rooms = relationship("Room", back_populates="guest", foreign_keys="Room.guest_id")
 
 class Topic(Base):
     __tablename__ = "topics"
@@ -160,6 +166,7 @@ class Item(Base):
     price = Column(Integer, default=0)
     type = Column(String, default="help")
     is_active = Column(Boolean, default=True)
+    user_items = relationship("UserItem", back_populates="item")
 
 class Report(Base):
     __tablename__ = "reports"
@@ -178,11 +185,79 @@ class Friend(Base):
     user = relationship("User", foreign_keys=[user_id])
     friend = relationship("User", foreign_keys=[friend_id])
 
-class Favorite(Base):
-    __tablename__ = "favorites"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    user_id = Column(String, ForeignKey("users.uid", ondelete="CASCADE"), nullable=False)
-    target_id = Column(String, nullable=False)
-    target_type = Column(String, nullable=False)  # 'topic' hoặc 'quiz_set'
+class Favorite(Base):
+    """3.2.7 — danh sach chu de / bo de yeu thich cua user."""
+    __tablename__ = "favorites"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    user_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    target_id = Column(String, nullable=False)  # id cua Topic hoac QuizSet
+    target_type = Column(String, nullable=False)  # 'topic' | 'quizSet'
     created_at = Column(DateTime, default=_now)
+    user = relationship("User", back_populates="favorites")
+
+class UserItem(Base):
+    """3.2.9 — tui do ca nhan (so luong tro giup / trang thai trang bi)."""
+    __tablename__ = "user_items"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    user_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    item_id = Column(String, ForeignKey("items.id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    equipped = Column(Boolean, default=False)
+    user = relationship("User", back_populates="user_items")
+    item = relationship("Item", back_populates="user_items")
+
+class Room(Base):
+    """3.2.12 — phong thi dau doi khang 1vs1."""
+    __tablename__ = "rooms"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    host_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    guest_id = Column(String, ForeignKey("users.uid"), nullable=True)
+    status = Column(String, default="waiting")  # waiting|ready|playing|finished|cancelled
+    question_ids = Column(JSON, default=list)  # 10 cau chung cua tran
+    current_question_index = Column(Integer, default=0)
+    question_start_time = Column(DateTime, nullable=True)
+    host_score = Column(Integer, default=0)
+    guest_score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=_now)
+    host = relationship("User", back_populates="hosted_rooms", foreign_keys=[host_id])
+    guest = relationship("User", back_populates="guest_rooms", foreign_keys=[guest_id])
+    match_history = relationship("MatchHistory", back_populates="room", uselist=False)
+
+class MatchHistory(Base):
+    """3.2.13 — ket qua + dien bien tran doi khang da xong (1 Room = 1 lich su)."""
+    __tablename__ = "match_histories"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    room_id = Column(String, ForeignKey("rooms.id"), nullable=False)
+    player1_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    player2_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    score1 = Column(Integer, default=0)
+    score2 = Column(Integer, default=0)
+    winner_id = Column(String, ForeignKey("users.uid"), nullable=True)  # null khi hoa
+    details = Column(JSON, default=list)  # [{questionId, p1Selected, p2Selected, p1Time, p2Time}]
+    created_at = Column(DateTime, default=_now)
+    room = relationship("Room", back_populates="match_history")
+    player1 = relationship("User", foreign_keys=[player1_id])
+    player2 = relationship("User", foreign_keys=[player2_id])
+    winner = relationship("User", foreign_keys=[winner_id])
+
+class MatchQueue(Base):
+    """3.2.14 — hang doi ghep doi thu ngau nhien theo diem."""
+    __tablename__ = "match_queue"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    user_id = Column(String, ForeignKey("users.uid"), nullable=False)
+    score = Column(Integer, default=0)
+    status = Column(String, default="waiting")  # waiting | matched | cancelled
+    joined_at = Column(DateTime, default=_now)
+    user = relationship("User", back_populates="match_queue_entries")
+
+class Notification(Base):
+    """3.2.16 — thong bao loi moi ket ban / thach dau / he thong."""
+    __tablename__ = "notifications"
+    id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
+    user_id = Column(String, ForeignKey("users.uid"), nullable=False)  # nguoi nhan
+    type = Column(String, nullable=False)  # friend_request | match_invite | system
+    ref_id = Column(String, default="")  # id cua Friend hoac Room lien quan
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=_now)
+    user = relationship("User", back_populates="notifications")

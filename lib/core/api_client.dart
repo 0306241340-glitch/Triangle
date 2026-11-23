@@ -24,8 +24,7 @@ class ApiClient {
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-    //https://quiz-app-api-fastapi.onrender.com//
+    defaultValue: 'https://triangle-store-api-vuong-2026.onrender.com',
   );
 
   static const _requestTimeout = Duration(seconds: 60);
@@ -61,6 +60,34 @@ class ApiClient {
       final uri = Uri.parse('$_baseUrl$path');
       final res = await http
           .post(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
+  Future<dynamic> put(String path, Map<String, dynamic> body) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path');
+      final res = await http
+          .put(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
+  Future<dynamic> delete(String path, {Map<String, String>? query}) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final res = await http
+          .delete(uri, headers: _headers)
           .timeout(_requestTimeout);
       return _handle(res);
     } on ApiException {

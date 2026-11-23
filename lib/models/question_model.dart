@@ -1,5 +1,6 @@
 class Question {
   final String id;
+  final String slotId;
   final String topicId;
   final String content;
   final List<String> options;
@@ -9,6 +10,7 @@ class Question {
 
   const Question({
     required this.id,
+    required this.slotId,
     required this.topicId,
     required this.content,
     required this.options,
@@ -20,12 +22,13 @@ class Question {
   factory Question.fromJson(Map<String, dynamic> json) {
     return Question(
       id: json['id'] as String? ?? '',
+      slotId: json['slotId']?.toString() ?? '',
       topicId: json['topicId'] as String? ?? '',
       content: json['content'] as String? ?? '',
       options: (json['options'] as List? ?? [])
           .map((e) => e.toString())
           .toList(),
-      correctIndex: (json['correctIndex'] as num?)?.toInt() ?? 0,
+      correctIndex: (json['correctIndex'] as num?)?.toInt() ?? -1,
       level: json['level'] as String? ?? 'easy',
       explanation: json['explanation'] as String? ?? '',
     );

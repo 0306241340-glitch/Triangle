@@ -7,6 +7,11 @@ import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../../viewmodels/home_profile_vm.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
+import 'friends_screen.dart';
+import 'profile_screen.dart';
+import 'store_screen.dart';
+import '../leaderboard/leaderboard_screen.dart';
+import '../pvp_social/pvp_social_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.vm});
@@ -25,7 +30,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _vm = widget.vm ?? HomeViewModel();
     _vm.load();
-    _vm.loadCurrentUserCoins();
   }
 
   @override
@@ -36,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// Khi bấm vào topic → lấy QuizSet đầu tiên của topic đó (từ Firestore).
+  /// Khi bấm vào topic → lấy QuizSet đầu tiên đã tải từ API.
   /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
   Future<void> _openTopic(Topic topic) async {
     final sets = _vm.quizSetsForTopic(topic.id);
@@ -49,15 +53,11 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuizSetDetailScreen(
-          quizSet: sets.first,
-          topic: topic,
-        ),
+        builder: (_) => QuizSetDetailScreen(quizSet: sets.first, topic: topic),
       ),
     );
     if (mounted) {
       _vm.load();
-      _vm.loadCurrentUserCoins();
     }
   }
 
@@ -82,6 +82,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: _vm.isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _vm.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Không thể tải dữ liệu từ máy chủ.\n${_vm.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _vm.load,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
@@ -110,19 +130,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                             const Text(
-                                'Thách đấu bạn bè, 10 câu – 15 giây/câu'),
+                              'Thách đấu bạn bè, 10 câu – 15 giây/câu',
+                            ),
                             const SizedBox(height: 8),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'Phòng đấu 1vs1 — đang làm ở tuần 2'),
-                                    ),
-                                  );
-                                },
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const PvpSocialScreen(),
+                                  ),
+                                ),
                                 child: const Text('Tìm trận ngay'),
                               ),
                             ),
@@ -238,19 +257,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Icon(Icons.history),
                 label: 'Lịch sử',
               ),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.person), label: 'Hồ sơ'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
             ],
             onTap: (i) {
-              if (i == 3) {
+              if (i == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+                );
+              } else if (i == 3) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
                 );
               } else if (i != 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Màn này đang làm ở tuần 2')),
+                  const SnackBar(content: Text('Màn này đang làm ở tuần 2')),
                 );
               }
             },

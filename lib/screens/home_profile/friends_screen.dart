@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/friend_model.dart';
@@ -22,6 +21,9 @@ class _FriendsScreenState extends State<FriendsScreen>
   String? _actionId;
   String? _initializationError;
   late final Future<void> _profileReady;
+  late Future<List<FriendRequest>> _friendsFuture;
+  late Future<List<FriendRequest>> _incomingFuture;
+  late Future<List<FriendRequest>> _outgoingFuture;
   final Map<String, Future<PublicProfile?>> _profileFutures = {};
 
   @override
@@ -30,6 +32,17 @@ class _FriendsScreenState extends State<FriendsScreen>
     _service = widget.service ?? FriendService();
     _tabController = TabController(length: 3, vsync: this);
     _profileReady = _initializeProfile();
+    _friendsFuture = _service.loadFriends();
+    _incomingFuture = _service.loadRequests(incoming: true);
+    _outgoingFuture = _service.loadRequests(incoming: false);
+  }
+
+  void _refreshRelations() {
+    setState(() {
+      _friendsFuture = _service.loadFriends();
+      _incomingFuture = _service.loadRequests(incoming: true);
+      _outgoingFuture = _service.loadRequests(incoming: false);
+    });
   }
 
   Future<void> _initializeProfile() async {
@@ -67,14 +80,13 @@ class _FriendsScreenState extends State<FriendsScreen>
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
+      _refreshRelations();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _actionId = null);
     }
@@ -86,6 +98,13 @@ class _FriendsScreenState extends State<FriendsScreen>
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Bạn bè'),
+        actions: [
+          IconButton(
+            tooltip: 'Làm mới',
+            onPressed: _refreshRelations,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -127,51 +146,37 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _buildFriendsTab() {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _service.watchFriendsAsSender(),
-      builder: (context, senderSnapshot) {
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _service.watchFriendsAsRecipient(),
-          builder: (context, recipientSnapshot) {
-            if (senderSnapshot.hasError || recipientSnapshot.hasError) {
-              return _buildError('Không tải được danh sách bạn bè.');
-            }
-            if (!senderSnapshot.hasData || !recipientSnapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final requests = <FriendRequest>[
-              ...senderSnapshot.data!.docs.map(
-                (doc) => FriendRequest.fromJson(doc.id, doc.data()),
+    return FutureBuilder<List<FriendRequest>>(
+      future: _friendsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _buildError('Không tải được danh sách bạn bè.');
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final requests = snapshot.data!;
+        if (requests.isEmpty) {
+          return const Center(child: Text('Bạn chưa có bạn bè nào.'));
+        }
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: requests.map((request) {
+            final uid = request.otherUserId(_service.currentUserId);
+            return _profileTile(
+              uid,
+              trailing: TextButton(
+                onPressed: _actionId == request.id
+                    ? null
+                    : () => _runAction(
+                        request.id,
+                        () => _service.removeFriend(request.id),
+                        successMessage: 'Đã xóa bạn bè.',
+                      ),
+                child: const Text('Xóa'),
               ),
-              ...recipientSnapshot.data!.docs.map(
-                (doc) => FriendRequest.fromJson(doc.id, doc.data()),
-              ),
-            ];
-            if (requests.isEmpty) {
-              return const Center(child: Text('Bạn chưa có bạn bè nào.'));
-            }
-
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: requests.map((request) {
-                final uid = request.otherUserId(_service.currentUserId);
-                return _profileTile(
-                  uid,
-                  trailing: TextButton(
-                    onPressed: _actionId == request.id
-                        ? null
-                        : () => _runAction(
-                            request.id,
-                            () => _service.removeFriend(request.id),
-                            successMessage: 'Đã xóa bạn bè.',
-                          ),
-                    child: const Text('Xóa'),
-                  ),
-                );
-              }).toList(),
             );
-          },
+          }).toList(),
         );
       },
     );
@@ -186,24 +191,24 @@ class _FriendsScreenState extends State<FriendsScreen>
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
-        _requestList(stream: _service.watchIncomingRequests(), incoming: true),
+        _requestList(future: _incomingFuture, incoming: true),
         const SizedBox(height: 20),
         const Text(
           'Lời mời đã gửi',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 8),
-        _requestList(stream: _service.watchOutgoingRequests(), incoming: false),
+        _requestList(future: _outgoingFuture, incoming: false),
       ],
     );
   }
 
   Widget _requestList({
-    required Stream<QuerySnapshot<Map<String, dynamic>>> stream,
+    required Future<List<FriendRequest>> future,
     required bool incoming,
   }) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: stream,
+    return FutureBuilder<List<FriendRequest>>(
+      future: future,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Text('Không tải được lời mời kết bạn.');
@@ -211,15 +216,14 @@ class _FriendsScreenState extends State<FriendsScreen>
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.data!.docs.isEmpty) {
+        if (snapshot.data!.isEmpty) {
           return Text(
             incoming ? 'Chưa có lời mời mới.' : 'Chưa gửi lời mời nào.',
           );
         }
 
         return Column(
-          children: snapshot.data!.docs.map((doc) {
-            final request = FriendRequest.fromJson(doc.id, doc.data());
+          children: snapshot.data!.map((request) {
             final uid = request.otherUserId(_service.currentUserId);
             return _profileTile(
               uid,

@@ -177,7 +177,28 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
               foregroundColor: Colors.white,
               iconTheme: const IconThemeData(color: Colors.white),
             ),
-            body: const Center(child: Text('Không tải được câu hỏi')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _vm.error ?? 'Không tải được câu hỏi từ máy chủ.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () => _vm.load(
+                        widget.quizSet.id,
+                        topicId: widget.quizSet.topicId,
+                      ),
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         }
         final selected = _vm.answers[_vm.currentIndex];
@@ -258,6 +279,14 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (_vm.submitError != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Chưa lưu được kết quả: ${_vm.submitError}',
+                      style: const TextStyle(color: AppColors.error),
+                    ),
+                  ),
                 // ── Thanh tiến độ ──
                 ClipRRect(
                   borderRadius: BorderRadius.circular(6),

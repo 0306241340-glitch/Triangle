@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +14,6 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  final _firestore = FirebaseFirestore.instance;
   final _storeService = StoreService();
 
   bool _isLoading = true;
@@ -49,20 +47,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
     });
 
     try {
-      final results = await Future.wait([
-        _firestore.collection('items').where('isActive', isEqualTo: true).get(),    
-        _firestore
-            .collection('user_items')
-            .where('userId', isEqualTo: user.uid)
-            .get(),
-      ]).timeout(const Duration(seconds: 4));
-
-      final itemsSnap = results[0];
-      final userItemsSnap = results[1];
+      final inventory = await _storeService.loadInventory();
 
       final itemCatalog = <String, ItemModel>{};
-      for (final doc in itemsSnap.docs) {
-        itemCatalog[doc.id] = ItemModel.fromMap(doc.data(), doc.id);
+      for (final raw in inventory['items'] as List? ?? []) {
+        final item = raw as Map<String, dynamic>;
+        final id = item['id']?.toString() ?? '';
+        if (id.isNotEmpty) itemCatalog[id] = ItemModel.fromMap(item, id);
       }
 
       final lifelines = <MapEntry<UserItemModel, ItemModel>>[];
@@ -72,8 +63,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       String? activeFrameId;
       String? activeTitleId;
 
-      for (final doc in userItemsSnap.docs) {
-        final ui = UserItemModel.fromMap(doc.data(), doc.id);
+      for (final raw in inventory['userItems'] as List? ?? []) {
+        final data = raw as Map<String, dynamic>;
+        final ui = UserItemModel.fromMap(data, data['id']?.toString() ?? '');
         if (ui.quantity <= 0) continue;
 
         final detail = itemCatalog[ui.itemId];
@@ -106,7 +98,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       setState(() {
         _isLoading = false;
         _errorMessage =
-            'Kết nối mạng máy ảo bị chậm hoặc gián đoạn. Bấm "Thử lại" để tải.';
+            'Không thể tải túi đồ từ máy chủ. Bấm "Thử lại" để tải.';
       });
     }
   }

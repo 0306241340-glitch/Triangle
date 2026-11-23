@@ -1,17 +1,17 @@
-# FastAPI + SQL — API mới cho app Đố Vui (thay Express + Firestore)
+# FastAPI + PostgreSQL — backend cho app Đố Vui
 
-An chốt 18/11: dùng FastAPI xử lí dữ liệu, lưu xuống CSDL quan hệ (SQL),
-theo Bài 09 của thầy. Bản này viết lại đúng hợp đồng của API Express cũ,
-nên **app Flutter không phải đổi code — chỉ đổi 1 dòng base URL**.
+FastAPI là cổng duy nhất cho dữ liệu ứng dụng; PostgreSQL lưu hồ sơ, nội dung
+quiz, điểm/xu, bạn bè, yêu thích, cửa hàng và lịch sử. Firebase chỉ dùng cho
+Firebase Auth; FastAPI xác thực Firebase ID token trước khi truy cập PostgreSQL.
 
 ## Cái gì giữ nguyên, cái gì đổi
 
 | | Express cũ (Render) | FastAPI mới (bản này) |
 |---|---|---|
 | Ngôn ngữ / framework | Node + Express | Python + FastAPI |
-| CSDL | Firestore (NoSQL) | **PostgreSQL trên Render, SQLite khi chạy local** — cùng 1 code (SQLAlchemy) |
-| Đăng nhập | Firebase Auth, Bearer ID token | **Giữ nguyên** — Flutter đăng nhập như cũ, FastAPI verify token bằng `firebase-admin` |
-| Đường dẫn API | `/topics`, `/quiz-sets`, `/quiz/start`, `/quiz/submit`, `/leaderboard`, `/admin/stats` | **Giữ nguyên y hệt** |
+| CSDL | Firestore (NoSQL) | **PostgreSQL qua SQLAlchemy** (SQLite chỉ để phát triển/test local) |
+| Đăng nhập | Firebase Auth, Bearer ID token | **Giữ nguyên** — Firebase chỉ xác thực; dữ liệu ứng dụng không lưu ở Firebase |
+| Dữ liệu | đọc/ghi trực tiếp từ app | qua API: `/me`, `/topics`, `/quiz-sets`, `/quiz/*`, `/friends/*`, `/favorites`, `/store/*`, `/pvp/*`, `/leaderboard`, `/admin/*` |
 | Trả về | `{ok:true, data}` / `{ok:false, error:{code,message}}` | **Giữ nguyên y hệt** — `api_client.dart` đọc được luôn |
 | Chấm điểm | Dễ 10đ/5xu, TB 20đ/10xu, Khó 30đ/15xu | **Giữ nguyên** — làm đúng hết 10 câu = 180đ/90xu |
 | CORS | Không có (1 trong các lỗi sáng 18/11) | **Có sẵn, allow-all** |
@@ -22,13 +22,26 @@ Server trong file Bài 09: file đó chạy SQL Server local trên máy, không
 deploy lên Render/demo được. Postgres vẫn là CSDL quan hệ, đúng yêu cầu
 của thầy, và Supabase có gói Free.
 
-## Bảng SQL (ánh xạ 1-1 từ collection Firestore)
+## Đấu 1vs1
+
+`/pvp/queue` ghép người chơi đang chờ theo điểm gần nhất; `/pvp/invite/{uid}`
+gửi lời mời tới bạn đã kết nối. Người nhận xem lời mời tại
+`/pvp/invitations`, rồi chấp nhận hoặc từ chối qua
+`/pvp/rooms/{id}/accept` và `/pvp/rooms/{id}/decline`. Trong trận, app tải
+trạng thái bằng `GET /pvp/rooms/{id}` và gửi một đáp án cho mỗi câu qua
+`POST /pvp/rooms/{id}/answer`. Trận gồm đúng 10 câu, 15 giây mỗi câu; đáp án
+đúng được 10 điểm. Máy chủ giữ đáp án đúng và chỉ trả nội dung/lựa chọn cho
+người chơi. Phòng, hàng đợi, kết quả và diễn biến được lưu vào các bảng
+`rooms`, `match_queue`, `match_histories` và `notifications`.
+
+## Bảng SQL
 
 `users` (khóa chính = Firebase UID) · `topics` · `quiz_sets` · `questions`
 (`options` JSON, `correct_index` chỉ ở server) · `attempts` ·
-`attempt_answers` (đáp án đúng sau khi xáo) · `quiz_histories` ·
-`history_details` · `transactions` · `comments` · `items` · `reports` ·
-`friends`. Xem chi tiết trong `app/models.py`.
+`attempt_answers` · `quiz_histories` · `history_details` · `transactions` ·
+`comments` · `items` · `user_items` · `favorites` · `friends` · `rooms` ·
+`match_queue` · `match_histories` · `notifications` · `reports`.
+Xem chi tiết trong `app/models.py`.
 
 ## Chạy local (5 phút)
 
@@ -74,23 +87,16 @@ Service accounts → Generate new private key → đặt tên
 5. Kiểm tra: `curl https://<ten-service>.onrender.com/health`
    → `{"ok":true,...}`; `curl .../topics` → 401 là đúng (thiếu token).
 
-## App Flutter: đổi đúng 1 dòng
+## App Flutter
 
-`lib/core/api_client.dart`, dòng base URL:
+Ứng dụng gửi mọi thao tác dữ liệu qua API; cấu hình URL khi build:
 
 ```dart
-'https://quiz-app-api-fastapi.onrender.com'   // tên thật theo Render tạo
+flutter run --dart-define=API_BASE_URL=https://<api-service>.onrender.com
 ```
 
-Không đổi ViewModel, không đổi endpoint, không đổi cách gắn token.
-**Chú ý — kiểm tra file trước khi đổi URL:** bản merge tối 17/11 của
-Vương đã ghi đè `api_client.dart` trên dev về lại `dart:io` + URL cũ
-`triangle-api-n25s`, làm mất bản `package:http` đã sửa sáng 18/11.
-Chỉ đổi 1 dòng URL trên bản `dart:io` đó thì app web vẫn không gọi
-được API nào (kể cả FastAPI mới). Phải áp lại bản `package:http`
-trước, rồi mới đổi base URL sang FastAPI trong cùng 1 commit.
-Nhớ: lần chạy đầu Render Free ngủ ~50 giây mới dậy — giữ `timeout 60s`
-đã sửa sáng nay, đừng để lại 3s.
+Đặt `DATABASE_URL` trỏ tới PostgreSQL trên dịch vụ FastAPI. Không cần deploy
+Firestore Rules cho luồng dữ liệu mới.
 
 ## Đã kiểm thử (18/11, máy này)
 

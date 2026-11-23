@@ -21,7 +21,11 @@ class StoreScreen extends StatefulWidget {
 class _StoreScreenState extends State<StoreScreen> {
   late final StoreService _service;
   late final HomeViewModel _homeVm;
-  StoreCatalog _catalog = StoreCatalog.preview;
+  StoreCatalog _catalog = const StoreCatalog(
+    coins: null,
+    items: [],
+    ownedQuantities: {},
+  );
   String _selectedType = 'all';
   String? _error;
   String? _purchasingItemId;
@@ -41,11 +45,6 @@ class _StoreScreenState extends State<StoreScreen> {
     _service = widget.service ?? StoreService();
     _homeVm = widget.homeVm ?? HomeViewModel();
     _homeVm.loadCurrentUserCoins();
-    _catalog = StoreCatalog(
-      coins: _homeVm.coins,
-      items: StoreCatalog.previewItems,
-      ownedQuantities: Map<String, int>.from(_homeVm.ownedItems),
-    );
     _loadCatalog();
   }
 
@@ -77,12 +76,12 @@ class _StoreScreenState extends State<StoreScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _catalog = StoreCatalog(
-          coins: _homeVm.coins,
-          items: StoreCatalog.previewItems,
-          ownedQuantities: Map<String, int>.from(_homeVm.ownedItems),
+        _catalog = const StoreCatalog(
+          coins: null,
+          items: [],
+          ownedQuantities: {},
         );
-        _error = error is StateError ? error.message : 'Máy chủ cửa hàng hiện chưa khả dụng. Danh mục mẫu đang được hiển thị; giao dịch sẽ không được ghi nhận đến khi máy chủ hoạt động.';
+        _error = 'Không thể tải cửa hàng từ PostgreSQL: $error';
         _apiAvailable = false;
         _isLoading = false;
       });

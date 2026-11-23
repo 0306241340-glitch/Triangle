@@ -4,6 +4,7 @@ FastAPI chi verify token bang firebase-admin, roi lay role tu bang users."""
 import base64
 import json
 import os
+import secrets
 from dataclasses import dataclass
 
 from fastapi import Depends, Header
@@ -14,13 +15,15 @@ from .errors import ApiError
 from .models import User
 
 _firebase_app = None
+_USER_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
-def _has_firebase_credentials() -> bool:
-    return bool(os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()) or os.path.exists(
-        "serviceAccountKey.json"
-    )
-
+def _new_user_code(db: Session) -> str:
+    for _ in range(100):
+        code = "".join(secrets.choice(_USER_CODE_CHARS) for _ in range(6))
+        if not db.query(User).filter(User.user_code == code).first():
+            return code
+    raise RuntimeError("Không thể tạo mã người dùng duy nhất.")
 
 def _init_firebase():
     global _firebase_app
@@ -91,13 +94,13 @@ def get_current_user(
     uid = decoded["uid"]
     user = db.query(User).filter(User.uid == uid).first()
     if user is None:  # dang nhap lan dau: tao ho so nhu seed (0 diem, 100 xu)
-        user = User(
-            uid=uid,
-            email=decoded.get("email", ""),
-            display_name=decoded.get("name", ""),
-            coins=100,
-        )
+        user = User(uid=uid, email=decoded.get("email", ""),
+                    display_name=decoded.get("name", ""), coins=100,
+                    user_code=_new_user_code(db))
         db.add(user)
+        db.commit()
+    elif not user.user_code:
+        user.user_code = _new_user_code(db)
         db.commit()
     return CurrentUser(uid=uid, role=user.role, email=user.email)
 
