@@ -43,10 +43,11 @@ def _init_firebase():
     else:
         _firebase_app = firebase_admin.initialize_app()
     return _firebase_app
-_has_firebase_credentials = bool(
-    os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
-    or os.path.exists("serviceAccountKey.json")
-)
+def _has_firebase_credentials() -> bool:
+    return bool(
+        os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
+        or os.path.exists("serviceAccountKey.json")
+    )
 
 
 def _decode_jwt_unverified(token: str) -> dict:
