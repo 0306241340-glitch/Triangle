@@ -240,18 +240,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
-                _buildMenuCard(
-                  context,
-                  icon: '📊',
-                  title: 'Thống kê',
-                  subtitle: 'Tổng lượt thi, điểm theo bộ đề & chủ đề',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AdminStatsScreen()),
-                    );
-                  },
-                ),
+                if ((data['role'] ?? '').toString() == 'admin')
+                  _buildMenuCard(
+                    context,
+                    icon: '🛡️',
+                    title: 'Quản trị hệ thống',
+                    subtitle: 'Quản lý nội dung, báo lỗi & thống kê',
+                    isHighlighted: true,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminStatsScreen(),
+                        )
+                      );
+                    },
+                  ),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,

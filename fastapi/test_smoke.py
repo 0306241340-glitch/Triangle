@@ -275,4 +275,39 @@ r = c.post("/quiz/help", json={
 assert r.status_code == 409, r.text
 
 r = c.get("/topics", headers={"Authorization": ""})
+
+# Admin management endpoints are read-only and restricted to administrators.
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=UID, role="user"
+)
+assert c.get("/admin/items").status_code == 403
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+sets = c.get("/admin/quiz-sets")
+assert sets.status_code == 200 and any(
+    row["id"] == "set_tong_hop_1" for row in sets.json()["data"]
+), sets.text
+questions = c.get("/admin/quiz-sets/set_tong_hop_1/questions")
+assert questions.status_code == 200 and questions.json()["data"], questions.text
+assert "correctIndex" in questions.json()["data"][0]
+items = c.get("/admin/items")
+assert items.status_code == 200 and any(
+    row["id"] == "item_frame_gold" for row in items.json()["data"]
+), items.text
+users = c.get("/admin/users")
+assert users.status_code == 200 and any(
+    row["uid"] == UID and row["gamesPlayed"] >= 1 for row in users.json()["data"]
+), users.text
+from app.models import Report
+db = SessionLocal()
+db.add(Report(question_id=questions.json()["data"][0]["id"], user_id=UID,
+              reason="Smoke test report"))
+db.commit()
+db.close()
+reports = c.get("/admin/reports")
+assert reports.status_code == 200 and any(
+    row["reason"] == "Smoke test report" for row in reports.json()["data"]
+), reports.text
+
 print("ALL SMOKE TESTS PASSED")
