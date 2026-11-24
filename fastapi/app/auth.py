@@ -1,7 +1,7 @@
 """Xac thuc: giu nguyen Firebase Auth nhu ban Express.
 App Flutter dang nhap nhu cu, lay ID token, gui header Bearer — khong doi gi.
 FastAPI chi verify token bang firebase-admin, roi lay role tu bang users."""
-_has_firebase_credentials = bool(firebase_admin._apps)
+
 import base64
 import json
 import os
@@ -43,6 +43,10 @@ def _init_firebase():
     else:
         _firebase_app = firebase_admin.initialize_app()
     return _firebase_app
+_has_firebase_credentials = bool(
+    os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
+    or os.path.exists("serviceAccountKey.json")
+)
 
 
 def _decode_jwt_unverified(token: str) -> dict:
