@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -85,6 +84,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   final ApiClient _api;
   bool isLoading = false;
   String? error;
+  String? submitError;
   List<Question> questions = [];
   Map<int, int> answers = {}; // index câu -> index đáp án đã chọn
   Map<int, Set<int>> hiddenOptions = {}; // 50/50: đáp án bị ẩn của từng câu
@@ -94,6 +94,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   Timer? _timer;
   bool _submitting = false;
   String? attemptId;
+  String? quizSetId;
   bool submitted = false;
   int score = 0;
   int coins = 0;
@@ -105,7 +106,7 @@ class QuizPlayViewModel extends ChangeNotifier {
   int userCoins = 100;
 
   /// Đếm số lần đã dùng mỗi loại trợ giúp (toàn bài, không phải từng câu).
-  bool usedExtraTime = false;  // Thêm thời gian: dùng 1 lần / bài
+  bool usedExtraTime = false; // Thêm thời gian: dùng 1 lần / bài
   Set<int> changedQuestions = {}; // Đổi câu hỏi: mỗi câu chỉ đổi 1 lần
 
   int get total => questions.length;
@@ -119,30 +120,73 @@ class QuizPlayViewModel extends ChangeNotifier {
     return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  Future<void> load(String quizSetId) async {
+  Future<void> load(String quizSetId, {String? topicId}) async {
+    this.quizSetId = quizSetId;
     isLoading = true;
+    error = null;
+    questions = [];
+    answers.clear();
+    hiddenOptions.clear();
+    changedQuestions.clear();
+    attemptId = null;
+    submitted = false;
+    submitError = null;
+    usedExtraTime = false;
+    currentIndex = 0;
+    remainingSec = 300;
+    score = 0;
+    coins = 0;
+    correctCount = 0;
+    skippedCount = 0;
     notifyListeners();
+
+    final user = FirebaseAuth.instance.currentUser;
     try {
-      final data = await _api
-          .post('/quiz/start', {'quizSetId': quizSetId})
-          .timeout(const Duration(seconds: 2));
+      if (user == null) {
+        throw StateError('Bạn cần đăng nhập để bắt đầu làm bài.');
+      }
+      final token = await user.getIdToken(true);
+      if (token == null || token.isEmpty) {
+        throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
+      }
+      _api.setToken(token);
+
+      final profile = await _api.get('/me') as Map<String, dynamic>;
+      userCoins = (profile['coins'] as num?)?.toInt() ?? userCoins;
+      final quizSet =
+          await _api.get('/quiz-sets/$quizSetId') as Map<String, dynamic>;
+      final duration = (quizSet['durationSec'] as num?)?.toInt();
+      if (duration != null && duration > 0) remainingSec = duration;
+      final response = await _api.post('/quiz/start', {
+        'quizSetId': quizSetId,
+        if (topicId != null) 'topicId': topicId,
+      });
+      final data = response as Map<String, dynamic>;
       attemptId = data['attemptId'] as String?;
-      remainingSec = (data['durationSec'] as num?)?.toInt() ?? 300;
-      userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
+      if (attemptId == null || attemptId!.isEmpty) {
+        throw StateError('Máy chủ không tạo được lượt chơi.');
+      }
+      remainingSec = (data['durationSec'] as num?)?.toInt() ?? remainingSec;
+      final serverCoins = (data['userCoins'] as num?)?.toInt();
+      if (serverCoins != null) userCoins = serverCoins;
       questions = (data['questions'] as List)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
-      questions = List.of(_mockMathQuestions);
-      remainingSec = 300;
+      if (questions.isEmpty) {
+        throw StateError('Bộ đề chưa có câu hỏi đang hoạt động.');
+      }
+      _initialDuration = remainingSec;
+    } catch (e) {
+      error = e.toString();
     }
-    _initialDuration = remainingSec;
+
     isLoading = false;
     notifyListeners();
-    _startTimer();
+    if (error == null) _startTimer();
   }
 
   void _startTimer() {
+    if (remainingSec <= 0) return;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (remainingSec <= 0) {
@@ -170,56 +214,103 @@ class QuizPlayViewModel extends ChangeNotifier {
   // 3 QUYỀN TRỢ GIÚP (BF03) — đúng tài liệu đặc tả + seed-data
   // ──────────────────────────────────────────────────────────────────
 
-  /// Trợ giúp 1: 50/50 — ẩn 2 đáp án sai (30 xu). Mỗi câu chỉ dùng 1 lần.
-  /// Trả về chuỗi lỗi nếu thất bại, null nếu thành công.
-  String? useFiftyFifty() {
+  /// Trả về chuỗi lỗi nếu yêu cầu trợ giúp thất bại.
+  Future<String?> useFiftyFifty() async {
     final q = currentQuestion;
     if (q == null) return 'Không có câu hỏi';
-    if (hiddenOptions.containsKey(currentIndex)) return 'Câu này đã dùng 50/50 rồi';
+    if (hiddenOptions.containsKey(currentIndex))
+      return 'Câu này đã dùng 50/50 rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
-    final wrong = [0, 1, 2, 3]
-        .where((i) => i != q.correctIndex && answers[currentIndex] != i)
-        .take(2)
-        .toSet();
-    hiddenOptions[currentIndex] = wrong;
-    userCoins -= 30;
-    notifyListeners();
-    return null; // thành công
+    try {
+      if (attemptId == null) {
+        throw StateError('Lượt chơi chưa được lưu trên máy chủ.');
+      }
+      final data = await _api.post('/quiz/fifty-fifty', {
+        'attemptId': attemptId,
+        'questionId': q.id,
+        'selectedIndex': answers[currentIndex],
+      });
+      final hide = (data['hiddenIndices'] as List? ?? [])
+          .map((e) => (e as num).toInt())
+          .toSet();
+      hiddenOptions[currentIndex] = hide;
+      userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return error.toString();
+    }
   }
 
-  /// Trợ giúp 2: Thêm thời gian — cộng 30 giây (20 xu). Cả bài chỉ dùng 1 lần.
-  String? useExtraTime() {
+  /// Trợ giúp 2: Thêm thời gian — máy chủ trừ xu và ghi nhận lượt dùng.
+  Future<String?> useExtraTime() async {
     if (usedExtraTime) return 'Đã dùng Thêm thời gian rồi';
     if (userCoins < 20) return 'Không đủ xu (cần 20, còn $userCoins xu)';
-    remainingSec += 30;
-    userCoins -= 20;
-    usedExtraTime = true;
-    notifyListeners();
-    return null; // thành công
+    try {
+      final data = await _useServerHelp('extra_time');
+      remainingSec += (data['addedSeconds'] as num?)?.toInt() ?? 30;
+      userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      usedExtraTime = true;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return error.toString();
+    }
   }
 
-  /// Trợ giúp 3: Đổi câu hỏi — thay câu hiện tại bằng câu khác cùng chủ đề
-  /// (30 xu). Mỗi câu chỉ đổi 1 lần. Demo offline: hoán vị câu cuối sang vị
-  /// trí hiện tại. Khi API deploy: gọi /quiz/change-question.
-  String? useChangeQuestion() {
+  /// Trợ giúp 3: Yêu cầu máy chủ thay câu và trừ xu trong cùng giao dịch.
+  Future<String?> useChangeQuestion() async {
     if (changedQuestions.contains(currentIndex)) return 'Câu này đã đổi rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
-    // Demo offline: hoán vị câu hiện tại với câu cuối chưa đổi
-    final swapTarget = questions.lastIndexWhere(
-      (q) => q.topicId == currentQuestion!.topicId && questions.indexOf(q) != currentIndex,
-    );
-    if (swapTarget >= 0 && swapTarget != currentIndex) {
-      final tmp = questions[currentIndex];
-      questions[currentIndex] = questions[swapTarget];
-      questions[swapTarget] = tmp;
-      // Xóa đáp án cũ + 50/50 cũ của câu này vì đã đổi nội dung
+    final oldQuestion = currentQuestion;
+    if (oldQuestion == null) return 'Không có câu hỏi';
+    try {
+      final data = await _useServerHelp(
+        'change_question',
+        questionId: oldQuestion.id,
+        answerId: oldQuestion.slotId,
+      );
+      final replacement = Question.fromJson(
+        data['question'] as Map<String, dynamic>,
+      );
+      final otherQuestion = Question.fromJson(
+        data['otherQuestion'] as Map<String, dynamic>,
+      );
+      final otherIndex = questions.indexWhere(
+        (question) => question.slotId == otherQuestion.slotId,
+      );
+      if (otherIndex < 0 || otherIndex == currentIndex) {
+        throw StateError('Không tìm thấy câu hỏi được đổi trong bộ đề.');
+      }
+      questions[currentIndex] = replacement;
+      questions[otherIndex] = otherQuestion;
       answers.remove(currentIndex);
+      answers.remove(otherIndex);
       hiddenOptions.remove(currentIndex);
+      hiddenOptions.remove(otherIndex);
+      changedQuestions.add(currentIndex);
+      changedQuestions.add(otherIndex);
+      userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      notifyListeners();
+      return null;
+    } catch (error) {
+      return error.toString();
     }
-    changedQuestions.add(currentIndex);
-    userCoins -= 30;
-    notifyListeners();
-    return null; // thành công
+  }
+
+  Future<Map<String, dynamic>> _useServerHelp(
+    String helpType, {
+    String questionId = '',
+    String answerId = '',
+  }) async {
+    final id = attemptId;
+    if (id == null) throw StateError('Lượt chơi chưa được lưu trên máy chủ.');
+    return await _api.post('/quiz/help', {
+      'attemptId': id,
+      'questionId': questionId,
+      'answerId': answerId,
+      'helpType': helpType,
+    }) as Map<String, dynamic>;
   }
 
   bool isHidden(int questionIndex, int optionIndex) =>
@@ -228,51 +319,45 @@ class QuizPlayViewModel extends ChangeNotifier {
   // ──────────────────────────────────────────────────────────────────
 
   Future<void> submit() async {
-    if (submitted || _submitting) return;
+    if (submitted || _submitting || attemptId == null) return;
     _submitting = true;
     _timer?.cancel();
-    submitted = true;
-    final timeTakenSec = _initialDuration - remainingSec;
+    submitError = null;
+    final elapsed = _initialDuration - remainingSec;
+    final timeTakenSec = elapsed < 0 ? 0 : elapsed;
     try {
-      if (attemptId != null) {
-        final data = await _api.post('/quiz/submit', {
-          'attemptId': attemptId,
-          'answers': [
-            for (final e in answers.entries)
-              {
-                'questionId': questions[e.key].id,
-                'selectedIndex': e.value,
-              }
-          ],
-          'timeTakenSec': timeTakenSec,
-        });
-        score = (data['score'] as num?)?.toInt() ?? 0;
-        coins = (data['coinsEarned'] as num?)?.toInt() ?? 0;
-        correctCount = (data['correctCount'] as num?)?.toInt() ?? 0;
-        skippedCount = total - ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
-      } else {
-        _scoreLocally();
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final token = await currentUser?.getIdToken(true);
+      if (token == null || token.isEmpty) {
+        throw StateError('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');
       }
-    } catch (_) {
-      _scoreLocally();
+      _api.setToken(token);
+      final data = await _api.post('/quiz/submit', {
+        'attemptId': attemptId,
+        'quizSetId': quizSetId,
+        'answers': [
+          for (final entry in answers.entries)
+            {
+              'questionId': questions[entry.key].id,
+              'selectedIndex': entry.value,
+            },
+        ],
+        'timeTakenSec': timeTakenSec,
+      }) as Map<String, dynamic>;
+      score = (data['score'] as num?)?.toInt() ?? 0;
+      coins = (data['coinsEarned'] as num?)?.toInt() ?? 0;
+      correctCount = (data['correctCount'] as num?)?.toInt() ?? 0;
+      userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
+      skippedCount =
+          total - ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
+      submitted = true;
+    } catch (error) {
+      submitError = error.toString();
+      if (remainingSec > 0) _startTimer();
+    } finally {
+      _submitting = false;
     }
-    _submitting = false;
     notifyListeners();
-  }
-
-  void _scoreLocally() {
-    score = 0;
-    coins = 0;
-    correctCount = 0;
-    skippedCount = total - answers.length;
-    for (final e in answers.entries) {
-      final q = questions[e.key];
-      if (e.value == q.correctIndex) {
-        correctCount++;
-        score += q.points;
-        coins += q.coins;
-      }
-    }
   }
 
   @override
@@ -280,18 +365,4 @@ class QuizPlayViewModel extends ChangeNotifier {
     _timer?.cancel();
     super.dispose();
   }
-
-  // 10 câu Toán thật trong seed-data.json (4 Dễ / 4 TB / 2 Khó = 180đ / 90xu).
-  static const _mockMathQuestions = [
-    Question(id: 'q_math_01', topicId: 'topic_math', content: '7 + 8 bằng bao nhiêu?', options: ['14', '15', '16', '17'], correctIndex: 1, level: 'easy', explanation: '7 + 8 = 15.'),
-    Question(id: 'q_math_02', topicId: 'topic_math', content: '12 × 3 bằng bao nhiêu?', options: ['33', '36', '39', '42'], correctIndex: 1, level: 'easy', explanation: '12 × 3 = 36.'),
-    Question(id: 'q_math_03', topicId: 'topic_math', content: '100 − 37 bằng bao nhiêu?', options: ['63', '67', '73', '53'], correctIndex: 0, level: 'easy', explanation: '100 − 37 = 63.'),
-    Question(id: 'q_math_04', topicId: 'topic_math', content: '5² bằng bao nhiêu?', options: ['10', '20', '25', '30'], correctIndex: 2, level: 'easy', explanation: '5² = 5 × 5 = 25.'),
-    Question(id: 'q_math_05', topicId: 'topic_math', content: 'Căn bậc hai của 144 bằng bao nhiêu?', options: ['11', '12', '13', '14'], correctIndex: 1, level: 'medium', explanation: '12 × 12 = 144 nên √144 = 12.'),
-    Question(id: 'q_math_06', topicId: 'topic_math', content: '3/4 của 80 bằng bao nhiêu?', options: ['50', '55', '60', '65'], correctIndex: 2, level: 'medium', explanation: '80 × 3/4 = 60.'),
-    Question(id: 'q_math_07', topicId: 'topic_math', content: 'Giải phương trình 2x + 5 = 17, x bằng bao nhiêu?', options: ['5', '6', '7', '8'], correctIndex: 1, level: 'medium', explanation: '2x = 12 nên x = 6.'),
-    Question(id: 'q_math_08', topicId: 'topic_math', content: '15% của 200 bằng bao nhiêu?', options: ['20', '25', '30', '35'], correctIndex: 2, level: 'medium', explanation: '200 × 15% = 30.'),
-    Question(id: 'q_math_09', topicId: 'topic_math', content: 'Tổng 1 + 2 + ... + 20 bằng bao nhiêu?', options: ['200', '210', '220', '190'], correctIndex: 1, level: 'hard', explanation: 'Tổng = 20 × 21 / 2 = 210.'),
-    Question(id: 'q_math_10', topicId: 'topic_math', content: '2 mũ bao nhiêu thì bằng 128?', options: ['6', '7', '8', '9'], correctIndex: 1, level: 'hard', explanation: '2^7 = 128.'),
-  ];
 }

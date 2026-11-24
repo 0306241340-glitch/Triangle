@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 class ApiException implements Exception {
   final String message;
@@ -12,37 +13,41 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({String? baseUrl}) : _baseUrl = baseUrl ?? _defaultBaseUrl;
+  static final ApiClient _instance = ApiClient._internal();
+
+  factory ApiClient({String? baseUrl}) {
+    return baseUrl == null ? _instance : ApiClient._internal(baseUrl: baseUrl);
+  }
+
+  ApiClient._internal({String? baseUrl})
+    : _baseUrl = baseUrl ?? _defaultBaseUrl;
 
   static const _defaultBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://triangle-api-n25s.onrender.com',
-  );
-  static const vuongApiBaseUrl = String.fromEnvironment(
-    'VUONG_API_BASE_URL',
-    defaultValue: String.fromEnvironment(
-      'STORE_API_BASE_URL',
-      defaultValue: 'https://triangle-store-api-vuong-2026.onrender.com',
-    ),
+    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
   );
   static const _connectionTimeout = Duration(seconds: 10);
   static const _requestTimeout = Duration(seconds: 60);
+
   final String _baseUrl;
   String? _idToken;
 
-  // Gắn token sau khi đăng nhập
-  void setToken(String? token) => _idToken = token;
+  void setToken(String? token) {
+    _idToken = token;
+  }
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (_idToken != null) 'Authorization': 'Bearer $_idToken',
+  };
 
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final client = HttpClient()..connectionTimeout = _connectionTimeout;
-
-      final req = await client.getUrl(uri).timeout(_requestTimeout);
-      _applyHeaders(req);
-
-      final res = await req.close().timeout(_requestTimeout);
-      return await _handle(res);
+      final res = await http
+          .get(uri, headers: _headers)
+          .timeout(_requestTimeout);
+      return _handle(res);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -53,14 +58,10 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
-      final client = HttpClient()..connectionTimeout = _connectionTimeout;
-
-      final req = await client.postUrl(uri).timeout(_requestTimeout);
-      _applyHeaders(req);
-      req.write(jsonEncode(body));
-
-      final res = await req.close().timeout(_requestTimeout);
-      return await _handle(res);
+      final res = await http
+          .post(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -85,29 +86,41 @@ class ApiClient {
     }
   }
 
-  void _applyHeaders(HttpClientRequest req) {
-    req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-
-    if (_idToken != null) {
-      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $_idToken');
+  Future<dynamic> put(String path, Map<String, dynamic> body) async {
+    try {
+      final uri = Uri.parse('$_baseUrl$path');
+      final res = await http
+          .put(uri, headers: _headers, body: jsonEncode(body))
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
     }
   }
 
-  // Server trả về {ok: true, data} hoặc {ok: false, error}
-  Future<dynamic> _handle(HttpClientResponse res) async {
-    final text = await res
-        .transform(utf8.decoder)
-        .join()
-        .timeout(_requestTimeout);
-
-    dynamic decoded;
-
+  Future<dynamic> delete(String path, {Map<String, String>? query}) async {
     try {
-      decoded = jsonDecode(text);
+      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final res = await http
+          .delete(uri, headers: _headers)
+          .timeout(_requestTimeout);
+      return _handle(res);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
+      throw ApiException('Không thể kết nối máy chủ: $e', 503);
+    }
+  }
+
+  dynamic _handle(http.Response res) {
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(res.bodyBytes));
     } on FormatException {
       throw ApiException(
-        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). '
-        'Kiểm tra URL API và trạng thái máy chủ.',
+        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). Kiểm tra URL API và trạng thái máy chủ',
         res.statusCode,
       );
     }
@@ -119,16 +132,17 @@ class ApiClient {
       );
     }
 
-    final json = decoded;
-
-    if (res.statusCode >= 200 && res.statusCode < 300 && json['ok'] == true) {
-      return json['data'];
+    if (res.statusCode >= 200 &&
+        res.statusCode < 300 &&
+        decoded['ok'] == true) {
+      return decoded['data'];
     }
 
-    final err = json['error'];
-
+    final err = decoded['error'];
     throw ApiException(
-      err is Map ? (err['message']?.toString() ?? 'Lỗi server') : 'Lỗi server',
+      err is Map
+          ? (err['message']?.toString() ?? 'Lỗi máy chủ')
+          : 'Lỗi máy chủ',
       res.statusCode,
     );
   }

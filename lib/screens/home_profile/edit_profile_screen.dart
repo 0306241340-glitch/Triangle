@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../core/api_client.dart';
 import '../../models/user_model.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -23,7 +25,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _newPassController = TextEditingController();
   final _confirmPassController = TextEditingController();
 
-  String? _avatarValue; // Có thể là URL mạng hoặc chuỗi "data:image/jpeg;base64,..."
+  String?
+  _avatarValue; // Có thể là URL mạng hoặc chuỗi "data:image/jpeg;base64,..."
   bool _isSavingProfile = false;
   bool _isChangingPassword = false;
   bool _obscureOld = true;
@@ -86,7 +89,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         source: ImageSource.gallery,
         maxWidth: 200,
         maxHeight: 200,
-        imageQuality: 55, // Nén nhẹ để dung lượng dưới ~30KB, lưu mượt vào Firestore
+        imageQuality: 55, // Nén ảnh trước khi gửi lên API.
       );
       if (picked == null) return;
 
@@ -98,9 +101,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể chọn ảnh: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Không thể chọn ảnh: $e')));
     }
   }
 
@@ -114,19 +116,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final newName = _nameController.text.trim();
-      final finalAvatar =
-          (_avatarValue != null && _avatarValue!.isNotEmpty) ? _avatarValue : null;
+      final finalAvatar = (_avatarValue != null && _avatarValue!.isNotEmpty)
+          ? _avatarValue
+          : null;
 
-      await user.updateDisplayName(newName);
-      // Chỉ cập nhật photoURL trên Auth nếu là link HTTP ngắn (Auth giới hạn độ dài URL)
-      if (finalAvatar != null && finalAvatar.startsWith('http')) {
-        await user.updatePhotoURL(finalAvatar);
+      final token = await user.getIdToken();
+      if (token == null || token.isEmpty) {
+        throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
       }
-
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      final api = ApiClient()..setToken(token);
+      await api.put('/me/profile', {
         'displayName': newName,
-        'avatarUrl': finalAvatar,
-        'updatedAt': FieldValue.serverTimestamp(),
+        'avatarUrl': finalAvatar ?? '',
       });
 
       if (!mounted) return;
@@ -136,9 +137,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi cập nhật hồ sơ: $e')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Lỗi cập nhật hồ sơ: $e')));
     } finally {
       if (mounted) setState(() => _isSavingProfile = false);
     }
@@ -165,9 +165,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _confirmPassController.clear();
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đổi mật khẩu thành công!')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!')));
     } on FirebaseAuthException catch (e) {
       String msg = 'Không thể đổi mật khẩu.';
       if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
@@ -373,9 +373,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             labelText: 'Mật khẩu hiện tại',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureOld
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureOld
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscureOld = !_obscureOld),
                             ),
@@ -395,9 +397,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             labelText: 'Mật khẩu mới',
                             prefixIcon: const Icon(Icons.vpn_key_outlined),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureNew
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureNew
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscureNew = !_obscureNew),
                             ),
@@ -420,11 +424,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             labelText: 'Xác nhận mật khẩu mới',
                             prefixIcon: const Icon(Icons.check_circle_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscureConfirm
-                                  ? Icons.visibility_off
-                                  : Icons.visibility),
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
                               onPressed: () => setState(
-                                  () => _obscureConfirm = !_obscureConfirm),
+                                () => _obscureConfirm = !_obscureConfirm,
+                              ),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -442,8 +449,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           width: double.infinity,
                           height: 48,
                           child: OutlinedButton(
-                            onPressed:
-                                _isChangingPassword ? null : _changePassword,
+                            onPressed: _isChangingPassword
+                                ? null
+                                : _changePassword,
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF1967D2),
                               side: const BorderSide(color: Color(0xFF1967D2)),
@@ -461,7 +469,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   )
                                 : const Text(
                                     'Cập nhật mật khẩu',
-                                    style: TextStyle(fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                           ),
                         ),

@@ -1,1 +1,625 @@
-{"_note":"Dữ liệu mẫu để test. Import bằng script / Firebase Console theo huong-dan-import-seed.md. createdAt ở đây là chuỗi ISO, khi import chuyển thành Timestamp. Tài khoản test chỉ là document mẫu trong users — tài khoản thật phải tạo trong Firebase Authentication trước, rồi lấy đúng uid thay cho user_test_001 / admin_test_001. Không có mật khẩu nào trong file này.","items":[{"description":"Loại 2 đáp án sai trong câu hiện tại.","effect":"fifty_fifty","id":"item_5050","isActive":true,"name":"50/50","price":30,"type":"help"},{"description":"Cộng thêm 30 giây cho lượt chơi hiện tại.","effect":"extra_time","id":"item_extra_time","isActive":true,"name":"Thêm thời gian","price":20,"type":"help"},{"description":"Đổi câu hiện tại sang một câu khác cùng chủ đề.","effect":"change_question","id":"item_change_q","isActive":true,"name":"Đổi câu hỏi","price":30,"type":"help"},{"description":"Khung avatar màu vàng, trang bị ở Hồ sơ.","effect":"","id":"item_frame_gold","isActive":true,"name":"Khung avatar Vàng","price":100,"type":"frame"},{"description":"Danh hiệu hiển thị cạnh tên người chơi.","effect":"","id":"item_title_master","isActive":true,"name":"Danh hiệu “Cao thủ”","price":150,"type":"title"}],"questions":[{"content":"7 + 8 bằng bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"7 + 8 = 15.","id":"q_math_01","isActive":true,"level":"easy","options":["14","15","16","17"],"topicId":"topic_math"},{"content":"12 × 3 bằng bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"12 × 3 = 36.","id":"q_math_02","isActive":true,"level":"easy","options":["33","36","39","42"],"topicId":"topic_math"},{"content":"100 − 37 bằng bao nhiêu?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"100 − 37 = 63.","id":"q_math_03","isActive":true,"level":"easy","options":["63","67","73","53"],"topicId":"topic_math"},{"content":"5² bằng bao nhiêu?","correctIndex":2,"createdAt":"2026-11-13T00:00:00Z","explanation":"5² = 5 × 5 = 25.","id":"q_math_04","isActive":true,"level":"easy","options":["10","20","25","30"],"topicId":"topic_math"},{"content":"Căn bậc hai của 144 bằng bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"12 × 12 = 144 nên √144 = 12.","id":"q_math_05","isActive":true,"level":"medium","options":["11","12","13","14"],"topicId":"topic_math"},{"content":"3/4 của 80 bằng bao nhiêu?","correctIndex":2,"createdAt":"2026-11-13T00:00:00Z","explanation":"80 × 3/4 = 60.","id":"q_math_06","isActive":true,"level":"medium","options":["50","55","60","65"],"topicId":"topic_math"},{"content":"Giải phương trình 2x + 5 = 17, x bằng bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"2x = 12 nên x = 6.","id":"q_math_07","isActive":true,"level":"medium","options":["5","6","7","8"],"topicId":"topic_math"},{"content":"15% của 200 bằng bao nhiêu?","correctIndex":2,"createdAt":"2026-11-13T00:00:00Z","explanation":"200 × 15% = 30.","id":"q_math_08","isActive":true,"level":"medium","options":["20","25","30","35"],"topicId":"topic_math"},{"content":"Tổng 1 + 2 + ... + 20 bằng bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Tổng = 20 × 21 / 2 = 210.","id":"q_math_09","isActive":true,"level":"hard","options":["200","210","220","190"],"topicId":"topic_math"},{"content":"2 mũ bao nhiêu thì bằng 128?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"2^7 = 128.","id":"q_math_10","isActive":true,"level":"hard","options":["6","7","8","9"],"topicId":"topic_math"},{"content":"Ngày Quốc khánh nước Việt Nam Dân chủ Cộng hòa là ngày nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Ngày 02/09/1945, Chủ tịch Hồ Chí Minh đọc Tuyên ngôn Độc lập.","id":"q_hist_01","isActive":true,"level":"easy","options":["02/09/1944","02/09/1945","02/09/1946","02/09/1954"],"topicId":"topic_history"},{"content":"Chiến thắng Điện Biên Phủ diễn ra năm nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Chiến dịch Điện Biên Phủ kết thúc ngày 07/05/1954.","id":"q_hist_02","isActive":true,"level":"easy","options":["1953","1954","1955","1975"],"topicId":"topic_history"},{"content":"Vị vua đầu tiên của nhà Nguyễn là ai?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Nguyễn Ánh lên ngôi năm 1802, niên hiệu Gia Long.","id":"q_hist_03","isActive":true,"level":"easy","options":["Gia Long","Minh Mạng","Thiệu Trị","Tự Đức"],"topicId":"topic_history"},{"content":"Chiến thắng Bạch Đằng năm 938 gắn với dòng sông nào?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Ngô Quyền đánh thắng quân Nam Hán trên sông Bạch Đằng năm 938.","id":"q_hist_04","isActive":true,"level":"easy","options":["Sông Bạch Đằng","Sông Hồng","Sông Đà","Sông Lô"],"topicId":"topic_history"},{"content":"Hiệp định Genève về Đông Dương được ký năm nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Hiệp định Genève được ký tháng 7/1954.","id":"q_hist_05","isActive":true,"level":"medium","options":["1952","1954","1956","1968"],"topicId":"topic_history"},{"content":"Phong trào Cần Vương chống Pháp do ai lãnh đạo?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Vua Hàm Nghi ban Chiếu Cần Vương năm 1885.","id":"q_hist_06","isActive":true,"level":"medium","options":["Vua Hàm Nghi","Vua Duy Tân","Vua Thành Thái","Phan Bội Châu"],"topicId":"topic_history"},{"content":"Nguyễn Ái Quốc ra đi tìm đường cứu nước năm nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Ngày 05/06/1911, Nguyễn Tất Thành rời bến Nhà Rồng.","id":"q_hist_07","isActive":true,"level":"medium","options":["1909","1911","1913","1920"],"topicId":"topic_history"},{"content":"Trận Rạch Gầm – Xoài Mút năm 1785 do ai chỉ huy?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Nguyễn Huệ chỉ huy trận Rạch Gầm – Xoài Mút, đánh bại quân Xiêm.","id":"q_hist_08","isActive":true,"level":"medium","options":["Nguyễn Huệ","Nguyễn Ánh","Lê Lợi","Trần Hưng Đạo"],"topicId":"topic_history"},{"content":"Hiệp định Paris về Việt Nam được ký ngày nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Hiệp định Paris được ký ngày 27/01/1973.","id":"q_hist_09","isActive":true,"level":"hard","options":["27/01/1972","27/01/1973","27/01/1974","30/04/1975"],"topicId":"topic_history"},{"content":"Chiếu dời đô của vua Lý Thái Tổ được ban hành năm nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Năm 1010, Lý Thái Tổ dời đô từ Hoa Lư về Thăng Long.","id":"q_hist_10","isActive":true,"level":"hard","options":["1009","1010","1011","1020"],"topicId":"topic_history"},{"content":"Công thức hóa học của nước là gì?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Nước gồm 2 nguyên tử hiđro và 1 nguyên tử oxi: H2O.","id":"q_sci_01","isActive":true,"level":"easy","options":["H2O","CO2","O2","NaCl"],"topicId":"topic_science"},{"content":"Hành tinh nào gần Mặt Trời nhất?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Sao Thủy là hành tinh gần Mặt Trời nhất.","id":"q_sci_02","isActive":true,"level":"easy","options":["Sao Thủy","Sao Kim","Trái Đất","Sao Hỏa"],"topicId":"topic_science"},{"content":"Khí nào chiếm tỉ lệ lớn nhất trong không khí?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Nitơ chiếm khoảng 78% thể tích không khí.","id":"q_sci_03","isActive":true,"level":"easy","options":["Nitơ","Oxi","Cacbon đioxit","Heli"],"topicId":"topic_science"},{"content":"Bộ phận nào trong cơ thể có nhiệm vụ bơm máu đi khắp cơ thể?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Tim co bóp để bơm máu đi khắp cơ thể.","id":"q_sci_04","isActive":true,"level":"easy","options":["Tim","Gan","Phổi","Thận"],"topicId":"topic_science"},{"content":"Tốc độ ánh sáng trong chân không xấp xỉ bao nhiêu?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Tốc độ ánh sáng trong chân không khoảng 299.792 km/s.","id":"q_sci_05","isActive":true,"level":"medium","options":["150.000 km/s","300.000 km/s","450.000 km/s","600.000 km/s"],"topicId":"topic_science"},{"content":"Đơn vị đo cường độ dòng điện là gì?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Cường độ dòng điện đo bằng Ampe (A).","id":"q_sci_06","isActive":true,"level":"medium","options":["Vôn","Ampe","Ôm","Oát"],"topicId":"topic_science"},{"content":"Quá trình cây xanh tạo ra oxi và chất hữu cơ từ ánh sáng gọi là gì?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Quang hợp là quá trình cây xanh dùng ánh sáng để tổng hợp chất hữu cơ và giải phóng oxi.","id":"q_sci_07","isActive":true,"level":"medium","options":["Quang hợp","Hô hấp","Thoát hơi nước","Lên men"],"topicId":"topic_science"},{"content":"Dung dịch có pH = 7 là môi trường gì?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"pH = 7 là trung tính, như nước tinh khiết.","id":"q_sci_08","isActive":true,"level":"medium","options":["Axit","Trung tính","Bazơ","Muối"],"topicId":"topic_science"},{"content":"Nguyên tố nào có ký hiệu hóa học là Fe?","correctIndex":0,"createdAt":"2026-11-13T00:00:00Z","explanation":"Fe là ký hiệu của sắt (Ferrum).","id":"q_sci_09","isActive":true,"level":"hard","options":["Sắt","Đồng","Chì","Kẽm"],"topicId":"topic_science"},{"content":"Lực hấp dẫn giữa hai vật tỉ lệ nghịch với đại lượng nào?","correctIndex":1,"createdAt":"2026-11-13T00:00:00Z","explanation":"Theo định luật vạn vật hấp dẫn, lực tỉ lệ nghịch với bình phương khoảng cách.","id":"q_sci_10","isActive":true,"level":"hard","options":["Khoảng cách","Bình phương khoảng cách","Khối lượng","Thời gian"],"topicId":"topic_science"}],"quiz_sets":[{"createdAt":"2026-11-13T00:00:00Z","durationSec":300,"id":"set_math_1","isActive":true,"name":"Toán học — Bộ 1","questionCount":10,"topicId":"topic_math"},{"createdAt":"2026-11-13T00:00:00Z","durationSec":300,"id":"set_history_1","isActive":true,"name":"Lịch sử Việt Nam — Bộ 1","questionCount":10,"topicId":"topic_history"},{"createdAt":"2026-11-13T00:00:00Z","durationSec":300,"id":"set_science_1","isActive":true,"name":"Khoa học — Bộ 1","questionCount":10,"topicId":"topic_science"}],"topics":[{"createdAt":"2026-11-13T00:00:00Z","description":"Số học, đại số và tư duy logic.","id":"topic_math","imageUrl":"","isActive":true,"name":"Toán học"},{"createdAt":"2026-11-13T00:00:00Z","description":"Các sự kiện và nhân vật lịch sử Việt Nam.","id":"topic_history","imageUrl":"","isActive":true,"name":"Lịch sử Việt Nam"},{"createdAt":"2026-11-13T00:00:00Z","description":"Vật lý, hóa học và sinh học cơ bản.","id":"topic_science","imageUrl":"","isActive":true,"name":"Khoa học"}],"users":[{"avatarUrl":"","coins":100,"createdAt":"2026-11-13T00:00:00Z","displayName":"Người chơi Test","email":"test.user@example.com","role":"user","score":0,"status":"active","statusReason":"","uid":"user_test_001","updatedAt":"2026-11-13T00:00:00Z","userCode":"TU001A","weeklyScore":0},{"avatarUrl":"","coins":100,"createdAt":"2026-11-13T00:00:00Z","displayName":"Quản trị Test","email":"test.admin@example.com","role":"admin","score":0,"status":"active","statusReason":"","uid":"admin_test_001","updatedAt":"2026-11-13T00:00:00Z","userCode":"AD001A","weeklyScore":0}]}
+{
+  "_note": "Dữ liệu mẫu để test. Import bằng script / Firebase Console theo huong-dan-import-seed.md. createdAt ở đây là chuỗi ISO, khi import chuyển thành Timestamp. Tài khoản test chỉ là document mẫu trong users — tài khoản thật phải tạo trong Firebase Authentication trước, rồi lấy đúng uid thay cho VFLqQiv8AnOvWt7lhfXnNtmfKcu2 / tTUzRgv5gseRFwPWHJycH2gB4mP2. Không có mật khẩu nào trong file này.",
+  "items": [
+    {
+      "description": "Loại 2 đáp án sai trong câu hiện tại.",
+      "effect": "fifty_fifty",
+      "id": "item_5050",
+      "isActive": true,
+      "name": "50/50",
+      "price": 30,
+      "type": "help"
+    },
+    {
+      "description": "Cộng thêm 30 giây cho lượt chơi hiện tại.",
+      "effect": "extra_time",
+      "id": "item_extra_time",
+      "isActive": true,
+      "name": "Thêm thời gian",
+      "price": 20,
+      "type": "help"
+    },
+    {
+      "description": "Đổi câu hiện tại sang một câu khác cùng chủ đề.",
+      "effect": "change_question",
+      "id": "item_change_q",
+      "isActive": true,
+      "name": "Đổi câu hỏi",
+      "price": 30,
+      "type": "help"
+    },
+    {
+      "description": "Khung avatar màu vàng, trang bị ở Hồ sơ.",
+      "effect": "",
+      "id": "item_frame_gold",
+      "isActive": true,
+      "name": "Khung avatar Vàng",
+      "price": 100,
+      "type": "frame"
+    },
+    {
+      "description": "Danh hiệu hiển thị cạnh tên người chơi.",
+      "effect": "",
+      "id": "item_title_master",
+      "isActive": true,
+      "name": "Danh hiệu “Cao thủ”",
+      "price": 150,
+      "type": "title"
+    }
+  ],
+  "questions": [
+    {
+      "content": "Nước nào có diện tích lớn nhất thế giới?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Nga rộng khoảng 17 triệu km², lớn nhất thế giới.",
+      "id": "q_th_01",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Trung Quốc",
+        "Nga",
+        "Mỹ",
+        "Canada"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Hành tinh nào gần Mặt Trời nhất?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Sao Thủy là hành tinh gần Mặt Trời nhất.",
+      "id": "q_th_02",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Sao Kim",
+        "Sao Thủy",
+        "Trái Đất",
+        "Sao Hỏa"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Một giờ có bao nhiêu phút?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "1 giờ = 60 phút.",
+      "id": "q_th_03",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "30 phút",
+        "60 phút",
+        "90 phút",
+        "100 phút"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Con vật nào được gọi là “chúa tể sơn lâm”?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Hổ được mệnh danh là chúa tể sơn lâm.",
+      "id": "q_th_04",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Sư tử",
+        "Hổ",
+        "Báo",
+        "Voi"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Công thức hóa học của nước là gì?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Nước gồm 2 nguyên tử hiđrô và 1 nguyên tử oxi: H₂O.",
+      "id": "q_th_05",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "CO₂",
+        "H₂O",
+        "O₂",
+        "NaCl"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Thủ đô của Nhật Bản là thành phố nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Tokyo là thủ đô của Nhật Bản.",
+      "id": "q_th_06",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Osaka",
+        "Kyoto",
+        "Tokyo",
+        "Seoul"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Ai là tác giả bức tranh Mona Lisa?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Mona Lisa do Leonardo da Vinci vẽ.",
+      "id": "q_th_07",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Van Gogh",
+        "Picasso",
+        "Leonardo da Vinci",
+        "Rembrandt"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Số nguyên tố nhỏ nhất là số nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "2 là số nguyên tố nhỏ nhất (chỉ chia hết cho 1 và chính nó).",
+      "id": "q_th_08",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Nguyên tố nào có ký hiệu hóa học là Au?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Au là ký hiệu của vàng (aurum).",
+      "id": "q_th_09",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Bạc",
+        "Vàng",
+        "Đồng",
+        "Sắt"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Con người lần đầu đặt chân lên Mặt Trăng vào năm nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Năm 1969, phi hành gia Neil Armstrong đặt chân lên Mặt Trăng.",
+      "id": "q_th_10",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "1959",
+        "1969",
+        "1979",
+        "1989"
+      ],
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Con gì đập thì sống, không đập thì chết?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Tim phải đập thì người mới sống.",
+      "id": "q_dm_01",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Con tim",
+        "Con gà",
+        "Con cá",
+        "Con chó"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì có răng mà không cắn được ai?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Lược có răng nhưng chỉ để chải tóc.",
+      "id": "q_dm_02",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Cái lược",
+        "Cái búa",
+        "Cái kéo",
+        "Con dao"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì càng kéo càng ngắn?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Điếu thuốc càng hút (kéo hơi) càng ngắn lại.",
+      "id": "q_dm_03",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Điếu thuốc",
+        "Sợi dây",
+        "Cái thước",
+        "Cây nến"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì có cổ mà không có đầu?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Chai có cổ chai nhưng không có đầu.",
+      "id": "q_dm_04",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Cái chai",
+        "Cái áo",
+        "Cái ly",
+        "Cái bát"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Tôi có thành phố nhưng không có nhà, có rừng nhưng không có cây, có sông nhưng không có nước. Tôi là gì?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Bản đồ vẽ thành phố, rừng, sông nhưng chúng không có thật.",
+      "id": "q_dm_05",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Bản đồ",
+        "Bức tranh",
+        "Quyển sách",
+        "Quả địa cầu"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì cho đi càng nhiều thì càng còn nhiều?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Chia sẻ kiến thức không làm mất đi mà còn lan tỏa.",
+      "id": "q_dm_06",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Kiến thức",
+        "Tiền bạc",
+        "Thời gian",
+        "Thức ăn"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì có chân mà không đi được?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Bàn có 4 chân nhưng đứng yên một chỗ.",
+      "id": "q_dm_07",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Cái bàn",
+        "Con gà",
+        "Cái xe",
+        "Con rùa"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì của bạn nhưng người khác dùng nhiều hơn bạn?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Tên của bạn do người khác gọi nhiều hơn chính bạn.",
+      "id": "q_dm_08",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Tên của bạn",
+        "Điện thoại",
+        "Quần áo",
+        "Xe máy"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Một người đàn ông đẩy xe vào khách sạn rồi mất hết tài sản. Vì sao?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Đó là ván cờ tỷ phú (Monopoly): đẩy quân xe vào ô khách sạn phải trả hết tiền.",
+      "id": "q_dm_09",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Đang chơi cờ tỷ phú",
+        "Bị cướp",
+        "Xe bị hỏng",
+        "Đánh bạc"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì đi khắp thế giới mà vẫn ở nguyên một góc?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Con tem dán ở góc phong bì, theo thư đi khắp thế giới.",
+      "id": "q_dm_10",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Con tem",
+        "Con chim",
+        "Máy bay",
+        "Lá thư"
+      ],
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Nhân vật hoạt hình nào có đôi tai tròn màu đen?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Chuột Mickey nổi tiếng với đôi tai tròn màu đen.",
+      "id": "q_gt_01",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Chuột Mickey",
+        "Vịt Donald",
+        "Gấu Pooh",
+        "Mèo Tom"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ca sĩ nào được mệnh danh là “Ông hoàng nhạc Việt”?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Đàm Vĩnh Hưng được gọi là ông hoàng nhạc Việt.",
+      "id": "q_gt_02",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Đàm Vĩnh Hưng",
+        "Sơn Tùng M-TP",
+        "Trấn Thành",
+        "Mỹ Tâm"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Bài Quốc ca của Việt Nam có tên là gì?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Quốc ca Việt Nam là bài “Tiến quân ca” của Văn Cao.",
+      "id": "q_gt_03",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Tiến quân ca",
+        "Diệt phát xít",
+        "Lên đàng",
+        "Giải phóng miền Nam"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Bộ phim nào có nhân vật Tôn Ngộ Không?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Tôn Ngộ Không là nhân vật chính trong Tây Du Ký.",
+      "id": "q_gt_04",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Tây Du Ký",
+        "Tam Quốc Diễn Nghĩa",
+        "Thủy Hử",
+        "Hồng Lâu Mộng"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ai là đạo diễn phim “Tôi thấy hoa vàng trên cỏ xanh”?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Phim do đạo diễn Victor Vũ thực hiện (2015).",
+      "id": "q_gt_05",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Victor Vũ",
+        "Charlie Nguyễn",
+        "Ngô Thanh Vân",
+        "Trần Anh Hùng"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nhạc cụ nào có 88 phím?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Đàn piano tiêu chuẩn có 88 phím (52 phím trắng, 36 phím đen).",
+      "id": "q_gt_06",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Piano",
+        "Guitar",
+        "Violin",
+        "Trống"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nhân vật Người Sắt (Iron Man) xuất hiện trong bộ phim nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Iron Man là phim riêng về siêu anh hùng Người Sắt (2008).",
+      "id": "q_gt_07",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Iron Man",
+        "Thor",
+        "Hulk",
+        "Captain America"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ca khúc “Nối vòng tay lớn” là của nhạc sĩ nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "“Nối vòng tay lớn” là sáng tác của Trịnh Công Sơn.",
+      "id": "q_gt_08",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Trịnh Công Sơn",
+        "Phạm Duy",
+        "Văn Cao",
+        "Phú Quang"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Giải Oscar được trao lần đầu tiên vào năm nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Lễ trao giải Oscar đầu tiên diễn ra ngày 16/5/1929.",
+      "id": "q_gt_09",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "1929",
+        "1939",
+        "1927",
+        "1949"
+      ],
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Bộ phim nào có doanh thu phòng vé cao nhất mọi thời đại?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "explanation": "Avatar (2009) dẫn đầu doanh thu toàn cầu với khoảng 2,9 tỉ USD.",
+      "id": "q_gt_10",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Avatar",
+        "Avengers: Endgame",
+        "Titanic",
+        "Star Wars"
+      ],
+      "topicId": "topic_giai_tri"
+    }
+  ],
+  "quiz_sets": [
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "durationSec": 300,
+      "id": "set_tong_hop_1",
+      "isActive": true,
+      "name": "Kiến thức tổng hợp / Đời sống — Bộ 1",
+      "questionCount": 10,
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "durationSec": 300,
+      "id": "set_do_meo_1",
+      "isActive": true,
+      "name": "Đố dân gian & Câu đố mẹo — Bộ 1",
+      "questionCount": 10,
+      "topicId": "topic_do_meo"
+    },
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "durationSec": 300,
+      "id": "set_giai_tri_1",
+      "isActive": true,
+      "name": "Giải trí – Âm nhạc – Phim ảnh — Bộ 1",
+      "questionCount": 10,
+      "topicId": "topic_giai_tri"
+    }
+  ],
+  "topics": [
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.",
+      "icon": "🌍",
+      "id": "topic_tong_hop",
+      "imageUrl": "",
+      "isActive": true,
+      "name": "Kiến thức tổng hợp / Đời sống",
+      "questionCount": 10
+    },
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.",
+      "icon": "🧩",
+      "id": "topic_do_meo",
+      "imageUrl": "",
+      "isActive": true,
+      "name": "Đố dân gian & Câu đố mẹo",
+      "questionCount": 10
+    },
+    {
+      "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.",
+      "icon": "🎬",
+      "id": "topic_giai_tri",
+      "imageUrl": "",
+      "isActive": true,
+      "name": "Giải trí – Âm nhạc – Phim ảnh",
+      "questionCount": 10
+    }
+  ],
+  "users": [
+    {
+      "avatarUrl": "",
+      "coins": 100,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "displayName": "Người chơi Test",
+      "email": "test@quiz.app",
+      "role": "user",
+      "score": 0,
+      "status": "active",
+      "statusReason": "",
+      "uid": "VFLqQiv8AnOvWt7lhfXnNtmfKcu2",
+      "updatedAt": "2026-11-13T00:00:00Z",
+      "userCode": "TU001A",
+      "weeklyScore": 0
+    },
+    {
+      "avatarUrl": "",
+      "coins": 100,
+      "createdAt": "2026-11-13T00:00:00Z",
+      "displayName": "Quản trị Test",
+      "email": "admin@quiz.app",
+      "role": "admin",
+      "score": 0,
+      "status": "active",
+      "statusReason": "",
+      "uid": "tTUzRgv5gseRFwPWHJycH2gB4mP2",
+      "updatedAt": "2026-11-13T00:00:00Z",
+      "userCode": "AD001A",
+      "weeklyScore": 0
+    }
+  ]
+}

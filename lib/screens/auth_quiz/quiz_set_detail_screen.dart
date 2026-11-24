@@ -1,6 +1,7 @@
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../core/app_theme.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/review_model.dart';
@@ -23,15 +24,104 @@ class QuizSetDetailScreen extends StatefulWidget {
 
 class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
   bool _isFavorite = false;
+  bool _isFavoriteLoading = false;
+  String? _loadError;
+  late QuizSet _set;
+  List<Review> _reviews = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _set = widget.quizSet;
+    _loadRealSet();
+    _loadFavorite();
+  }
+
+  Future<void> _attachToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw StateError('Bạn cần đăng nhập.');
+    final token = await user.getIdToken();
+    if (token == null || token.isEmpty) {
+      throw StateError('Phiên đăng nhập hết hạn.');
+    }
+    ApiClient().setToken(token);
+  }
+
+  Future<void> _loadRealSet() async {
+    try {
+      await _attachToken();
+      final m = await ApiClient().get(
+        '/quiz-sets/${widget.quizSet.id}',
+      ) as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _set = QuizSet.fromJson(m);
+        _reviews = (m['comments'] as List? ?? []).map((e) {
+          return Review.fromJson(e as Map<String, dynamic>);
+        }).toList();
+        _loadError = null;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _loadError = 'Không thể tải thông tin bộ đề từ máy chủ.',
+        );
+      }
+    }
+  }
+
+  Future<void> _loadFavorite() async {
+    try {
+      await _attachToken();
+      final response = await ApiClient().get(
+        '/favorites/status',
+        query: {'targetId': widget.quizSet.id, 'targetType': 'quizSet'},
+      ) as Map<String, dynamic>;
+      if (mounted) setState(() => _isFavorite = response['isFavorite'] == true);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Không thể tải trạng thái yêu thích.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() => _isFavoriteLoading = true);
+    try {
+      await _attachToken();
+      if (_isFavorite) {
+        await ApiClient().delete(
+          '/favorites',
+          query: {'targetId': widget.quizSet.id, 'targetType': 'quizSet'},
+        );
+      } else {
+        await ApiClient().post('/favorites', {
+          'targetId': widget.quizSet.id,
+          'targetType': 'quizSet',
+        });
+      }
+      if (mounted) setState(() => _isFavorite = !_isFavorite);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể cập nhật yêu thích: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isFavoriteLoading = false);
+    }
+  }
 
   // bộ 10 câu chuẩn tối đa 180đ, ghi cứng tạm
   int get maxScore => 180;
 
-  Color get levelColor => AppColors.levelColor(widget.quizSet.level);
+  Color get levelColor => AppColors.levelColor(_set.level);
 
   @override
   Widget build(BuildContext context) {
-    final quizSet = widget.quizSet;
+    final quizSet = _set;
     final topic = widget.topic;
     return Scaffold(
       appBar: AppBar(
@@ -48,6 +138,19 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_loadError != null)
+            Card(
+              color: Colors.red.shade50,
+              child: ListTile(
+                leading: const Icon(Icons.error_outline, color: Colors.red),
+                title: Text(_loadError!),
+                trailing: IconButton(
+                  tooltip: 'Thử lại',
+                  onPressed: _loadRealSet,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
+            ),
           // thẻ tiêu đề + mô tả + huy hiệu độ khó
           Card(
             child: Padding(
@@ -90,7 +193,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          // 2 hàng ô thống kê, mỗi hàng 3 cột — đồng bộ màu trắng hết
           Row(
             children: [
               _StatBox(label: 'Số câu', value: '${quizSet.questionCount} câu'),
@@ -116,7 +218,6 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // 2 nút ngay dưới ô thống kê
           Row(
             children: [
               Expanded(
@@ -151,9 +252,7 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
                       color: _isFavorite ? AppColors.error : AppColors.primary,
                     ),
                   ),
-                  onPressed: () {
-                    setState(() => _isFavorite = !_isFavorite);
-                  },
+                  onPressed: _isFavoriteLoading ? null : _toggleFavorite,
                   icon: Icon(
                     _isFavorite ? Icons.favorite : Icons.favorite_border,
                     color: _isFavorite ? AppColors.error : AppColors.primary,
@@ -169,16 +268,24 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          ..._mockReviews.map(
-            (r) => Card(
+          if (_reviews.isEmpty)
+            const Card(
               child: ListTile(
-                leading: CircleAvatar(child: Text(r.userName[0])),
-                title: Text(r.userName),
-                subtitle: Text(r.comment),
-                trailing: Text('⭐' * r.rating),
+                title: Text('Chưa có đánh giá nào.'),
+                subtitle: Text('Hãy là người đầu tiên đánh giá bộ đề này.'),
+              ),
+            )
+          else
+            ..._reviews.map(
+              (r) => Card(
+                child: ListTile(
+                  leading: CircleAvatar(child: Text(r.userName[0])),
+                  title: Text(r.userName),
+                  subtitle: Text(r.comment),
+                  trailing: Text('⭐' * r.rating),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -223,31 +330,3 @@ class _StatBox extends StatelessWidget {
     );
   }
 }
-
-// đánh giá mẫu, đánh giá thật cần API
-const _mockReviews = [
-  Review(
-    id: 'r1',
-    quizSetId: 'set_math_1',
-    userName: 'Ngọc',
-    rating: 5,
-    comment: 'Bộ đề hay, câu hỏi rõ ràng, giải thích dễ hiểu.',
-    createdAt: '2026-11-14',
-  ),
-  Review(
-    id: 'r2',
-    quizSetId: 'set_math_1',
-    userName: 'Vương',
-    rating: 4,
-    comment: 'Câu khó hơi ít, mong thêm câu nâng cao.',
-    createdAt: '2026-11-14',
-  ),
-  Review(
-    id: 'r3',
-    quizSetId: 'set_math_1',
-    userName: 'An',
-    rating: 5,
-    comment: 'Làm xong 10 câu được 180 điểm, rất đã.',
-    createdAt: '2026-11-15',
-  ),
-];

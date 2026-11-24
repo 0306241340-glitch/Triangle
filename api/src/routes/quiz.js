@@ -81,6 +81,10 @@ router.post('/submit', async (req, res) => {
     const userRef = db.collection('users').doc(req.user.uid);
     const userSnap = await tx.get(userRef);
     const user = userSnap.data();
+    const setRef = db.collection('quiz_sets').doc(quizSetId);
+    const setSnap = await tx.get(setRef);
+    const prevCount = setSnap.data().attemptCount || 0;
+    const prevAvg = setSnap.data().avgScore || 0;
     tx.set(historyRef, {
       userId: req.user.uid, quizSetId, topicId: attempt.topicId,
       score, correctCount, totalCount: attempt.answers.length,
@@ -99,10 +103,6 @@ router.post('/submit', async (req, res) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     tx.update(attemptRef, { submitted: true });
-    const setRef = db.collection('quiz_sets').doc(quizSetId);
-    const setSnap = await tx.get(setRef);
-    const prevCount = setSnap.data().attemptCount || 0;
-    const prevAvg = setSnap.data().avgScore || 0;
     tx.update(setRef, {
       attemptCount: prevCount + 1,
       avgScore: Math.round(((prevAvg * prevCount) + score) / (prevCount + 1)),
@@ -112,3 +112,28 @@ router.post('/submit', async (req, res) => {
 });
 
 module.exports = router;
+// POST /quiz/fifty-fifty { attemptId, questionId, selectedIndex } -> 2 đáp án sai để ẩn
+// Đáp án đúng chỉ có ở server (attempt.answers), client không bao giờ thấy.
+router.post('/fifty-fifty', async (req, res) => {
+  const { attemptId, questionId, selectedIndex } = req.body || {};
+  if (!attemptId || !questionId) {
+    return res.fail(400, 'VALIDATION', 'Thiếu attemptId hoặc questionId.');
+  }
+  const db = getDb();
+  const attemptRef = db.collection('attempts').doc(attemptId);
+  const attemptSnap = await attemptRef.get();
+  if (!attemptSnap.exists) return res.fail(404, 'NOT_FOUND', 'Không tìm thấy lượt chơi này.');
+  const attempt = attemptSnap.data();
+  if (attempt.userId !== req.user.uid) return res.fail(403, 'FORBIDDEN', 'Không phải lượt chơi của bạn.');
+  if (attempt.submitted) return res.fail(409, 'CONFLICT', 'Bài đã nộp rồi.');
+  const entry = (attempt.answers || []).find((a) => a.questionId === questionId);
+  if (!entry) return res.fail(404, 'NOT_FOUND', 'Không tìm thấy câu hỏi này.');
+  // Gọi lại cùng câu thì trả đúng 2 đáp án cũ (tránh lộ đáp án đúng).
+  const used = attempt.fiftyFifty || {};
+  if (used[questionId]) return res.ok({ hide: used[questionId] });
+  const wrong = shuffle(
+    [0, 1, 2, 3].filter((i) => i !== entry.correctIndex && i !== selectedIndex),
+  ).slice(0, 2);
+  await attemptRef.update({ [`fiftyFifty.${questionId}`]: wrong });
+  return res.ok({ hide: wrong });
+});

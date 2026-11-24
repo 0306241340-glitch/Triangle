@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../models/topic_model.dart';
+import '../../viewmodels/home_profile_vm.dart';
+import '../auth_quiz/quiz_set_detail_screen.dart';
+import 'friends_screen.dart';
 import 'profile_screen.dart';
 import 'store_screen.dart';
 import 'friends_screen.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
-import '../pvp_social/pvp_social_screen.dart';
 
 import '../../viewmodels/home_profile_vm.dart';
 
@@ -21,30 +24,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final HomeViewModel _vm;
-  String _searchQuery = '';
-
-  // 3 chủ đề đúng theo Wireframe (S05)
-  static const _wireframeTopics = [
-    {
-      'title': 'Kiến thức tổng hợp / Đời sống',
-      'description': 'Các câu hỏi xoay quanh sự vật, hiện tượng tự nhiên, khoa học thường thức và xã hội.',
-    },
-    {
-      'title': 'Đố dân gian & Câu đố mẹo',
-      'description': 'Các câu đố chữ, câu đố mẹo thử thách tư duy nhanh nhạy, chơi chữ và hài hước.',
-    },
-    {
-      'title': 'Giải trí – Âm nhạc – Phim ảnh:',
-      'description': 'Kiến thức về các bộ phim nổi tiếng, ca sĩ, diễn viên, bài hát hoặc các chương trình truyền hình.',
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _vm = widget.vm ?? HomeViewModel();
     _vm.load();
-    _vm.loadCurrentUserCoins();
   }
 
   @override
@@ -55,39 +40,73 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// Khi bấm vào topic → lấy QuizSet đầu tiên đã tải từ API.
+  /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
+  Future<void> _openTopic(Topic topic) async {
+    final sets = _vm.quizSetsForTopic(topic.id);
+    if (sets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chủ đề này chưa có bộ đề nào')),
+      );
+      return;
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuizSetDetailScreen(quizSet: sets.first, topic: topic),
+      ),
+    );
+    if (mounted) {
+      _vm.load();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final filteredTopics = _wireframeTopics.where((topic) {
-      if (_searchQuery.trim().isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return topic['title']!.toLowerCase().contains(q) ||
-          topic['description']!.toLowerCase().contains(q);
-    }).toList();
-
     return AnimatedBuilder(
       animation: _vm,
       builder: (context, _) {
+        final topics = _vm.filteredTopics;
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
           appBar: AppBar(
-            title: const Text('Xin chào, An'),
+            title: Text('Xin chào, ${_vm.displayName}'),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 16),
-                child: Center(child: Text('⭐ 180đ · 🪙 ${_vm.coins} xu')),
+                child: Center(
+                  child: Text('⭐ ${_vm.userScore}đ · 🪙 ${_vm.userCoins} xu'),
+                ),
               ),
             ],
           ),
           body: _vm.isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _vm.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Không thể tải dữ liệu từ máy chủ.\n${_vm.error}',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: _vm.load,
+                          child: const Text('Thử lại'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
                     TextField(
-                      onChanged: (value) {
-                        setState(() => _searchQuery = value);
-                        _vm.setQuery(value);
-                      },
+                      onChanged: (value) => _vm.setQuery(value),
                       decoration: InputDecoration(
                         hintText: 'Tìm chủ đề, bộ đề...',
                         prefixIcon: const Icon(Icons.search),
@@ -139,73 +158,130 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    ...filteredTopics.map(
-                      (topic) => Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade300),
+                    if (_vm.topicFavoriteLoadError != null)
+                      Card(
+                        color: const Color(0xFFFFFBEB),
+                        child: ListTile(
+                          leading: const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFD97706),
+                          ),
+                          title: const Text(
+                            'Chưa tải được trạng thái yêu thích',
+                          ),
+                          subtitle: Text(_vm.topicFavoriteLoadError!),
+                          trailing: IconButton(
+                            tooltip: 'Thử lại',
+                            onPressed: _vm.loadTopicFavorites,
+                            icon: const Icon(Icons.refresh),
+                          ),
                         ),
-                        elevation: 0,
-                        color: Colors.white,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          // TODO: bấm vào mở Danh sách bộ đề S06 (commit sau)
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => QuizSetDetailScreen(
-                                  quizSet: const QuizSet(
-                                    id: 'set_math_1',
-                                    topicId: 'topic_math',
-                                    title: 'Toán tư duy căn bản',
-                                    description: '10 câu trắc nghiệm Toán học thực tế: cộng trừ nhân chia, lũy thừa, căn bậc hai, phần trăm...',
-                                    level: 'medium',
-                                    questionCount: 10,
-                                    durationSec: 300,
-                                    attemptCount: 128,
-                                    avgScore: 142.5,
+                      ),
+                    if (topics.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('Không tìm thấy chủ đề nào'),
+                        ),
+                      )
+                    else
+                      ...topics.map(
+                        (topic) => Card(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          elevation: 0,
+                          color: Colors.white,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => _openTopic(topic),
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          '${topic.icon}  ${topic.name}',
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                      ),
+                                      IconButton(
+                                        tooltip: _vm.isTopicFavorite(topic.id)
+                                            ? 'Bỏ chủ đề yêu thích'
+                                            : 'Lưu chủ đề yêu thích',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed:
+                                            _vm.isUpdatingTopicFavorite(
+                                              topic.id,
+                                            )
+                                            ? null
+                                            : () async {
+                                                final error = await _vm
+                                                    .toggleTopicFavorite(
+                                                      topic.id,
+                                                    );
+                                                if (error != null &&
+                                                    context.mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Không thể cập nhật yêu thích: $error',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                        icon:
+                                            _vm.isUpdatingTopicFavorite(
+                                              topic.id,
+                                            )
+                                            ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              )
+                                            : Icon(
+                                                _vm.isTopicFavorite(topic.id)
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                color:
+                                                    _vm.isTopicFavorite(
+                                                      topic.id,
+                                                    )
+                                                    ? const Color(0xFFEF4444)
+                                                    : const Color(0xFF64748B),
+                                              ),
+                                      ),
+                                    ],
                                   ),
-                                  topic: Topic(
-                                    id: 'topic_math',
-                                    name: topic['title']!,
-                                    description: topic['description']!,
-                                    icon: '📐',
-                                    questionCount: 10,
+                                  Text(
+                                    topic.description,
+                                    style: const TextStyle(
+                                      fontSize: 12.5,
+                                      color: Color(0xFF64748B),
+                                      height: 1.35,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            );
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  topic['title']!,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  topic['description']!,
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    color: Color(0xFF64748B),
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
                             ),
                           ),
                         ),
                       ),
-                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -260,10 +336,22 @@ class _HomeScreenState extends State<HomeScreen> {
               BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Hồ sơ'),
             ],
             onTap: (i) {
-              if (i == 3) {
+              if (i == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+                );
+              } else if (i == 3) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              } else if (i == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryScreen(homeViewModel: _vm),
+                  ),
                 );
               } else if (i != 0) {
                 ScaffoldMessenger.of(context).showSnackBar(

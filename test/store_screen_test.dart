@@ -6,13 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('parses item image URL and the Firestore lifeline code', () {
+  test('parses item image URL and its API effect code', () {
     final item = StoreItem.fromJson({
       'id': 'item_extra_time',
       'name': 'Thêm thời gian',
       'description': '',
       'type': 'help',
-      'lifelineCode': 'extra_time',
+      'effect': 'extra_time',
       'price': 20,
       'imageUrl': 'https://example.com/extra-time.png',
     });
@@ -82,7 +82,26 @@ void main() {
       find.textContaining('Không thể tải cửa hàng từ PostgreSQL'),
       findsOneWidget,
     );
-    expect(find.widgetWithText(FilledButton, 'Chi tiết'), findsNothing);
+    await tester.scrollUntilVisible(
+      find.text('Khung avatar Vàng'),
+      300,
+      scrollable: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    expect(find.text('Khung avatar Vàng'), findsOneWidget);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Chi tiết').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Giá: 30 xu'), findsOneWidget);
+    await tester.tap(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('Mua')),
+    );
+    await tester.pumpAndSettle();
+
     expect(service.purchasedItemId, isEmpty);
   });
 }
@@ -99,6 +118,14 @@ class _FakeStoreService implements StoreService {
 
   @override
   Future<void> setEquipped(String itemId, {required bool equipped}) async {}
+
+  @override
+  Future<Map<String, dynamic>> loadInventory() async => {
+    'items': [],
+    'inventory': <String, int>{},
+    'userItems': [],
+    'coins': 200,
+  };
 
   @override
   Future<StoreCatalog> loadCatalog() async {

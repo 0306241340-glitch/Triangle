@@ -68,7 +68,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       );
       return;
     }
-    setState(() => _searchFuture = _service.searchUsers(query));
+    setState(() {
+      _searchFuture = _service.searchUsers(query);
+    });
   }
 
   Future<void> _runAction(

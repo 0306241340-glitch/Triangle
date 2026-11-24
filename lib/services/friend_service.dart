@@ -4,8 +4,8 @@ import '../core/api_client.dart';
 import '../models/friend_model.dart';
 
 class FriendService {
-  FriendService({ApiClient? api, FirebaseAuth? auth})
-    : _api = api ?? ApiClient(baseUrl: ApiClient.vuongApiBaseUrl),
+  FriendService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
       _auth = auth ?? FirebaseAuth.instance;
 
   final ApiClient _api;

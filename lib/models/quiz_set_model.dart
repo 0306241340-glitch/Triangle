@@ -26,7 +26,7 @@ class QuizSet {
       id: json['id'] as String? ?? '',
       topicId: json['topicId'] as String? ?? '',
       title: (json['title'] ?? json['name']) as String? ?? '',
-      level: json['level'] as String? ?? 'mixed',
+      level: (json['level'] ?? json['difficulty']) as String? ?? 'mixed',
       questionCount: (json['questionCount'] as num?)?.toInt() ?? 0,
       durationSec: (json['durationSec'] as num?)?.toInt() ?? 300,
       attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,

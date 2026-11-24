@@ -1,11 +1,8 @@
-import 'dart:math';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../core/app_constants.dart';
-import '../../services/friend_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -34,15 +31,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  String _generateUserCode() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = Random.secure();
-    return List.generate(
-      AppConstants.userCodeLength,
-      (_) => chars[random.nextInt(chars.length)],
-    ).join();
-  }
-
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -53,36 +41,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      // 1. Tạo tài khoản Email & Mật khẩu trên Firebase Authentication
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
 
       final user = credential.user;
-      if (user != null) {
-        await user.updateDisplayName(name);
-
-        // 2. Tạo hồ sơ trên Firestore tuân thủ đúng AppConstants
-        final userCode = _generateUserCode();
-        await FirebaseFirestore.instance
-            .collection(AppConstants.usersCollection)
-            .doc(user.uid)
-            .set({
-              'uid': user.uid,
-              'userCode': userCode,
-              'displayName': name,
-              'email': email,
-              'avatarUrl': '',
-              'coins': AppConstants.initialCoins,
-              'score': AppConstants.initialScore,
-              'weeklyScore': AppConstants.initialWeeklyScore,
-              'streakDays': 0,
-              'role': AppConstants.roleUser,
-              'status': AppConstants.statusActive,
-              'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-        await FriendService().ensurePublicProfile();
+      if (user == null) {
+        throw StateError('Firebase không trả về tài khoản mới.');
       }
+      final token = await user.getIdToken();
+      if (token == null || token.isEmpty) {
+        throw StateError('Không lấy được phiên đăng nhập.');
+      }
+      final api = ApiClient()..setToken(token);
+      await api.put('/me/profile', {'displayName': name, 'avatarUrl': ''});
 
       if (!mounted) return;
       Navigator.of(context).pop();
