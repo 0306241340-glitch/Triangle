@@ -12,3 +12,14 @@ services:
         value: production
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
+  - type: web
+    name: triangle-store-api
+    runtime: python
+    rootDir: api-fastapi
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false

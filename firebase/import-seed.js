@@ -9,6 +9,6 @@ async function run() {
   for (const s of seed.quiz_sets) await db.collection('quiz_sets').doc(s.id).set({ ...s, createdAt: toTs(s.createdAt) });
   for (const i of seed.items) await db.collection('items').doc(i.id).set(i);
   for (const u of seed.users) await db.collection('users').doc(u.uid).set({ ...u, createdAt: toTs(u.createdAt), updatedAt: toTs(u.updatedAt) });
-  console.log('Import xong: 3 topics, 30 questions, 3 quiz_sets, 5 items, 2 users');
+  console.log('Import xong: 3 topics, 30 questions, 3 quiz_sets, 8 items, 2 users');
 }
 run().catch(e => { console.error(e); process.exit(1); });

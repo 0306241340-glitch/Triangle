@@ -17,7 +17,7 @@ class StoreItem {
   final int price;
   final String imageUrl;
 
-  bool get isStackable => type == 'help';
+  bool get isStackable => type == 'help' || type == 'lifeline';
 
   factory StoreItem.fromJson(Map<String, dynamic> json) {
     return StoreItem(

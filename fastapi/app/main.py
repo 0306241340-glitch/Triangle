@@ -17,6 +17,7 @@ from .database import Base, engine, get_db
 from .errors import ApiError, fail_body, ok
 from .models import Item, QuizHistory, User, UserItem
 from .routers import admin, favorites, friends, leaderboard, pvp, quiz, quiz_sets, store, topics
+from .seed import seed_frames
 from .schemas import ProfileUpdateIn
 
 app = FastAPI(title="Quiz App API (FastAPI + SQL)", version="2.0.0")
@@ -24,6 +25,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"], allow_credentials=False)
 
 Base.metadata.create_all(bind=engine)
+seed_frames()
 
 @app.exception_handler(ApiError)
 async def api_error_handler(request: Request, exc: ApiError):

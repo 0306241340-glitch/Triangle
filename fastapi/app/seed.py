@@ -4,8 +4,41 @@ Chay:  python -m app.seed [duong-dan-seed-json]
 - User trong seed chi la dong mau: uid that la cua An/Ngoc, dung de test."""
 import json
 import sys
+from pathlib import Path
+
 from .database import Base, SessionLocal, engine
 from .models import Item, Question, QuizSet, Topic, User
+
+
+def _them_vat_pham(db, vat_pham):
+    if not db.query(Item).filter(Item.id == vat_pham["id"]).first():
+        db.add(
+            Item(
+                id=vat_pham["id"],
+                name=vat_pham["name"],
+                description=vat_pham.get("description", ""),
+                effect=vat_pham.get("effect", ""),
+                price=vat_pham.get("price", 0),
+                type=vat_pham.get("type", "help"),
+                is_active=vat_pham.get("isActive", True),
+            )
+        )
+
+
+def seed_frames():
+    path = Path(__file__).resolve().parents[1] / "seed-data-3-chu-de.json"
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    db = SessionLocal()
+    try:
+        for vat_pham in data.get("items", []):
+            if vat_pham.get("type") == "frame":
+                _them_vat_pham(db, vat_pham)
+        db.commit()
+    finally:
+        db.close()
+
 
 def seed(path):
     Base.metadata.create_all(bind=engine)
@@ -33,10 +66,7 @@ def seed(path):
                                 explanation=q.get("explanation", ""),
                                 is_active=q.get("isActive", True)))
         for it in data.get("items", []):
-            if not db.query(Item).filter(Item.id == it["id"]).first():
-                db.add(Item(id=it["id"], name=it["name"], description=it.get("description", ""),
-                            effect=it.get("effect", ""), price=it.get("price", 0),
-                            type=it.get("type", "help"), is_active=it.get("isActive", True)))
+            _them_vat_pham(db, it)
         for u in data.get("users", []):
             if not db.query(User).filter(User.uid == u["uid"]).first():
                 db.add(User(uid=u["uid"], email=u.get("email", ""),

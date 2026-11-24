@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../core/app_colors.dart';
 import '../../models/friend_model.dart';
 import '../../services/friend_service.dart';
 
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key, this.service});
+  const FriendsScreen({super.key, this.service, this.initialTab = 0});
 
   final FriendService? service;
+  final int initialTab;
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -14,375 +17,757 @@ class FriendsScreen extends StatefulWidget {
 
 class _FriendsScreenState extends State<FriendsScreen>
     with SingleTickerProviderStateMixin {
-  late final FriendService _service;
-  late final TabController _tabController;
-  final _searchController = TextEditingController();
-  Future<List<PublicProfile>>? _searchFuture;
-  String? _actionId;
-  String? _initializationError;
-  late final Future<void> _profileReady;
-  late Future<List<FriendRequest>> _friendsFuture;
-  late Future<List<FriendRequest>> _incomingFuture;
-  late Future<List<FriendRequest>> _outgoingFuture;
-  final Map<String, Future<PublicProfile?>> _profileFutures = {};
+  late final FriendService _dichVuBanBe;
+  late final TabController _boTab;
+  final TextEditingController _oTimKiem = TextEditingController();
+  final Map<String, Future<PublicProfile?>> _hoSoBan = {};
+
+  late Future<void> _hoSoSanSang;
+  late Future<List<FriendRequest>> _dsBanBe;
+  late Future<List<FriendRequest>> _loiMoiDaNhan;
+  late Future<List<FriendRequest>> _loiMoiDaGui;
+
+  List<PublicProfile>? _ketQuaTimKiem;
+  PublicProfile? _hoSoCuaToi;
+  String? _loiKhoiTao;
+  String? _loiTimKiem;
+  String? _idDangXuLy;
+  bool _dangTim = false;
 
   @override
   void initState() {
     super.initState();
-    _service = widget.service ?? FriendService();
-    _tabController = TabController(length: 3, vsync: this);
-    _profileReady = _initializeProfile();
-    _friendsFuture = _service.loadFriends();
-    _incomingFuture = _service.loadRequests(incoming: true);
-    _outgoingFuture = _service.loadRequests(incoming: false);
-  }
-
-  void _refreshRelations() {
-    setState(() {
-      _friendsFuture = _service.loadFriends();
-      _incomingFuture = _service.loadRequests(incoming: true);
-      _outgoingFuture = _service.loadRequests(incoming: false);
-    });
-  }
-
-  Future<void> _initializeProfile() async {
-    try {
-      await _service.ensurePublicProfile();
-    } catch (error) {
-      _initializationError = error.toString();
-    }
+    _dichVuBanBe = widget.service ?? FriendService();
+    _boTab = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: widget.initialTab,
+    );
+    _hoSoSanSang = _chuanBiHoSo();
+    _taiLaiQuanHe();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _searchController.dispose();
+    _boTab.dispose();
+    _oTimKiem.dispose();
     super.dispose();
   }
 
-  Future<void> _search() async {
-    final query = _searchController.text.trim();
-    if (query.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nhập ít nhất 2 ký tự để tìm kiếm.')),
-      );
-      return;
+  Future<void> _chuanBiHoSo() async {
+    try {
+      _hoSoCuaToi = await _dichVuBanBe.loadMyProfile();
+      _loiKhoiTao = null;
+    } catch (loi) {
+      _loiKhoiTao = loi.toString();
     }
+  }
+
+  void _thuLaiKhoiTao() {
     setState(() {
-      _searchFuture = _service.searchUsers(query);
+      _loiKhoiTao = null;
+      _hoSoSanSang = _chuanBiHoSo();
     });
   }
 
-  Future<void> _runAction(
-    String id,
-    Future<void> Function() action, {
-    required String successMessage,
-  }) async {
-    setState(() => _actionId = id);
-    try {
-      await action();
-      if (!mounted) return;
-      _refreshRelations();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(successMessage)));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) setState(() => _actionId = null);
+  void _taiLaiQuanHe() {
+    setState(() {
+      _hoSoBan.clear();
+      _dsBanBe = _dichVuBanBe.loadFriends();
+      _loiMoiDaNhan = _dichVuBanBe.loadRequests(incoming: true);
+      _loiMoiDaGui = _dichVuBanBe.loadRequests(incoming: false);
+    });
+  }
+
+  Future<void> _timBan() async {
+    final tuKhoa = _oTimKiem.text.trim();
+    if (tuKhoa.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nhập ít nhất 2 ký tự để tìm bạn.')),
+      );
+      return;
     }
+
+    setState(() {
+      _dangTim = true;
+      _loiTimKiem = null;
+      _ketQuaTimKiem = null;
+    });
+
+    try {
+      final ketQua = await _dichVuBanBe.searchUsers(tuKhoa);
+      if (!mounted) return;
+      setState(() => _ketQuaTimKiem = ketQua);
+    } catch (loi) {
+      if (!mounted) return;
+      setState(() => _loiTimKiem = loi.toString());
+    } finally {
+      if (mounted) setState(() => _dangTim = false);
+    }
+  }
+
+  Future<void> _saoChepMaBanBe() async {
+    final maBanBe = _hoSoCuaToi?.userCode ?? '';
+    if (maBanBe.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: maBanBe));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Đã sao chép mã kết bạn.')));
+  }
+
+  Future<void> _thucHienTacVu(
+    String id,
+    Future<void> Function() tacVu, {
+    required String thongBao,
+  }) async {
+    if (_idDangXuLy != null) return;
+    setState(() => _idDangXuLy = id);
+    try {
+      await tacVu();
+      if (!mounted) return;
+      _taiLaiQuanHe();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(thongBao)));
+    } catch (loi) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(loi.toString())));
+    } finally {
+      if (mounted) setState(() => _idDangXuLy = null);
+    }
+  }
+
+  Future<PublicProfile?> _taiHoSoBan(String idNguoiDung) {
+    return _hoSoBan.putIfAbsent(
+      idNguoiDung,
+      () => _dichVuBanBe.getPublicProfile(idNguoiDung),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Bạn bè'),
-        actions: [
-          IconButton(
-            tooltip: 'Làm mới',
-            onPressed: _refreshRelations,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
         bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Bạn bè'),
-            Tab(text: 'Lời mời'),
-            Tab(text: 'Tìm bạn'),
+          controller: _boTab,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primaryLight,
+          indicatorWeight: 3,
+          tabs: [
+            const Tab(text: 'Bạn bè'),
+            Tab(child: _tabLoiMoiCoSo()),
+            const Tab(text: 'Tìm bạn'),
           ],
         ),
       ),
       body: FutureBuilder<void>(
-        future: _profileReady,
+        future: _hoSoSanSang,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
           }
-          if (_initializationError != null) {
-            return _buildError(_initializationError!);
-          }
+          if (_loiKhoiTao != null) return _loiTaoHoSo();
           return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildFriendsTab(),
-              _buildRequestsTab(),
-              _buildSearchTab(),
-            ],
+            controller: _boTab,
+            children: [_tabBanBe(), _tabLoiMoi(), _tabTimBan()],
           );
         },
       ),
     );
   }
 
-  Widget _buildError(String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Text(error, textAlign: TextAlign.center),
-      ),
-    );
+  Widget _loiTaoHoSo() {
+    return _trangThaiLoi(noiDung: _loiKhoiTao!, thuLai: _thuLaiKhoiTao);
   }
 
-  Widget _buildFriendsTab() {
+  Widget _tabBanBe() {
     return FutureBuilder<List<FriendRequest>>(
-      future: _friendsFuture,
+      future: _dsBanBe,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return _buildError('Không tải được danh sách bạn bè.');
+          return _trangThaiLoi(
+            noiDung: 'Không tải được danh sách bạn bè.',
+            thuLai: _taiLaiQuanHe,
+          );
         }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData) return _dangTai();
+        final banBe = snapshot.data!;
+        if (banBe.isEmpty) {
+          return _trangThaiBanBeTrong();
         }
-        final requests = snapshot.data!;
-        if (requests.isEmpty) {
-          return const Center(child: Text('Bạn chưa có bạn bè nào.'));
-        }
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: requests.map((request) {
-            final uid = request.otherUserId(_service.currentUserId);
-            return _profileTile(
-              uid,
-              trailing: TextButton(
-                onPressed: _actionId == request.id
-                    ? null
-                    : () => _runAction(
-                        request.id,
-                        () => _service.removeFriend(request.id),
-                        successMessage: 'Đã xóa bạn bè.',
-                      ),
-                child: const Text('Xóa'),
-              ),
-            );
-          }).toList(),
+
+        return RefreshIndicator(
+          onRefresh: () async => _taiLaiQuanHe(),
+          color: AppColors.primary,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: banBe.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final quanHe = banBe[index];
+              final idNguoiDung = quanHe.otherUserId(
+                _dichVuBanBe.currentUserId,
+              );
+              return _theHoSo(
+                idNguoiDung,
+                tacVu: TextButton.icon(
+                  onPressed: _idDangXuLy == null
+                      ? () => _thucHienTacVu(
+                          quanHe.id,
+                          () => _dichVuBanBe.removeFriend(quanHe.id),
+                          thongBao: 'Đã xóa bạn bè.',
+                        )
+                      : null,
+                  icon: _idDangXuLy == quanHe.id
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.person_remove_outlined, size: 18),
+                  label: const Text('Xóa'),
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildRequestsTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text(
-          'Lời mời đã nhận',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        _requestList(future: _incomingFuture, incoming: true),
-        const SizedBox(height: 20),
-        const Text(
-          'Lời mời đã gửi',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        _requestList(future: _outgoingFuture, incoming: false),
-      ],
+  Widget _tabLoiMoi() {
+    return RefreshIndicator(
+      onRefresh: () async => _taiLaiQuanHe(),
+      color: AppColors.primary,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: [
+          _tieuDeNhom('Lời mời đã nhận'),
+          const SizedBox(height: 8),
+          _dsLoiMoi(future: _loiMoiDaNhan, laLoiMoiDen: true),
+          const SizedBox(height: 22),
+          _tieuDeNhom('Lời mời đã gửi'),
+          const SizedBox(height: 8),
+          _dsLoiMoi(future: _loiMoiDaGui, laLoiMoiDen: false),
+        ],
+      ),
     );
   }
 
-  Widget _requestList({
+  Widget _tabLoiMoiCoSo() {
+    return FutureBuilder<List<FriendRequest>>(
+      future: _loiMoiDaNhan,
+      builder: (context, snapshot) {
+        final soLoiMoi = snapshot.data?.length ?? 0;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Lời mời'),
+            if (soLoiMoi > 0) ...[
+              const SizedBox(width: 6),
+              Container(
+                constraints: const BoxConstraints(minWidth: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: const BoxDecoration(
+                  color: AppColors.error,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$soLoiMoi',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _dsLoiMoi({
     required Future<List<FriendRequest>> future,
-    required bool incoming,
+    required bool laLoiMoiDen,
   }) {
     return FutureBuilder<List<FriendRequest>>(
       future: future,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Text('Không tải được lời mời kết bạn.');
+          return _khungThongBao(
+            icon: Icons.cloud_off_outlined,
+            noiDung: 'Không tải được lời mời kết bạn.',
+          );
         }
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
         }
-        if (snapshot.data!.isEmpty) {
-          return Text(
-            incoming ? 'Chưa có lời mời mới.' : 'Chưa gửi lời mời nào.',
+        final loiMoi = snapshot.data!;
+        if (loiMoi.isEmpty) {
+          return _khungThongBao(
+            icon: Icons.mark_email_read_outlined,
+            noiDung: laLoiMoiDen
+                ? 'Chưa có lời mời mới.'
+                : 'Bạn chưa gửi lời mời nào.',
           );
         }
 
         return Column(
-          children: snapshot.data!.map((request) {
-            final uid = request.otherUserId(_service.currentUserId);
-            return _profileTile(
-              uid,
-              trailing: incoming
-                  ? Wrap(
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          tooltip: 'Chấp nhận',
-                          onPressed: _actionId == request.id
-                              ? null
-                              : () => _runAction(
-                                  request.id,
-                                  () => _service.acceptRequest(request.id),
-                                  successMessage: 'Đã chấp nhận lời mời.',
-                                ),
-                          icon: const Icon(Icons.check_circle_outline),
-                        ),
-                        IconButton(
-                          tooltip: 'Từ chối',
-                          onPressed: _actionId == request.id
-                              ? null
-                              : () => _runAction(
-                                  request.id,
-                                  () => _service.rejectRequest(request.id),
-                                  successMessage: 'Đã từ chối lời mời.',
-                                ),
-                          icon: const Icon(Icons.close),
-                        ),
-                      ],
-                    )
-                  : TextButton(
-                      onPressed: _actionId == request.id
-                          ? null
-                          : () => _runAction(
-                              request.id,
-                              () => _service.cancelRequest(request.id),
-                              successMessage: 'Đã thu hồi lời mời.',
-                            ),
-                      child: const Text('Thu hồi'),
-                    ),
-            );
+          children: loiMoi.map((quanHe) {
+            final idNguoiDung = quanHe.otherUserId(_dichVuBanBe.currentUserId);
+            final dangXuLy = _idDangXuLy == quanHe.id;
+            final Widget nut;
+            if (laLoiMoiDen) {
+              nut = Wrap(
+                spacing: 4,
+                children: [
+                  IconButton.filledTonal(
+                    tooltip: 'Chấp nhận',
+                    onPressed: _idDangXuLy == null
+                        ? () => _thucHienTacVu(
+                            quanHe.id,
+                            () => _dichVuBanBe.acceptRequest(quanHe.id),
+                            thongBao: 'Đã chấp nhận lời mời.',
+                          )
+                        : null,
+                    icon: dangXuLy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check_rounded),
+                  ),
+                  IconButton(
+                    tooltip: 'Từ chối',
+                    onPressed: _idDangXuLy == null
+                        ? () => _thucHienTacVu(
+                            quanHe.id,
+                            () => _dichVuBanBe.rejectRequest(quanHe.id),
+                            thongBao: 'Đã từ chối lời mời.',
+                          )
+                        : null,
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              );
+            } else {
+              nut = TextButton(
+                onPressed: _idDangXuLy == null
+                    ? () => _thucHienTacVu(
+                        quanHe.id,
+                        () => _dichVuBanBe.cancelRequest(quanHe.id),
+                        thongBao: 'Đã thu hồi lời mời.',
+                      )
+                    : null,
+                child: dangXuLy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Thu hồi'),
+              );
+            }
+            return _theHoSo(idNguoiDung, tacVu: nut);
           }).toList(),
         );
       },
     );
   }
 
-  Widget _profileTile(String uid, {required Widget trailing}) {
-    return FutureBuilder<PublicProfile?>(
-      future: _profileFutures.putIfAbsent(
-        uid,
-        () => _service.getPublicProfile(uid),
+  Widget _tabTimBan() {
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: [
+        _theMaBanBeCuaToi(),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _oTimKiem,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _timBan(),
+          decoration: InputDecoration(
+            hintText: 'Nhập tên hoặc mã bạn bè',
+            prefixIcon: const Icon(Icons.search_rounded),
+            suffixIcon: IconButton(
+              tooltip: 'Tìm kiếm',
+              onPressed: _dangTim ? null : _timBan,
+              icon: _dangTim
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.arrow_forward_rounded),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (_loiTimKiem != null)
+          _khungThongBao(
+            icon: Icons.cloud_off_outlined,
+            noiDung: 'Tìm kiếm thất bại: $_loiTimKiem',
+          )
+        else if (_dangTim)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          )
+        else if (_ketQuaTimKiem == null)
+          _khungThongBao(
+            icon: Icons.person_search_outlined,
+            noiDung: 'Nhập ít nhất 2 ký tự để tìm người chơi.',
+          )
+        else if (_ketQuaTimKiem!.isEmpty)
+          _khungThongBao(
+            icon: Icons.search_off_rounded,
+            noiDung: 'Không tìm thấy người chơi phù hợp.',
+          )
+        else
+          ..._ketQuaTimKiem!.map(_theKetQuaTimKiem),
+      ],
+    );
+  }
+
+  Widget _theMaBanBeCuaToi() {
+    final maBanBe = _hoSoCuaToi?.userCode ?? '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const ListTile(title: Text('Không tải được hồ sơ.'));
-        }
-        final profile = snapshot.data;
-        if (profile == null) {
-          return ListTile(
-            title: Text(
-              snapshot.connectionState == ConnectionState.waiting
-                  ? 'Đang tải hồ sơ...'
-                  : 'Không tìm thấy hồ sơ người chơi.',
+      child: Row(
+        children: [
+          const Icon(Icons.badge_outlined, color: AppColors.primaryLight),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Mã kết bạn của bạn',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  maBanBe,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
             ),
-          );
-        }
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundImage: profile.avatarUrl.isNotEmpty
-                  ? NetworkImage(profile.avatarUrl)
-                  : null,
-              child: profile.avatarUrl.isEmpty
-                  ? Text(_initials(profile.displayName))
-                  : null,
-            ),
-            title: Text(profile.displayName),
-            subtitle: Text('Mã kết bạn: ${profile.userCode}'),
-            trailing: trailing,
+          ),
+          TextButton.icon(
+            onPressed: _saoChepMaBanBe,
+            icon: const Icon(Icons.copy_rounded, size: 17),
+            label: const Text('Sao chép'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trangThaiBanBeTrong() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return RefreshIndicator(
+          onRefresh: () async => _taiLaiQuanHe(),
+          color: AppColors.primary,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: constraints.maxHeight,
+                child: Padding(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Icon(
+                          Icons.group_add_outlined,
+                          size: 38,
+                          color: AppColors.primaryLight,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Chưa có bạn bè',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Tìm người chơi theo tên hoặc mã để cùng tham gia.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      FilledButton.icon(
+                        onPressed: () => _boTab.animateTo(2),
+                        icon: const Icon(Icons.person_search_rounded),
+                        label: const Text('Tìm bạn bè'),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton.icon(
+                        onPressed: _saoChepMaBanBe,
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        label: const Text('Chia sẻ mã của tôi'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildSearchTab() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        TextField(
-          controller: _searchController,
-          textInputAction: TextInputAction.search,
-          onSubmitted: (_) => _search(),
-          decoration: InputDecoration(
-            hintText: 'Tìm theo mã hoặc tên',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
-              tooltip: 'Tìm kiếm',
-              onPressed: _search,
-              icon: const Icon(Icons.arrow_forward),
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        FutureBuilder<List<PublicProfile>>(
-          future: _searchFuture,
-          builder: (context, snapshot) {
-            if (_searchFuture == null) {
-              return const Text('Nhập mã kết bạn hoặc tên để tìm người chơi.');
-            }
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Text('Tìm kiếm thất bại: ${snapshot.error}');
-            }
-            final profiles = snapshot.data ?? [];
-            if (profiles.isEmpty) {
-              return const Text('Không tìm thấy người chơi.');
-            }
-            return Column(
-              children: profiles.map((profile) {
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(_initials(profile.displayName)),
-                    ),
-                    title: Text(profile.displayName),
-                    subtitle: Text('Mã kết bạn: ${profile.userCode}'),
-                    trailing: FilledButton(
-                      onPressed: _actionId == profile.uid
-                          ? null
-                          : () => _runAction(
-                              profile.uid,
-                              () => _service.sendRequest(profile.uid),
-                              successMessage: 'Đã gửi lời mời kết bạn.',
-                            ),
-                      child: const Text('Kết bạn'),
-                    ),
-                  ),
-                );
-              }).toList(),
-            );
-          },
-        ),
-      ],
+  Widget _theKetQuaTimKiem(PublicProfile hoSo) {
+    final dangXuLy = _idDangXuLy == hoSo.uid;
+    return _theHoSo(
+      hoSo.uid,
+      hoSoCoSan: hoSo,
+      tacVu: FilledButton.tonalIcon(
+        onPressed: _idDangXuLy == null
+            ? () => _thucHienTacVu(
+                hoSo.uid,
+                () => _dichVuBanBe.sendRequest(hoSo.uid),
+                thongBao: 'Đã gửi lời mời kết bạn.',
+              )
+            : null,
+        icon: dangXuLy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.person_add_alt_1_rounded, size: 18),
+        label: const Text('Kết bạn'),
+      ),
     );
   }
 
-  String _initials(String name) {
-    final words = name.trim().split(RegExp(r'\s+'));
-    if (words.isEmpty || words.first.isEmpty) return 'U';
-    if (words.length == 1) return words.first[0].toUpperCase();
-    return '${words.first[0]}${words.last[0]}'.toUpperCase();
+  Widget _theHoSo(
+    String idNguoiDung, {
+    required Widget tacVu,
+    PublicProfile? hoSoCoSan,
+  }) {
+    if (hoSoCoSan != null) return _taoTheHoSo(hoSoCoSan, tacVu);
+    return FutureBuilder<PublicProfile?>(
+      future: _taiHoSoBan(idNguoiDung),
+      builder: (context, snapshot) {
+        final hoSo = snapshot.data;
+        if (snapshot.hasError) {
+          return _khungThongBao(
+            icon: Icons.person_off_outlined,
+            noiDung: 'Không tải được hồ sơ người chơi.',
+          );
+        }
+        if (hoSo == null) {
+          return Card(
+            elevation: 0,
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFEFF6FF),
+                child: Icon(Icons.person_outline, color: AppColors.primary),
+              ),
+              title: Text(
+                snapshot.connectionState == ConnectionState.waiting
+                    ? 'Đang tải hồ sơ...'
+                    : 'Không tìm thấy người chơi.',
+              ),
+            ),
+          );
+        }
+        return _taoTheHoSo(hoSo, tacVu);
+      },
+    );
+  }
+
+  Widget _taoTheHoSo(PublicProfile hoSo, Widget tacVu) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            _anhDaiDien(hoSo),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hoSo.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    hoSo.userCode.isEmpty
+                        ? 'Người chơi'
+                        : 'Mã: ${hoSo.userCode}',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            tacVu,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _anhDaiDien(PublicProfile hoSo) {
+    final duongDanAnh = hoSo.avatarUrl;
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: const Color(0xFFE0E7FF),
+      foregroundImage: duongDanAnh.startsWith('http')
+          ? NetworkImage(duongDanAnh)
+          : null,
+      child: duongDanAnh.startsWith('http')
+          ? null
+          : Text(
+              _layChuCaiDau(hoSo.displayName),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+    );
+  }
+
+  Widget _tieuDeNhom(String ten) {
+    return Text(
+      ten,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
+  Widget _khungThongBao({required IconData icon, required String noiDung}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.primaryLight),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              noiDung,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trangThaiLoi({
+    required String noiDung,
+    required VoidCallback thuLai,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              size: 42,
+              color: AppColors.textSecondary,
+            ),
+            const SizedBox(height: 12),
+            Text(noiDung, textAlign: TextAlign.center),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: thuLai,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Thử lại'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dangTai() {
+    return const Center(
+      child: CircularProgressIndicator(color: AppColors.primary),
+    );
+  }
+
+  String _layChuCaiDau(String ten) {
+    final cacTu = ten.trim().split(RegExp(r'\s+'));
+    if (cacTu.isEmpty || cacTu.first.isEmpty) return '?';
+    if (cacTu.length == 1) return cacTu.first.characters.first.toUpperCase();
+    return '${cacTu.first.characters.first}${cacTu.last.characters.first}'
+        .toUpperCase();
   }
 }
