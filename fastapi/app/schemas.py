@@ -48,3 +48,50 @@ class PvpAnswerIn(BaseModel):
 class FavoriteIn(BaseModel):
     targetId: str
     targetType: str
+
+
+class AdminTopicIn(BaseModel):
+    name: str
+    description: str = ""
+    icon: str = ""
+    imageUrl: str = ""
+    isActive: bool = True
+
+
+class AdminQuestionIn(BaseModel):
+    topicId: str
+    content: str
+    options: List[str]
+    correctIndex: int
+    level: str = "easy"
+    explanation: str = ""
+    isActive: bool = True
+
+
+class AdminQuizSetIn(BaseModel):
+    topicId: str
+    title: str
+    description: str = ""
+    level: str = "mixed"
+    durationSec: int = 300
+    questionCount: int = 10
+    isActive: bool = True
+    selectionMode: str = "random"
+    questionIds: List[str] = Field(default_factory=list)
+
+
+class AdminItemIn(BaseModel):
+    name: str
+    type: str
+    lifelineCode: str = ""
+    price: int = 0
+    description: str = ""
+    isActive: bool = True
+
+
+class AdminUserStatusIn(BaseModel):
+    status: str
+
+
+class AdminReportStatusIn(BaseModel):
+    status: str

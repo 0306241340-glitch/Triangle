@@ -37,7 +37,8 @@ người chơi. Phòng, hàng đợi, kết quả và diễn biến được lư
 ## Bảng SQL
 
 `users` (khóa chính = Firebase UID) · `topics` · `quiz_sets` · `questions`
-(`options` JSON, `correct_index` chỉ ở server) · `attempts` ·
+(`options` JSON, `correct_index` chỉ ở server) · `quiz_set_questions`
+(liên kết câu hỏi được chọn thủ công, tự tạo khi khởi động) · `attempts` ·
 `attempt_answers` · `quiz_histories` · `history_details` · `transactions` ·
 `comments` · `items` · `user_items` · `favorites` · `friends` · `rooms` ·
 `match_queue` · `match_histories` · `notifications` · `reports`.

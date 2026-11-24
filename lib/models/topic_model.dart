@@ -4,6 +4,8 @@ class Topic {
   final String description;
   final String icon; // emoji hiển thị, vd: 📐
   final int questionCount;
+  final String imageUrl;
+  final bool isActive;
 
   const Topic({
     required this.id,
@@ -11,6 +13,8 @@ class Topic {
     required this.description,
     required this.icon,
     required this.questionCount,
+    this.imageUrl = '',
+    this.isActive = true,
   });
 
   factory Topic.fromJson(Map<String, dynamic> json) {
@@ -20,6 +24,8 @@ class Topic {
       description: json['description'] as String? ?? '',
       icon: json['icon'] as String? ?? '📚',
       questionCount: (json['questionCount'] as num?)?.toInt() ?? 0,
+      imageUrl: (json['imageUrl'] ?? json['image_url']) as String? ?? '',
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 
@@ -29,5 +35,7 @@ class Topic {
     'description': description,
     'icon': icon,
     'questionCount': questionCount,
+    'imageUrl': imageUrl,
+    'isActive': isActive,
   };
 }

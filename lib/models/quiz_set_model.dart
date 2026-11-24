@@ -9,6 +9,8 @@ class QuizSet {
   final double avgScore;
   final String description;
   final bool isActive;
+  final String selectionMode;
+  final List<String> questionIds;
 
   const QuizSet({
     required this.id,
@@ -21,6 +23,8 @@ class QuizSet {
     required this.avgScore,
     required this.description,
     this.isActive = true,
+    this.selectionMode = 'random',
+    this.questionIds = const [],
   });
 
   factory QuizSet.fromJson(Map<String, dynamic> json) {
@@ -35,6 +39,10 @@ class QuizSet {
       avgScore: (json['avgScore'] as num?)?.toDouble() ?? 0,
       description: json['description'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? true,
+      selectionMode: json['selectionMode'] as String? ?? 'random',
+      questionIds: (json['questionIds'] as List? ?? [])
+          .map((id) => id.toString())
+          .toList(),
     );
   }
 

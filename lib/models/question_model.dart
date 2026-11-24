@@ -7,6 +7,7 @@ class Question {
   final int correctIndex;
   final String level;
   final String explanation;
+  final bool isActive;
 
   const Question({
     required this.id,
@@ -17,6 +18,7 @@ class Question {
     required this.correctIndex,
     required this.level,
     required this.explanation,
+    this.isActive = true,
   });
 
   factory Question.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class Question {
       correctIndex: (json['correctIndex'] as num?)?.toInt() ?? -1,
       level: json['level'] as String? ?? 'easy',
       explanation: json['explanation'] as String? ?? '',
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 
