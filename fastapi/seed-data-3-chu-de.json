@@ -38,6 +38,33 @@
       "type": "frame"
     },
     {
+      "description": "Khung avatar Neon, trang bị ở Hồ sơ.",
+      "effect": "",
+      "id": "item_frame_neon",
+      "isActive": true,
+      "name": "Khung avatar Neon",
+      "price": 100,
+      "type": "frame"
+    },
+    {
+      "description": "Khung avatar Bạc, trang bị ở Hồ sơ.",
+      "effect": "",
+      "id": "item_frame_silver",
+      "isActive": true,
+      "name": "Khung avatar Bạc",
+      "price": 100,
+      "type": "frame"
+    },
+    {
+      "description": "Khung avatar Lửa, trang bị ở Hồ sơ.",
+      "effect": "",
+      "id": "item_frame_fire",
+      "isActive": true,
+      "name": "Khung avatar Lửa",
+      "price": 100,
+      "type": "frame"
+    },
+    {
       "description": "Danh hiệu hiển thị cạnh tên người chơi.",
       "effect": "",
       "id": "item_title_master",

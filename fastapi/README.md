@@ -50,7 +50,7 @@ cd fastapi
 python -m venv .venv
 .venv\Scripts\activate          # Windows; Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-python -m app.seed ../files/seed-data-3-chu-de.json   # 3 chủ đề, 3 bộ đề, 30 câu, 5 vật phẩm
+python -m app.seed seed-data-3-chu-de.json   # 3 chủ đề, 3 bộ đề, 30 câu, 8 vật phẩm
 uvicorn app.main:app --reload   # http://127.0.0.1:8000, tài liệu: /docs
 ```
 
@@ -76,10 +76,9 @@ Service accounts → Generate new private key → đặt tên
      `@` trong chuỗi này, giống lúc seed.
    - `FIREBASE_SERVICE_ACCOUNT` = toàn bộ nội dung file service
      account JSON trên 1 dòng (giống cách Express cũ dùng biến này).
-4. Không cần seed lại trên Render: Supabase **chính là** CSDL production,
-   seed An chạy trên máy local đã nạp dữ liệu vào đó rồi (3 chủ đề,
-   3 bộ đề, 30 câu, 5 vật phẩm, 2 user). Chạy seed 2 lần cũng không
-   nhân đôi dữ liệu, nhưng không cần làm lại.
+4. Khi API khởi động, API tự thêm các khung còn thiếu từ
+   `seed-data-3-chu-de.json` vào Supabase, không ghi đè vật phẩm hay dữ liệu
+   người dùng đã có. Không cần chạy lại toàn bộ seed.
    (Seed đã sửa email 2 user về đúng tài khoản thật: An
    `0306241340@caothang.edu.vn`, Ngọc `0306241382@caothang.edu.vn` —
    file cũ ghi `test@quiz.app` / `admin@quiz.app` là sai, 2 tài khoản đó

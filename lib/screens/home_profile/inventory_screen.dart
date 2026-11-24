@@ -1,446 +1,452 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/app_colors.dart';
 import '../../models/item_model.dart';
-import '../../models/user_item_model.dart';
 import '../../services/store_service.dart';
 import '../../widgets/item_visual.dart';
+import 'store_screen.dart';
 
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+  const InventoryScreen({super.key, this.service});
+
+  final StoreService? service;
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
 }
 
 class _InventoryScreenState extends State<InventoryScreen> {
-  final _storeService = StoreService();
+  late final StoreService _dichVuCuaHang;
+  List<_VatPhamSoHuu> _vatPham = [];
+  String _loaiDangChon = 'all';
+  bool _dangTai = false;
+  String? _loi;
+  String? _idDangTrangBi;
 
-  bool _isLoading = true;
-  String? _errorMessage;
-  String? _equippedFrameId;
-  String? _equippedTitleId;
-
-  List<MapEntry<UserItemModel, ItemModel>> _lifelines = [];
-  List<MapEntry<UserItemModel, ItemModel>> _frames = [];
-  List<MapEntry<UserItemModel, ItemModel>> _titles = [];
+  static const _cacLoaiVatPham = {
+    'all': 'Tất cả',
+    'help': 'Trợ giúp',
+    'frame': 'Khung',
+    'title': 'Danh hiệu',
+  };
 
   @override
   void initState() {
     super.initState();
-    _loadInventory();
+    _dichVuCuaHang = widget.service ?? StoreService();
+    _taiTuiDo();
   }
 
-  Future<void> _loadInventory() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Vui lòng đăng nhập để xem túi đồ.';
-      });
-      return;
-    }
-
+  Future<void> _taiTuiDo() async {
+    if (_dangTai) return;
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _dangTai = true;
+      _loi = null;
     });
 
     try {
-      final inventory = await _storeService.loadInventory();
-
-      final itemCatalog = <String, ItemModel>{};
-      for (final raw in inventory['items'] as List? ?? []) {
-        final item = raw as Map<String, dynamic>;
-        final id = item['id']?.toString() ?? '';
-        if (id.isNotEmpty) itemCatalog[id] = ItemModel.fromMap(item, id);
+      final duLieu = await _dichVuCuaHang.loadInventory();
+      final danhSachVatPham = duLieu['items'];
+      final danhSachSoHuu = duLieu['userItems'];
+      if (danhSachVatPham is! List || danhSachSoHuu is! List) {
+        throw const FormatException('Dữ liệu túi đồ không đúng định dạng.');
       }
 
-      final lifelines = <MapEntry<UserItemModel, ItemModel>>[];
-      final frames = <MapEntry<UserItemModel, ItemModel>>[];
-      final titles = <MapEntry<UserItemModel, ItemModel>>[];
-
-      String? activeFrameId;
-      String? activeTitleId;
-
-      for (final raw in inventory['userItems'] as List? ?? []) {
-        final data = raw as Map<String, dynamic>;
-        final ui = UserItemModel.fromMap(data, data['id']?.toString() ?? '');
-        if (ui.quantity <= 0) continue;
-
-        final detail = itemCatalog[ui.itemId];
-        if (detail == null) continue;
-
-        if (detail.type == 'frame') {
-          if (ui.equipped) activeFrameId = detail.id;
-          frames.add(MapEntry(ui, detail));
-        } else if (detail.type == 'title') {
-          if (ui.equipped) activeTitleId = detail.id;
-          titles.add(MapEntry(ui, detail));
-        } else {
-          lifelines.add(MapEntry(ui, detail));
+      final vatPhamTheoId = <String, StoreItem>{};
+      for (final duLieuVatPham in danhSachVatPham) {
+        if (duLieuVatPham is Map<String, dynamic>) {
+          final vatPham = StoreItem.fromJson(duLieuVatPham);
+          vatPhamTheoId[vatPham.id] = vatPham;
         }
       }
 
+      final vatPhamSoHuu = <_VatPhamSoHuu>[];
+      for (final duLieuSoHuu in danhSachSoHuu) {
+        if (duLieuSoHuu is! Map<String, dynamic>) continue;
+        final idVatPham = duLieuSoHuu['itemId']?.toString();
+        final vatPham = idVatPham == null ? null : vatPhamTheoId[idVatPham];
+        if (vatPham == null) continue;
+
+        vatPhamSoHuu.add(
+          _VatPhamSoHuu(
+            vatPham: vatPham,
+            soLuong: (duLieuSoHuu['quantity'] as num?)?.toInt() ?? 0,
+            dangTrangBi: duLieuSoHuu['equipped'] == true,
+          ),
+        );
+      }
+
       if (!mounted) return;
       setState(() {
-        _equippedFrameId = activeFrameId;
-        _equippedTitleId = activeTitleId;
-        _lifelines = lifelines;
-        _frames = frames;
-        _titles = titles;
-        _isLoading = false;
+        _vatPham = vatPhamSoHuu;
+        _loi = null;
       });
-    } catch (e, stackTrace) {
-      debugPrint('Không thể tải túi đồ: $e');
-      debugPrintStack(stackTrace: stackTrace);
+    } catch (loi) {
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-        _errorMessage =
-            'Không thể tải túi đồ từ máy chủ. Bấm "Thử lại" để tải.';
-      });
+      setState(() => _loi = loi.toString());
+    } finally {
+      if (mounted) setState(() => _dangTai = false);
     }
   }
 
-  Future<void> _toggleEquip({
-    required ItemModel targetItem,
-    required bool isCurrentlyEquipped,
-  }) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  Future<void> _doiTrangThaiTrangBi(_VatPhamSoHuu vatPham) async {
+    if (_idDangTrangBi != null) return;
+    setState(() => _idDangTrangBi = vatPham.vatPham.id);
 
     try {
-      final nextEquipped = !isCurrentlyEquipped;
-      await _storeService.setEquipped(targetItem.id, equipped: nextEquipped);
-
+      await _dichVuCuaHang.setEquipped(
+        vatPham.vatPham.id,
+        equipped: !vatPham.dangTrangBi,
+      );
       if (!mounted) return;
-      setState(() {
-        if (targetItem.type == 'frame') {
-          _equippedFrameId = nextEquipped ? targetItem.id : null;
-        } else if (targetItem.type == 'title') {
-          _equippedTitleId = nextEquipped ? targetItem.id : null;
-        }
-      });
-
+      await _taiTuiDo();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            nextEquipped
-                ? 'Đã trang bị "${targetItem.name}"'
-                : 'Đã gỡ trang bị "${targetItem.name}"',
+            vatPham.dangTrangBi
+                ? 'Đã tháo ${vatPham.vatPham.name}.'
+                : 'Đã trang bị ${vatPham.vatPham.name}.',
           ),
         ),
       );
-    } catch (e) {
+    } catch (loi) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Không thể cập nhật trang bị: $e')),
+        SnackBar(content: Text('Không thể thay đổi trang bị: $loi')),
       );
+    } finally {
+      if (mounted) setState(() => _idDangTrangBi = null);
     }
   }
 
-  void _goToShop() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Đang chuyển sang Cửa hàng đổi xu...')),
-    );
+  void _denCuaHang() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const StoreScreen()),
+    ).then((_) {
+      if (mounted) _taiTuiDo();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEmpty = _lifelines.isEmpty && _frames.isEmpty && _titles.isEmpty;
+    final vatPhamHienThi = _vatPham
+        .where((vatPham) => _dungLoai(vatPham, _loaiDangChon))
+        .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8FAFC),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF0F172A)),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Túi đồ',
-          style: TextStyle(
-            color: Color(0xFF0F172A),
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: 'Làm mới',
-            icon: const Icon(Icons.refresh, color: Color(0xFF0F172A)),
-            onPressed: _isLoading ? null : _loadInventory,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SizedBox.expand(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.wifi_off_rounded,
-                          size: 44,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadInventory,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Thử lại'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('🎒', style: TextStyle(fontSize: 48)),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Túi đồ của bạn đang trống',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Hãy ghé Cửa hàng để dùng xu đổi quyền trợ giúp, khung avatar và danh hiệu.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: _goToShop,
-                          icon: const Icon(Icons.storefront_outlined),
-                          label: const Text('Đến Cửa hàng'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _loadInventory,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      if (_lifelines.isNotEmpty) ...[
-                        _buildSectionTitle('Quyền trợ giúp'),
-                        ..._lifelines.map(
-                          (e) => _buildCard(
-                            userItem: e.key,
-                            item: e.value,
-                            isEquipped: false,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (_frames.isNotEmpty) ...[
-                        _buildSectionTitle('Khung ảnh đại diện'),
-                        ..._frames.map(
-                          (e) => _buildCard(
-                            userItem: e.key,
-                            item: e.value,
-                            isEquipped: _equippedFrameId == e.value.id,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      if (_titles.isNotEmpty) ...[
-                        _buildSectionTitle('Danh hiệu'),
-                        ..._titles.map(
-                          (e) => _buildCard(
-                            userItem: e.key,
-                            item: e.value,
-                            isEquipped: _equippedTitleId == e.value.id,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF0F172A),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCard({
-    required UserItemModel userItem,
-    required ItemModel item,
-    required bool isEquipped,
-  }) {
-    final isEquippable = item.type == 'frame' || item.type == 'title';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(
-          color: isEquipped ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
-          width: isEquipped ? 1.5 : 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Túi đồ')),
+      body: RefreshIndicator(
+        onRefresh: _taiTuiDo,
+        color: AppColors.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
           children: [
-            ItemVisual(
-              imageUrl: item.imageUrl,
-              type: item.type,
-              code: item.lifelineCode ?? '',
-              itemId: item.id,
-              size: 48,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+            _theTongQuan(),
+            const SizedBox(height: 18),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _cacLoaiVatPham.entries.map((loai) {
+                  final soLuong = _demVatPham(loai.key);
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text('${loai.value} $soLuong'),
+                      selected: _loaiDangChon == loai.key,
+                      onSelected: (_) =>
+                          setState(() => _loaiDangChon = loai.key),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
+                  );
+                }).toList(),
               ),
             ),
-            const SizedBox(width: 8),
-            if (isEquippable)
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 96),
-                child: ElevatedButton(
-                  onPressed: () => _toggleEquip(
-                    targetItem: item,
-                    isCurrentlyEquipped: isEquipped,
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isEquipped
-                        ? const Color(0xFFE0E7FF)
-                        : const Color(0xFF1E3A8A),
-                    foregroundColor: isEquipped
-                        ? const Color(0xFF3730A3)
-                        : Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    isEquipped ? 'Đang dùng' : 'Trang bị',
-                    maxLines: 1,
-                    softWrap: false,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              )
+            const SizedBox(height: 14),
+            if (_dangTai && _vatPham.isEmpty)
+              _trangThaiDangTai()
+            else if (_loi != null && _vatPham.isEmpty)
+              _trangThaiLoi()
+            else if (vatPhamHienThi.isEmpty)
+              _trangThaiTrong()
             else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  'x${userItem.quantity}',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
+              ...vatPhamHienThi.map(_theVatPham),
+            if (_loi != null && _vatPham.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _theLoi(),
+            ],
           ],
         ),
       ),
     );
   }
+
+  int _demVatPham(String loai) {
+    return _vatPham.where((vatPham) => _dungLoai(vatPham, loai)).length;
+  }
+
+  bool _dungLoai(_VatPhamSoHuu vatPham, String loai) {
+    return loai == 'all' ||
+        vatPham.vatPham.type == loai ||
+        (loai == 'help' && vatPham.vatPham.type == 'lifeline');
+  }
+
+  Widget _theTongQuan() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: Colors.white,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bộ sưu tập của bạn',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_vatPham.length} vật phẩm đang sở hữu',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _theVatPham(_VatPhamSoHuu vatPham) {
+    final laKhung = vatPham.vatPham.type == 'frame';
+    final laDoTrangBi = laKhung || vatPham.vatPham.type == 'title';
+    final dangXuLy = _idDangTrangBi == vatPham.vatPham.id;
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(17),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ItemVisual(
+              imageUrl: vatPham.vatPham.imageUrl,
+              type: vatPham.vatPham.type,
+              code: vatPham.vatPham.effect,
+              itemId: vatPham.vatPham.id,
+              name: vatPham.vatPham.name,
+              size: laKhung ? 58 : 48,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vatPham.vatPham.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (vatPham.vatPham.description.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      vatPham.vatPham.description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  if (vatPham.dangTrangBi)
+                    _nhanDangSuDung()
+                  else
+                    Text(
+                      'Số lượng: ${vatPham.soLuong}',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (laDoTrangBi) ...[
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: _idDangTrangBi == null
+                    ? () => _doiTrangThaiTrangBi(vatPham)
+                    : null,
+                child: dangXuLy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(vatPham.dangTrangBi ? 'Tháo' : 'Trang bị'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _nhanDangSuDung() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F7EF),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 14),
+          SizedBox(width: 4),
+          Text(
+            'Đang sử dụng',
+            style: TextStyle(
+              color: AppColors.success,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trangThaiDangTai() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 40),
+      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+  }
+
+  Widget _trangThaiTrong() {
+    final laTuiDoTrong = _vatPham.isEmpty;
+    final tenLoai = _cacLoaiVatPham[_loaiDangChon]?.toLowerCase() ?? 'vật phẩm';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.inventory_2_outlined,
+            color: AppColors.primaryLight,
+            size: 26,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              laTuiDoTrong ? 'Túi đồ đang trống' : 'Chưa có $tenLoai nào',
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(onPressed: _denCuaHang, child: const Text('Cửa hàng')),
+        ],
+      ),
+    );
+  }
+
+  Widget _trangThaiLoi() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.cloud_off_outlined, color: AppColors.textSecondary),
+          const SizedBox(height: 8),
+          Text(
+            _loi!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          TextButton.icon(
+            onPressed: _dangTai ? null : _taiTuiDo,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Thử lại'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _theLoi() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Text(
+        'Làm mới túi đồ không thành công: $_loi',
+        style: const TextStyle(color: Color(0xFF7C2D12)),
+      ),
+    );
+  }
+}
+
+class _VatPhamSoHuu {
+  const _VatPhamSoHuu({
+    required this.vatPham,
+    required this.soLuong,
+    required this.dangTrangBi,
+  });
+
+  final StoreItem vatPham;
+  final int soLuong;
+  final bool dangTrangBi;
 }

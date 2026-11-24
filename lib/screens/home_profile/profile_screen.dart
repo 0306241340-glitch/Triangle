@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+
 import '../admin/admin_screen.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/frame_assets.dart';
 import '../../models/user_model.dart';
 import 'edit_profile_screen.dart';
 import 'inventory_screen.dart';
@@ -232,7 +235,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: '👥',
                   title: 'Bạn bè',
                   subtitle: 'Quản lý danh sách & lời mời kết bạn',
-                  isHighlighted: true,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -293,6 +295,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? frameId,
     String? frameName,
   }) {
+    final duongDanKhung = hasFrame
+        ? layDuongDanKhung(frameId, frameName, dangTrangBi: true)
+        : null;
     Color borderColor = const Color(0xFF2563EB);
     double borderWidth = 1.5;
     List<BoxShadow>? shadows;
@@ -331,41 +336,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
+    final kichThuocKhung = duongDanKhung != null
+        ? 120.0
+        : (hasFrame ? 82.0 : 72.0);
+    final kichThuocAnh = duongDanKhung != null
+        ? 62.0
+        : (hasFrame ? 74.0 : 72.0);
+
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        Container(
-          width: hasFrame ? 82 : 72,
-          height: hasFrame ? 82 : 72,
-          decoration: BoxDecoration(
-            color: const Color(0xFFDBEAFE),
-            shape: BoxShape.circle,
-            border: Border.all(color: borderColor, width: borderWidth),
-            boxShadow: shadows,
+        SizedBox(
+          width: kichThuocKhung,
+          height: kichThuocKhung,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: kichThuocAnh,
+                height: kichThuocAnh,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE),
+                  shape: BoxShape.circle,
+                  border: duongDanKhung == null
+                      ? Border.all(color: borderColor, width: borderWidth)
+                      : null,
+                  boxShadow: duongDanKhung == null ? shadows : null,
+                ),
+                alignment: Alignment.center,
+                child: avatarUrl?.trim().isNotEmpty == true
+                    ? ClipOval(
+                        child: avatarUrl!.startsWith('data:image')
+                            ? Image.memory(
+                                base64Decode(avatarUrl.split(',').last),
+                                width: kichThuocAnh,
+                                height: kichThuocAnh,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _buildInitials(initials),
+                              )
+                            : Image.network(
+                                avatarUrl,
+                                width: kichThuocAnh,
+                                height: kichThuocAnh,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    _buildInitials(initials),
+                              ),
+                      )
+                    : _buildInitials(initials),
+              ),
+              if (duongDanKhung != null)
+                Positioned.fill(
+                  child: Image.asset(duongDanKhung, fit: BoxFit.contain),
+                ),
+            ],
           ),
-          alignment: Alignment.center,
-          child: avatarUrl?.trim().isNotEmpty == true
-              ? ClipOval(
-                  child: avatarUrl!.startsWith('data:image')
-                      ? Image.memory(
-                          base64Decode(avatarUrl.split(',').last),
-                          width: 74,
-                          height: 74,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildInitials(initials),
-                        )
-                      : Image.network(
-                          avatarUrl,
-                          width: 74,
-                          height: 74,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildInitials(initials),
-                        ),
-                )
-              : _buildInitials(initials),
         ),
-        if (hasFrame)
+        if (hasFrame && duongDanKhung == null)
           Positioned(
             bottom: -4,
             child: Container(
@@ -458,7 +487,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required String subtitle,
     required VoidCallback onTap,
-    bool isHighlighted = false,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -466,10 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isHighlighted ? const Color(0xFF2563EB) : Colors.grey.shade300,
-          width: isHighlighted ? 1.5 : 1,
-        ),
+        side: BorderSide(color: Colors.grey.shade300),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),

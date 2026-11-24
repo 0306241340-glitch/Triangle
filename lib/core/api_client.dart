@@ -26,7 +26,7 @@ class ApiClient {
     'API_BASE_URL',
     defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
   );
-  static const _connectionTimeout = Duration(seconds: 10);
+
   static const _requestTimeout = Duration(seconds: 60);
 
   final String _baseUrl;
@@ -44,9 +44,11 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+
       final res = await http
           .get(uri, headers: _headers)
           .timeout(_requestTimeout);
+
       return _handle(res);
     } on ApiException {
       rethrow;
@@ -58,27 +60,12 @@ class ApiClient {
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
+
       final res = await http
           .post(uri, headers: _headers, body: jsonEncode(body))
           .timeout(_requestTimeout);
+
       return _handle(res);
-    } on ApiException {
-      rethrow;
-    } catch (e) {
-      throw ApiException('Không thể kết nối máy chủ: $e', 503);
-    }
-  }
-
-  Future<dynamic> delete(String path, {Map<String, String>? query}) async {
-    try {
-      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
-      final client = HttpClient()..connectionTimeout = _connectionTimeout;
-
-      final req = await client.deleteUrl(uri).timeout(_requestTimeout);
-      _applyHeaders(req);
-
-      final res = await req.close().timeout(_requestTimeout);
-      return await _handle(res);
     } on ApiException {
       rethrow;
     } catch (e) {
@@ -89,9 +76,11 @@ class ApiClient {
   Future<dynamic> put(String path, Map<String, dynamic> body) async {
     try {
       final uri = Uri.parse('$_baseUrl$path');
+
       final res = await http
           .put(uri, headers: _headers, body: jsonEncode(body))
           .timeout(_requestTimeout);
+
       return _handle(res);
     } on ApiException {
       rethrow;
@@ -103,9 +92,11 @@ class ApiClient {
   Future<dynamic> delete(String path, {Map<String, String>? query}) async {
     try {
       final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+
       final res = await http
           .delete(uri, headers: _headers)
           .timeout(_requestTimeout);
+
       return _handle(res);
     } on ApiException {
       rethrow;
@@ -116,11 +107,13 @@ class ApiClient {
 
   dynamic _handle(http.Response res) {
     dynamic decoded;
+
     try {
       decoded = jsonDecode(utf8.decode(res.bodyBytes));
     } on FormatException {
       throw ApiException(
-        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). Kiểm tra URL API và trạng thái máy chủ',
+        'API trả về dữ liệu không hợp lệ (HTTP ${res.statusCode}). '
+        'Kiểm tra URL API và trạng thái máy chủ',
         res.statusCode,
       );
     }
@@ -139,6 +132,7 @@ class ApiClient {
     }
 
     final err = decoded['error'];
+
     throw ApiException(
       err is Map
           ? (err['message']?.toString() ?? 'Lỗi máy chủ')
