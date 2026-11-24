@@ -5,6 +5,67 @@ import '../../models/question_model.dart';
 import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 
+String _slugifyId(String value) {
+  var slug = value.toLowerCase().replaceAll('đ', 'd');
+  const accentGroups = {
+    'a': 'àáạảãăằắặẳẵâầấậẩẫ',
+    'e': 'èéẹẻẽêềếệểễ',
+    'i': 'ìíịỉĩ',
+    'o': 'òóọỏõôồốộổỗơờớợởỡ',
+    'u': 'ùúụủũưừứựửữ',
+    'y': 'ỳýỵỷỹ',
+  };
+  for (final entry in accentGroups.entries) {
+    for (final character in entry.value.split('')) {
+      slug = slug.replaceAll(character, entry.key);
+    }
+  }
+  return slug
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
+}
+
+String? _validateStructuredId(String? value, String prefix, bool isEditing) {
+  if (value == null || value.trim().isEmpty) return 'Không được để trống';
+  if (isEditing) return null;
+  final id = value.trim();
+  if (!RegExp(r'^[a-z0-9]+(?:_[a-z0-9]+)*$').hasMatch(id)) {
+    return 'ID chỉ gồm chữ thường, số và dấu gạch dưới';
+  }
+  return id.startsWith(prefix) ? null : 'ID phải bắt đầu bằng "$prefix"';
+}
+
+void _setGeneratedId(TextEditingController controller, String generated) {
+  controller.value = TextEditingValue(
+    text: generated,
+    selection: TextSelection.collapsed(offset: generated.length),
+  );
+}
+
+Widget _boundedDialogContent(BuildContext context, Widget child) {
+  final media = MediaQuery.of(context);
+  final maxHeight = (media.size.height - media.viewInsets.bottom - 200)
+      .clamp(100.0, media.size.height * 0.68)
+      .toDouble();
+  return SizedBox(
+    width: double.maxFinite,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: child,
+    ),
+  );
+}
+
+Widget _spacedFields(List<Widget> fields) => Column(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    for (var index = 0; index < fields.length; index++) ...[
+      if (index > 0) const SizedBox(height: 12),
+      fields[index],
+    ],
+  ],
+);
+
 Future<Map<String, dynamic>?> showTopicEditor(
   BuildContext context, {
   Topic? topic,
@@ -68,25 +129,30 @@ class _TopicEditor extends StatefulWidget {
 
 class _TopicEditorState extends State<_TopicEditor> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _id;
   late final TextEditingController _name;
   late final TextEditingController _description;
   late final TextEditingController _icon;
   late final TextEditingController _imageUrl;
   late bool _isActive;
+  late bool _idCustomized;
 
   @override
   void initState() {
     super.initState();
     final topic = widget.topic;
+    _id = TextEditingController(text: topic?.id ?? '');
     _name = TextEditingController(text: topic?.name ?? '');
     _description = TextEditingController(text: topic?.description ?? '');
     _icon = TextEditingController(text: topic?.icon ?? '');
     _imageUrl = TextEditingController(text: topic?.imageUrl ?? '');
     _isActive = topic?.isActive ?? true;
+    _idCustomized = topic != null;
   }
 
   @override
   void dispose() {
+    _id.dispose();
     _name.dispose();
     _description.dispose();
     _icon.dispose();
@@ -97,17 +163,31 @@ class _TopicEditorState extends State<_TopicEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       title: Text(widget.topic == null ? 'Thêm chủ đề' : 'Sửa chủ đề'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      content: _boundedDialogContent(
+        context,
+        Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: _spacedFields([
+              TextFormField(
+                controller: _id,
+                readOnly: widget.topic != null,
+                decoration: InputDecoration(
+                  labelText: 'ID',
+                  helperText: widget.topic == null
+                      ? 'Tự tạo theo tên; bạn có thể chỉnh sửa'
+                      : null,
+                ),
+                validator: _validateId,
+                onChanged: widget.topic == null ? _onIdChanged : null,
+              ),
               TextFormField(
                 controller: _name,
                 decoration: const InputDecoration(labelText: 'Tên chủ đề'),
                 validator: _required,
+                onChanged: (_) => _syncGeneratedId(),
               ),
               TextFormField(
                 controller: _description,
@@ -131,7 +211,15 @@ class _TopicEditorState extends State<_TopicEditor> {
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
               ),
-            ],
+              TextFormField(
+                initialValue: '${widget.topic?.questionCount ?? 0}',
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Số câu hỏi',
+                  helperText: 'Được tính tự động từ ngân hàng câu hỏi',
+                ),
+              ),
+            ]),
           ),
         ),
       ),
@@ -148,9 +236,29 @@ class _TopicEditorState extends State<_TopicEditor> {
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'Không được để trống' : null;
 
+  String? _validateId(String? value) =>
+      _validateStructuredId(value, 'topic_', widget.topic != null);
+
+  void _onIdChanged(String value) {
+    if (value.trim().isEmpty) {
+      _idCustomized = false;
+      _syncGeneratedId();
+    } else {
+      _idCustomized = true;
+    }
+  }
+
+  void _syncGeneratedId() {
+    if (_idCustomized || widget.topic != null) return;
+    final slug = _slugifyId(_name.text);
+    final generated = slug.isEmpty ? '' : 'topic_$slug';
+    _setGeneratedId(_id, generated);
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     Navigator.pop(context, {
+      if (widget.topic == null) 'id': _id.text.trim(),
       'name': _name.text.trim(),
       'description': _description.text.trim(),
       'icon': _icon.text.trim(),
@@ -171,27 +279,32 @@ class _ItemEditor extends StatefulWidget {
 
 class _ItemEditorState extends State<_ItemEditor> {
   final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _id;
   late final TextEditingController _name;
   late final TextEditingController _effect;
   late final TextEditingController _price;
   late final TextEditingController _description;
   late String _type;
   late bool _isActive;
+  late bool _idCustomized;
 
   @override
   void initState() {
     super.initState();
     final item = widget.item;
+    _id = TextEditingController(text: item?.id ?? '');
     _name = TextEditingController(text: item?.name ?? '');
     _effect = TextEditingController(text: item?.lifelineCode ?? '');
     _price = TextEditingController(text: item?.price.toString() ?? '');
     _description = TextEditingController(text: item?.description ?? '');
     _type = item?.type ?? 'help';
     _isActive = item?.isActive ?? true;
+    _idCustomized = item != null;
   }
 
   @override
   void dispose() {
+    _id.dispose();
     _name.dispose();
     _effect.dispose();
     _price.dispose();
@@ -202,17 +315,50 @@ class _ItemEditorState extends State<_ItemEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       title: Text(widget.item == null ? 'Thêm vật phẩm' : 'Sửa vật phẩm'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      content: _boundedDialogContent(
+        context,
+        Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: _spacedFields([
+              TextFormField(
+                controller: _id,
+                readOnly: widget.item != null,
+                decoration: InputDecoration(
+                  labelText: 'ID',
+                  helperText: widget.item == null
+                      ? 'Tự tạo theo tên; bạn có thể chỉnh sửa'
+                      : null,
+                ),
+                validator: _validateId,
+                onChanged: widget.item == null ? _onIdChanged : null,
+              ),
               TextFormField(
                 controller: _name,
                 decoration: const InputDecoration(labelText: 'Tên vật phẩm'),
                 validator: _required,
+                onChanged: (_) => _syncGeneratedId(),
+              ),
+              TextFormField(
+                controller: _description,
+                decoration: const InputDecoration(labelText: 'Mô tả'),
+                maxLines: 2,
+              ),
+              if (_type == 'help')
+                TextFormField(
+                  controller: _effect,
+                  decoration: const InputDecoration(
+                    labelText: 'Mã hiệu ứng (effect)',
+                  ),
+                  validator: _required,
+                ),
+              TextFormField(
+                controller: _price,
+                decoration: const InputDecoration(labelText: 'Giá (xu)'),
+                keyboardType: TextInputType.number,
+                validator: _positiveInteger,
               ),
               DropdownButtonFormField<String>(
                 initialValue: _type,
@@ -223,35 +369,19 @@ class _ItemEditorState extends State<_ItemEditor> {
                   DropdownMenuItem(value: 'title', child: Text('Danh hiệu')),
                 ],
                 onChanged: (value) {
-                  if (value != null) setState(() => _type = value);
+                  if (value != null) {
+                    setState(() => _type = value);
+                    _syncGeneratedId();
+                  }
                 },
-              ),
-              if (_type == 'help')
-                TextFormField(
-                  controller: _effect,
-                  decoration: const InputDecoration(
-                    labelText: 'Mã hiệu ứng (vd: fifty_fifty)',
-                  ),
-                  validator: _required,
-                ),
-              TextFormField(
-                controller: _price,
-                decoration: const InputDecoration(labelText: 'Giá (xu)'),
-                keyboardType: TextInputType.number,
-                validator: _positiveInteger,
-              ),
-              TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(labelText: 'Mô tả'),
-                maxLines: 2,
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Đang bán'),
+                title: const Text('Đang bán (is_active)'),
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
               ),
-            ],
+            ]),
           ),
         ),
       ),
@@ -268,6 +398,48 @@ class _ItemEditorState extends State<_ItemEditor> {
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'Không được để trống' : null;
 
+  String? _validateId(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Không được để trống';
+    if (widget.item != null) return null;
+    final id = value.trim();
+    if (!RegExp(r'^[a-z0-9]+(?:_[a-z0-9]+)*$').hasMatch(id)) {
+      return 'ID chỉ gồm chữ thường, số và dấu gạch dưới';
+    }
+    final hasValidPrefix = switch (_type) {
+      'title' => id.startsWith('item_title_'),
+      'frame' => id.startsWith('item_frame_'),
+      _ =>
+        id.startsWith('item_') &&
+            !id.startsWith('item_title_') &&
+            !id.startsWith('item_frame_'),
+    };
+    return hasValidPrefix ? null : 'ID không đúng tiền tố của loại vật phẩm';
+  }
+
+  void _onIdChanged(String value) {
+    if (value.trim().isEmpty) {
+      _idCustomized = false;
+      _syncGeneratedId();
+    } else {
+      _idCustomized = true;
+    }
+  }
+
+  void _syncGeneratedId() {
+    if (_idCustomized || widget.item != null) return;
+    final slug = _slugifyId(_name.text);
+    if (slug.isEmpty) {
+      _id.clear();
+      return;
+    }
+    final prefix = switch (_type) {
+      'title' => 'item_title_',
+      'frame' => 'item_frame_',
+      _ => 'item_',
+    };
+    _setGeneratedId(_id, '$prefix$slug');
+  }
+
   String? _positiveInteger(String? value) {
     final number = int.tryParse(value ?? '');
     return number == null || number < 0 ? 'Nhập số nguyên từ 0 trở lên' : null;
@@ -276,6 +448,7 @@ class _ItemEditorState extends State<_ItemEditor> {
   void _save() {
     if (!_formKey.currentState!.validate()) return;
     Navigator.pop(context, {
+      if (widget.item == null) 'id': _id.text.trim(),
       'name': _name.text.trim(),
       'type': _type,
       'lifelineCode': _type == 'help' ? _effect.text.trim() : '',
@@ -349,21 +522,27 @@ class _QuestionEditorState extends State<_QuestionEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       title: Text(widget.question == null ? 'Thêm câu hỏi' : 'Sửa câu hỏi'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      content: _boundedDialogContent(
+        context,
+        Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: _spacedFields([
               DropdownButtonFormField<String>(
                 initialValue: _topicId,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Chủ đề'),
                 items: widget.topics
                     .map(
                       (topic) => DropdownMenuItem(
                         value: topic.id,
-                        child: Text(topic.name),
+                        child: Text(
+                          topic.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -423,7 +602,7 @@ class _QuestionEditorState extends State<_QuestionEditor> {
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
               ),
-            ],
+            ]),
           ),
         ),
       ),
@@ -472,6 +651,7 @@ class _QuizSetEditor extends StatefulWidget {
 class _QuizSetEditorState extends State<_QuizSetEditor> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _title;
+  late final TextEditingController _id;
   late final TextEditingController _description;
   late final TextEditingController _duration;
   late final TextEditingController _questionCount;
@@ -479,6 +659,7 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
   late String _level;
   late String _selectionMode;
   late bool _isActive;
+  late bool _idCustomized;
   Set<String> _selectedQuestions = {};
   List<Question> _availableQuestions = [];
   bool _loadingQuestions = false;
@@ -488,6 +669,7 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
   void initState() {
     super.initState();
     final set = widget.quizSet;
+    _id = TextEditingController(text: set?.id ?? '');
     _title = TextEditingController(text: set?.title ?? '');
     _description = TextEditingController(text: set?.description ?? '');
     _duration = TextEditingController(text: '${set?.durationSec ?? 300}');
@@ -498,11 +680,16 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
     _selectionMode = set?.selectionMode ?? 'random';
     _selectedQuestions = {...?set?.questionIds};
     _isActive = set?.isActive ?? true;
+    _idCustomized = set != null;
+    if (_selectionMode == 'manual') {
+      _questionCount.text = '${_selectedQuestions.length}';
+    }
     if (_topicId != null) _fetchQuestions(_topicId!);
   }
 
   @override
   void dispose() {
+    _id.dispose();
     _title.dispose();
     _description.dispose();
     _duration.dispose();
@@ -530,26 +717,39 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       title: Text(widget.quizSet == null ? 'Thêm bộ đề' : 'Sửa bộ đề'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+      content: _boundedDialogContent(
+        context,
+        Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: _spacedFields([
               TextFormField(
-                controller: _title,
-                decoration: const InputDecoration(labelText: 'Tên bộ đề'),
-                validator: _required,
+                controller: _id,
+                readOnly: widget.quizSet != null,
+                decoration: InputDecoration(
+                  labelText: 'ID',
+                  helperText: widget.quizSet == null
+                      ? 'Tự tạo theo tên; bạn có thể chỉnh sửa'
+                      : null,
+                ),
+                validator: _validateId,
+                onChanged: widget.quizSet == null ? _onIdChanged : null,
               ),
               DropdownButtonFormField<String>(
                 initialValue: _topicId,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Chủ đề'),
                 items: widget.topics
                     .map(
                       (topic) => DropdownMenuItem(
                         value: topic.id,
-                        child: Text(topic.name),
+                        child: Text(
+                          topic.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -559,12 +759,25 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
                   setState(() {
                     _topicId = value;
                     _selectedQuestions.clear();
+                    if (_selectionMode == 'manual') _questionCount.text = '0';
                   });
                   _fetchQuestions(value);
                 },
               ),
+              TextFormField(
+                controller: _title,
+                decoration: const InputDecoration(labelText: 'Tên bộ đề'),
+                validator: _required,
+                onChanged: (_) => _syncGeneratedId(),
+              ),
+              TextFormField(
+                controller: _description,
+                decoration: const InputDecoration(labelText: 'Mô tả'),
+                maxLines: 2,
+              ),
               DropdownButtonFormField<String>(
                 initialValue: _level,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Độ khó'),
                 items: const [
                   DropdownMenuItem(value: 'easy', child: Text('Dễ')),
@@ -586,6 +799,7 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
               ),
               DropdownButtonFormField<String>(
                 initialValue: _selectionMode,
+                isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Cách chọn câu'),
                 items: const [
                   DropdownMenuItem(
@@ -602,30 +816,45 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
                   setState(() {
                     _selectionMode = value;
                     _selectedQuestions.clear();
+                    if (value == 'manual') {
+                      _questionCount.text = '0';
+                    } else if ((int.tryParse(_questionCount.text) ?? 0) <= 0) {
+                      _questionCount.text = '10';
+                    }
                   });
                 },
               ),
-              if (_selectionMode == 'random')
-                TextFormField(
-                  controller: _questionCount,
-                  decoration: const InputDecoration(labelText: 'Số câu hỏi'),
-                  keyboardType: TextInputType.number,
-                  validator: _positiveInteger,
-                )
-              else
-                _questionPicker(),
               TextFormField(
-                controller: _description,
-                decoration: const InputDecoration(labelText: 'Mô tả'),
-                maxLines: 2,
+                controller: _questionCount,
+                readOnly: _selectionMode == 'manual',
+                decoration: InputDecoration(
+                  labelText: 'Số câu hỏi',
+                  helperText: _selectionMode == 'manual'
+                      ? 'Tự tính theo số câu đã chọn'
+                      : null,
+                ),
+                keyboardType: TextInputType.number,
+                validator: _positiveInteger,
               ),
+              if (_selectionMode == 'manual') _questionPicker(),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Đang hoạt động'),
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
               ),
-            ],
+              TextFormField(
+                initialValue: '${widget.quizSet?.attemptCount ?? 0}',
+                readOnly: true,
+                decoration: const InputDecoration(labelText: 'Số lượt thi'),
+              ),
+              TextFormField(
+                initialValue:
+                    widget.quizSet?.avgScore.toStringAsFixed(0) ?? '0',
+                readOnly: true,
+                decoration: const InputDecoration(labelText: 'Điểm trung bình'),
+              ),
+            ]),
           ),
         ),
       ),
@@ -673,11 +902,35 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
         selectedIds: _selectedQuestions,
       ),
     );
-    if (selected != null) setState(() => _selectedQuestions = selected);
+    if (selected != null) {
+      setState(() {
+        _selectedQuestions = selected;
+        _questionCount.text = '${selected.length}';
+      });
+    }
   }
 
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? 'Không được để trống' : null;
+
+  String? _validateId(String? value) =>
+      _validateStructuredId(value, 'set_', widget.quizSet != null);
+
+  void _onIdChanged(String value) {
+    if (value.trim().isEmpty) {
+      _idCustomized = false;
+      _syncGeneratedId();
+    } else {
+      _idCustomized = true;
+    }
+  }
+
+  void _syncGeneratedId() {
+    if (_idCustomized || widget.quizSet != null) return;
+    final slug = _slugifyId(_title.text);
+    final generated = slug.isEmpty ? '' : 'set_$slug';
+    _setGeneratedId(_id, generated);
+  }
 
   String? _positiveInteger(String? value) {
     final number = int.tryParse(value ?? '');
@@ -690,6 +943,7 @@ class _QuizSetEditorState extends State<_QuizSetEditor> {
       return;
     }
     Navigator.pop(context, {
+      if (widget.quizSet == null) 'id': _id.text.trim(),
       'topicId': _topicId,
       'title': _title.text.trim(),
       'description': _description.text.trim(),
