@@ -8,6 +8,7 @@ class QuizSet {
   final int attemptCount;
   final double avgScore;
   final String description;
+  final bool isActive;
 
   const QuizSet({
     required this.id,
@@ -19,6 +20,7 @@ class QuizSet {
     required this.attemptCount,
     required this.avgScore,
     required this.description,
+    this.isActive = true,
   });
 
   factory QuizSet.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class QuizSet {
       attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
       avgScore: (json['avgScore'] as num?)?.toDouble() ?? 0,
       description: json['description'] as String? ?? '',
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 

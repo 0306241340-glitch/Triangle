@@ -122,10 +122,13 @@ class ApiClient {
     }
 
     final err = decoded['error'];
+    final detail = decoded['detail'];
     throw ApiException(
       err is Map
           ? (err['message']?.toString() ?? 'Lỗi máy chủ')
-          : 'Lỗi máy chủ',
+          : detail == 'Not Found' && res.statusCode == 404
+          ? 'API chưa được cập nhật, không tìm thấy endpoint này (HTTP 404).'
+          : detail?.toString() ?? 'Lỗi máy chủ (HTTP ${res.statusCode}).',
       res.statusCode,
     );
   }

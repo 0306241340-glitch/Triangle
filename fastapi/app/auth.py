@@ -49,7 +49,6 @@ def _has_firebase_credentials() -> bool:
         or os.path.exists("serviceAccountKey.json")
     )
 
-
 def _decode_jwt_unverified(token: str) -> dict:
     """Giải mã payload JWT khi chạy local chưa có serviceAccountKey.json."""
     parts = token.split(".")

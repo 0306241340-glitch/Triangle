@@ -25,6 +25,11 @@ void main() {
           ..statusCode = HttpStatus.notFound
           ..headers.contentType = ContentType.html
           ..write('<html><head>Not found</head></html>');
+      } else if (request.uri.path == '/admin/items') {
+        request.response
+          ..statusCode = HttpStatus.notFound
+          ..headers.contentType = ContentType.json
+          ..write(jsonEncode({'detail': 'Not Found'}));
       } else {
         request.response
           ..headers.contentType = ContentType.json
@@ -65,6 +70,23 @@ void main() {
               (error) => error.message,
               'message',
               contains('Kiểm tra URL API và trạng thái máy chủ'),
+            ),
+      ),
+    );
+  });
+
+  test('explains when a deployed API endpoint is missing', () async {
+    final api = ApiClient(baseUrl: 'http://127.0.0.1:${server.port}');
+
+    await expectLater(
+      api.get('/admin/items'),
+      throwsA(
+        isA<ApiException>()
+            .having((error) => error.statusCode, 'statusCode', 404)
+            .having(
+              (error) => error.message,
+              'message',
+              contains('API chưa được cập nhật'),
             ),
       ),
     );

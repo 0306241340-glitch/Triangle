@@ -98,6 +98,17 @@ flutter run --dart-define=API_BASE_URL=https://<api-service>.onrender.com
 Đặt `DATABASE_URL` trỏ tới PostgreSQL trên dịch vụ FastAPI. Không cần deploy
 Firestore Rules cho luồng dữ liệu mới.
 
+## API quản trị
+
+Các endpoint dưới đây yêu cầu role admin và chỉ đọc dữ liệu:
+
+- `GET /admin/stats`
+- `GET /admin/quiz-sets` và `GET /admin/quiz-sets/{id}/questions`
+- `GET /admin/items`, `GET /admin/users`, `GET /admin/reports`
+
+Danh sách câu hỏi lấy các câu đang hoạt động thuộc chủ đề của bộ đề; schema
+hiện tại chưa lưu quan hệ câu hỏi trực tiếp với từng bộ đề.
+
 ## Đã kiểm thử (18/11, máy này)
 
 `python test_smoke.py` — **ALL SMOKE TESTS PASSED**:
