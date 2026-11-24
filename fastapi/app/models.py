@@ -71,6 +71,12 @@ class QuizSet(Base):
     attempts = relationship("Attempt", back_populates="quiz_set")
     histories = relationship("QuizHistory", back_populates="quiz_set")
     comments = relationship("Comment", back_populates="quiz_set")
+    question_links = relationship(
+        "QuizSetQuestion",
+        back_populates="quiz_set",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 class Question(Base):
     __tablename__ = "questions"
@@ -83,6 +89,20 @@ class Question(Base):
     explanation = Column(String, default="")
     is_active = Column(Boolean, default=True)
     topic = relationship("Topic", back_populates="questions")
+    quiz_set_links = relationship("QuizSetQuestion", passive_deletes="all")
+
+
+class QuizSetQuestion(Base):
+    __tablename__ = "quiz_set_questions"
+    quiz_set_id = Column(
+        String, ForeignKey("quiz_sets.id", ondelete="CASCADE"), primary_key=True
+    )
+    question_id = Column(
+        String, ForeignKey("questions.id", ondelete="RESTRICT"), primary_key=True
+    )
+    position = Column(Integer, nullable=False, default=0)
+    quiz_set = relationship("QuizSet", back_populates="question_links")
+    question = relationship("Question", back_populates="quiz_set_links")
 
 class Attempt(Base):
     __tablename__ = "attempts"

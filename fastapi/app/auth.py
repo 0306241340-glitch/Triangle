@@ -107,6 +107,8 @@ def get_current_user(
     elif not user.user_code:
         user.user_code = _new_user_code(db)
         db.commit()
+    if user.status == "locked":
+        raise ApiError(403, "ACCOUNT_LOCKED", "Tài khoản đã bị khóa.")
     return CurrentUser(uid=uid, role=user.role, email=user.email)
 
 

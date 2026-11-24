@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..errors import ApiError, ok
-from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, Transaction, User
+from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, QuizSetQuestion, Transaction, User
 from ..schemas import FiftyFiftyIn, HelpIn, StartIn, SubmitIn
 
 router = APIRouter()
@@ -25,9 +25,37 @@ def start(body: StartIn, user: CurrentUser = Depends(get_current_user),
     s = db.query(QuizSet).filter(QuizSet.id == body.quizSetId).first()
     if not s or not s.is_active:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy bộ đề.")
-    qs = (db.query(Question).filter(Question.topic_id == s.topic_id,
-                                    Question.is_active == True).all())
-    qs = _shuffle(qs)[: s.question_count or 10]
+    question_links = (
+        db.query(QuizSetQuestion)
+        .filter(QuizSetQuestion.quiz_set_id == s.id)
+        .order_by(QuizSetQuestion.position)
+        .all()
+    )
+    if question_links:
+        question_ids = [link.question_id for link in question_links]
+        questions_by_id = {
+            question.id: question
+            for question in db.query(Question)
+            .filter(Question.id.in_(question_ids), Question.is_active.is_(True))
+            .all()
+        }
+        if len(questions_by_id) != len(question_ids):
+            raise ApiError(
+                400,
+                "VALIDATION",
+                "Bộ đề có câu hỏi đã bị ẩn hoặc không còn hợp lệ.",
+            )
+        qs = [questions_by_id[question_id] for question_id in question_ids]
+    else:
+        qs = (
+            db.query(Question)
+            .filter(
+                Question.topic_id == s.topic_id,
+                Question.is_active.is_(True),
+            )
+            .all()
+        )
+        qs = _shuffle(qs)[: s.question_count or 10]
     if not qs:
         raise ApiError(400, "VALIDATION", "Bộ đề chưa có câu hỏi.")
     attempt_id = f"att_{int(time.time()*1000)}_{user.uid[:6]}"

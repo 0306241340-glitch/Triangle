@@ -276,7 +276,7 @@ assert r.status_code == 409, r.text
 
 r = c.get("/topics", headers={"Authorization": ""})
 
-# Admin management endpoints are read-only and restricted to administrators.
+# Admin management endpoints are restricted to administrators and support CRUD.
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(
     uid=UID, role="user"
 )
@@ -284,6 +284,7 @@ assert c.get("/admin/items").status_code == 403
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(
     uid=ADMIN_UID, role="admin"
 )
+
 sets = c.get("/admin/quiz-sets")
 assert sets.status_code == 200 and any(
     row["id"] == "set_tong_hop_1" for row in sets.json()["data"]
@@ -291,14 +292,35 @@ assert sets.status_code == 200 and any(
 questions = c.get("/admin/quiz-sets/set_tong_hop_1/questions")
 assert questions.status_code == 200 and questions.json()["data"], questions.text
 assert "correctIndex" in questions.json()["data"][0]
+
 items = c.get("/admin/items")
 assert items.status_code == 200 and any(
     row["id"] == "item_frame_gold" for row in items.json()["data"]
 ), items.text
+created_item = c.post("/admin/items", json={
+    "name": "Smoke hint", "type": "help", "lifelineCode": "fifty_fifty",
+    "price": 15, "description": "Smoke test",
+})
+assert created_item.status_code == 200, created_item.text
+item_id = created_item.json()["data"]["id"]
+updated_item = c.put(f"/admin/items/{item_id}", json={
+    "name": "Updated smoke hint", "type": "help",
+    "lifelineCode": "fifty_fifty", "price": 20,
+})
+assert updated_item.status_code == 200
+assert updated_item.json()["data"]["price"] == 20
+assert c.delete(f"/admin/items/{item_id}").status_code == 200
+
 users = c.get("/admin/users")
 assert users.status_code == 200 and any(
     row["uid"] == UID and row["gamesPlayed"] >= 1 for row in users.json()["data"]
 ), users.text
+assert c.get("/admin/users", params={"search": "TU001A"}).json()["data"]
+locked = c.put(f"/admin/users/{UID}/status", json={"status": "locked"})
+assert locked.status_code == 200 and locked.json()["data"]["status"] == "locked"
+unlocked = c.put(f"/admin/users/{UID}/status", json={"status": "active"})
+assert unlocked.status_code == 200 and unlocked.json()["data"]["status"] == "active"
+
 from app.models import Report
 db = SessionLocal()
 db.add(Report(question_id=questions.json()["data"][0]["id"], user_id=UID,
@@ -309,5 +331,83 @@ reports = c.get("/admin/reports")
 assert reports.status_code == 200 and any(
     row["reason"] == "Smoke test report" for row in reports.json()["data"]
 ), reports.text
+report_id = reports.json()["data"][0]["id"]
+report_update = c.put(
+    f"/admin/reports/{report_id}/status", json={"status": "resolved"}
+)
+assert report_update.status_code == 200
+assert report_update.json()["data"]["status"] == "resolved"
+
+topic_response = c.post("/admin/topics", json={
+    "name": "CRUD topic", "description": "Temporary topic",
+    "icon": "T", "imageUrl": "", "isActive": True,
+})
+assert topic_response.status_code == 200, topic_response.text
+topic_id = topic_response.json()["data"]["id"]
+topic_update = c.put(f"/admin/topics/{topic_id}", json={
+    "name": "Updated CRUD topic", "description": "Updated",
+    "icon": "T", "imageUrl": "", "isActive": True,
+})
+assert topic_update.status_code == 200
+
+question_response = c.post("/admin/questions", json={
+    "topicId": topic_id,
+    "content": "Manual selection question",
+    "options": ["A", "B", "C", "D"],
+    "correctIndex": 2,
+    "level": "medium",
+    "explanation": "Test answer",
+    "isActive": True,
+})
+assert question_response.status_code == 200, question_response.text
+question_id = question_response.json()["data"]["id"]
+assert c.get("/admin/questions", params={"topicId": topic_id}).json()["data"]
+question_update = c.put(f"/admin/questions/{question_id}", json={
+    "topicId": topic_id,
+    "content": "Updated manual question",
+    "options": ["A", "B", "C", "D"],
+    "correctIndex": 0,
+    "level": "hard",
+    "explanation": "",
+    "isActive": True,
+})
+assert question_update.status_code == 200
+assert question_update.json()["data"]["correctIndex"] == 0
+
+manual_set = c.post("/admin/quiz-sets", json={
+    "topicId": topic_id,
+    "title": "Manual question set",
+    "description": "",
+    "level": "hard",
+    "durationSec": 90,
+    "questionCount": 1,
+    "isActive": True,
+    "selectionMode": "manual",
+    "questionIds": [question_id],
+})
+assert manual_set.status_code == 200, manual_set.text
+manual_set_id = manual_set.json()["data"]["id"]
+assert manual_set.json()["data"]["questionIds"] == [question_id]
+manual_questions = c.get(
+    f"/admin/quiz-sets/{manual_set_id}/questions"
+)
+assert [row["id"] for row in manual_questions.json()["data"]] == [question_id]
+
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=UID, role="user"
+)
+manual_attempt = c.post(
+    "/quiz/start", json={"quizSetId": manual_set_id}
+)
+assert manual_attempt.status_code == 200, manual_attempt.text
+assert [row["id"] for row in manual_attempt.json()["data"]["questions"]] == [
+    question_id
+]
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+assert c.delete(f"/admin/questions/{question_id}").status_code == 409
+assert c.delete(f"/admin/quiz-sets/{manual_set_id}").status_code == 409
+assert c.delete(f"/admin/topics/{topic_id}").status_code == 409
 
 print("ALL SMOKE TESTS PASSED")
