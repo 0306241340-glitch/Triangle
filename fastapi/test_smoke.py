@@ -311,6 +311,45 @@ assert updated_item.status_code == 200
 assert updated_item.json()["data"]["price"] == 20
 assert c.delete(f"/admin/items/{item_id}").status_code == 200
 
+created_title = c.post("/admin/items", json={
+    "name": "Danh hiệu Cao thủ", "type": "title", "price": 150,
+})
+assert created_title.status_code == 200, created_title.text
+assert created_title.json()["data"]["id"] == "item_title_danh_hieu_cao_thu"
+duplicate_title = c.post("/admin/items", json={
+    "name": "Danh hiệu Cao thủ", "type": "title", "price": 150,
+})
+assert duplicate_title.status_code == 200, duplicate_title.text
+assert duplicate_title.json()["data"]["id"] == "item_title_danh_hieu_cao_thu_2"
+assert c.delete(
+    f"/admin/items/{created_title.json()['data']['id']}"
+).status_code == 200
+assert c.delete(
+    f"/admin/items/{duplicate_title.json()['data']['id']}"
+).status_code == 200
+custom_title = c.post("/admin/items", json={
+    "id": "item_title_champion", "name": "Danh hiệu Nhà vô địch",
+    "type": "title", "price": 200,
+})
+assert custom_title.status_code == 200, custom_title.text
+assert custom_title.json()["data"]["id"] == "item_title_champion"
+duplicate_id = c.post("/admin/items", json={
+    "id": "item_title_champion", "name": "Danh hiệu khác",
+    "type": "title", "price": 200,
+})
+assert duplicate_id.status_code == 200, duplicate_id.text
+assert duplicate_id.json()["data"]["id"] == "item_title_champion_2"
+assert c.post("/admin/items", json={
+    "id": "invalid_title", "name": "Danh hiệu lỗi",
+    "type": "title", "price": 100,
+}).status_code == 400
+assert c.delete(
+    f"/admin/items/{custom_title.json()['data']['id']}"
+).status_code == 200
+assert c.delete(
+    f"/admin/items/{duplicate_id.json()['data']['id']}"
+).status_code == 200
+
 users = c.get("/admin/users")
 assert users.status_code == 200 and any(
     row["uid"] == UID and row["gamesPlayed"] >= 1 for row in users.json()["data"]
@@ -339,11 +378,22 @@ assert report_update.status_code == 200
 assert report_update.json()["data"]["status"] == "resolved"
 
 topic_response = c.post("/admin/topics", json={
+    "id": "topic_crud_topic",
     "name": "CRUD topic", "description": "Temporary topic",
     "icon": "T", "imageUrl": "", "isActive": True,
 })
 assert topic_response.status_code == 200, topic_response.text
 topic_id = topic_response.json()["data"]["id"]
+assert topic_id == "topic_crud_topic"
+assert topic_response.json()["data"]["questionCount"] == 0
+duplicate_topic = c.post("/admin/topics", json={
+    "id": "topic_crud_topic", "name": "Duplicate topic",
+})
+assert duplicate_topic.status_code == 200, duplicate_topic.text
+assert duplicate_topic.json()["data"]["id"] == "topic_crud_topic_2"
+assert c.delete(
+    f"/admin/topics/{duplicate_topic.json()['data']['id']}"
+).status_code == 200
 topic_update = c.put(f"/admin/topics/{topic_id}", json={
     "name": "Updated CRUD topic", "description": "Updated",
     "icon": "T", "imageUrl": "", "isActive": True,
@@ -361,6 +411,10 @@ question_response = c.post("/admin/questions", json={
 })
 assert question_response.status_code == 200, question_response.text
 question_id = question_response.json()["data"]["id"]
+topic_rows = c.get("/admin/topics").json()["data"]
+assert next(row for row in topic_rows if row["id"] == topic_id)[
+    "questionCount"
+] == 1
 assert c.get("/admin/questions", params={"topicId": topic_id}).json()["data"]
 question_update = c.put(f"/admin/questions/{question_id}", json={
     "topicId": topic_id,
@@ -375,6 +429,7 @@ assert question_update.status_code == 200
 assert question_update.json()["data"]["correctIndex"] == 0
 
 manual_set = c.post("/admin/quiz-sets", json={
+    "id": "set_manual_question_set",
     "topicId": topic_id,
     "title": "Manual question set",
     "description": "",
@@ -387,7 +442,24 @@ manual_set = c.post("/admin/quiz-sets", json={
 })
 assert manual_set.status_code == 200, manual_set.text
 manual_set_id = manual_set.json()["data"]["id"]
+assert manual_set_id == "set_manual_question_set"
 assert manual_set.json()["data"]["questionIds"] == [question_id]
+assert manual_set.json()["data"]["attemptCount"] == 0
+assert manual_set.json()["data"]["avgScore"] == 0
+duplicate_set = c.post("/admin/quiz-sets", json={
+    "id": "set_manual_question_set",
+    "topicId": topic_id,
+    "title": "Duplicate manual set",
+    "durationSec": 90,
+    "questionCount": 1,
+    "selectionMode": "manual",
+    "questionIds": [question_id],
+})
+assert duplicate_set.status_code == 200, duplicate_set.text
+assert duplicate_set.json()["data"]["id"] == "set_manual_question_set_2"
+assert c.delete(
+    f"/admin/quiz-sets/{duplicate_set.json()['data']['id']}"
+).status_code == 200
 manual_questions = c.get(
     f"/admin/quiz-sets/{manual_set_id}/questions"
 )

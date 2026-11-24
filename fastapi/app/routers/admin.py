@@ -1,5 +1,8 @@
+import re
+import unicodedata
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func
@@ -258,14 +261,52 @@ def _topic_dict(row: Topic, db: Session):
     }
 
 
+def _validate_structured_id(value: str, prefix: str):
+    item_id = value.strip()
+    if not re.fullmatch(r"[a-z0-9]+(?:_[a-z0-9]+)*", item_id):
+        raise ApiError(
+            400, "VALIDATION", "ID chỉ được chứa chữ thường, số và dấu gạch dưới."
+        )
+    if not item_id.startswith(prefix):
+        raise ApiError(
+            400, "VALIDATION", f"ID phải bắt đầu bằng '{prefix}'."
+        )
+
+
+def _slugify_id(value: str):
+    normalized_name = value.translate(str.maketrans({"đ": "d", "Đ": "D"}))
+    ascii_name = unicodedata.normalize("NFKD", normalized_name).encode(
+        "ascii", "ignore"
+    ).decode("ascii").lower()
+    return "_".join(re.findall(r"[a-z0-9]+", ascii_name))
+
+
+def _available_resource_id(db: Session, model, base_id: str):
+    resource_id = base_id
+    suffix = 2
+    while db.query(model.id).filter(model.id == resource_id).first():
+        resource_id = f"{base_id}_{suffix}"
+        suffix += 1
+    return resource_id
+
+
+def _resource_id(db: Session, model, prefix: str, name: str,
+                 provided_id: Optional[str] = None):
+    slug = _slugify_id(name) or "item"
+    base_id = provided_id.strip() if provided_id else f"{prefix}{slug}"
+    return _available_resource_id(db, model, base_id)
+
+
 @router.post("/topics")
 def create_topic(body: AdminTopicIn, user: CurrentUser = Depends(require_admin),
                  db: Session = Depends(get_db)):
     name = body.name.strip()
     if not name:
         raise ApiError(400, "VALIDATION", "Tên chủ đề không được để trống.")
+    if body.id is not None:
+        _validate_structured_id(body.id, "topic_")
     row = Topic(
-        id=uuid.uuid4().hex,
+        id=_resource_id(db, Topic, "topic_", name, body.id),
         name=name,
         description=body.description.strip(),
         icon=body.icon.strip(),
@@ -465,6 +506,8 @@ def delete_question(question_id: str, user: CurrentUser = Depends(require_admin)
 def _validate_quiz_set(body: AdminQuizSetIn, db: Session):
     if not body.title.strip():
         raise ApiError(400, "VALIDATION", "Tên bộ đề không được để trống.")
+    if body.id is not None:
+        _validate_structured_id(body.id, "set_")
     if body.durationSec <= 0 or body.questionCount <= 0:
         raise ApiError(
             400,
@@ -537,7 +580,7 @@ def create_quiz_set(body: AdminQuizSetIn,
                     db: Session = Depends(get_db)):
     question_ids = _validate_quiz_set(body, db)
     row = QuizSet(
-        id=uuid.uuid4().hex,
+        id=_resource_id(db, QuizSet, "set_", body.title, body.id),
         topic_id=body.topicId,
         name=body.title.strip(),
         description=body.description.strip(),
@@ -622,14 +665,62 @@ def _validate_item(body: AdminItemIn):
         raise ApiError(400, "VALIDATION", "Giá vật phẩm không được âm.")
     if body.type == "help" and not body.lifelineCode.strip():
         raise ApiError(400, "VALIDATION", "Vật phẩm trợ giúp cần mã hiệu ứng.")
+    if body.id is not None:
+        item_id = body.id.strip()
+        if not re.fullmatch(r"[a-z0-9]+(?:_[a-z0-9]+)*", item_id):
+            raise ApiError(
+                400, "VALIDATION", "ID chỉ được chứa chữ thường, số và dấu gạch dưới."
+            )
+        valid_prefix = (
+            item_id.startswith("item_title_")
+            if body.type == "title"
+            else item_id.startswith("item_frame_")
+            if body.type == "frame"
+            else item_id.startswith("item_")
+            and not item_id.startswith(("item_title_", "item_frame_"))
+        )
+        if not valid_prefix:
+            raise ApiError(
+                400, "VALIDATION", "ID không đúng tiền tố của loại vật phẩm."
+            )
+
+
+def _generated_item_id(db: Session, item_type: str, name: str):
+    normalized_name = name.translate(str.maketrans({"đ": "d", "Đ": "D"}))
+    ascii_name = unicodedata.normalize("NFKD", normalized_name).encode(
+        "ascii", "ignore"
+    ).decode("ascii").lower()
+    slug = "_".join(re.findall(r"[a-z0-9]+", ascii_name)) or "title"
+    prefix = {
+        "help": "item_",
+        "frame": "item_frame_",
+        "title": "item_title_",
+    }[item_type]
+    base_id = f"{prefix}{slug}"
+    return _available_item_id(db, base_id)
+
+
+def _available_item_id(db: Session, base_id: str):
+    item_id = base_id
+    suffix = 2
+    while db.query(Item.id).filter(Item.id == item_id).first():
+        item_id = f"{base_id}_{suffix}"
+        suffix += 1
+    return item_id
 
 
 @router.post("/items")
 def create_item(body: AdminItemIn, user: CurrentUser = Depends(require_admin),
                 db: Session = Depends(get_db)):
     _validate_item(body)
+    if body.id:
+        base_id = body.id.strip()
+    elif body.type == "title":
+        base_id = _generated_item_id(db, body.type, body.name)
+    else:
+        base_id = uuid.uuid4().hex
     row = Item(
-        id=uuid.uuid4().hex,
+        id=_available_item_id(db, base_id),
         name=body.name.strip(),
         type=body.type,
         effect=body.lifelineCode.strip(),

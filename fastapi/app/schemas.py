@@ -51,6 +51,7 @@ class FavoriteIn(BaseModel):
 
 
 class AdminTopicIn(BaseModel):
+    id: Optional[str] = None
     name: str
     description: str = ""
     icon: str = ""
@@ -69,6 +70,7 @@ class AdminQuestionIn(BaseModel):
 
 
 class AdminQuizSetIn(BaseModel):
+    id: Optional[str] = None
     topicId: str
     title: str
     description: str = ""
@@ -81,6 +83,7 @@ class AdminQuizSetIn(BaseModel):
 
 
 class AdminItemIn(BaseModel):
+    id: Optional[str] = None
     name: str
     type: str
     lifelineCode: str = ""
