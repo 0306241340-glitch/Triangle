@@ -4,6 +4,7 @@
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../core/api_client.dart';
 import '../models/item_model.dart';
@@ -20,6 +21,27 @@ class HomeViewModel extends ChangeNotifier {
 
   final ApiClient _api;
   final FirebaseAuth? _auth;
+  bool _disposed = false;
+
+  void _notifyListenersSafely() {
+    if (_disposed) return;
+
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+      return;
+    }
+
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 
   // Lấy Firebase ID Token và gắn vào API.
   Future<void> _attachToken() async {
@@ -86,7 +108,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<String?> toggleTopicFavorite(String topicId) async {
     if (!topicFavoriteRequests.add(topicId)) return null;
 
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -112,7 +134,7 @@ class HomeViewModel extends ChangeNotifier {
       return e.toString();
     } finally {
       topicFavoriteRequests.remove(topicId);
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
@@ -124,7 +146,7 @@ class HomeViewModel extends ChangeNotifier {
 
     isLoadingTopicFavorites = true;
     topicFavoriteLoadError = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -150,31 +172,31 @@ class HomeViewModel extends ChangeNotifier {
       topicFavoriteLoadError = e.toString();
     } finally {
       isLoadingTopicFavorites = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
   void setQuery(String value) {
     query = value;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   Future<void> loadCurrentUserCoins() async {
     try {
-      final catalog = await StoreService().loadCatalog();
-      syncCatalog(catalog);
+      final danhMuc = await StoreService().loadCatalog();
+      syncCatalog(danhMuc);
     } catch (error, stackTrace) {
       debugPrint('Không thể tải số dư cửa hàng từ máy chủ: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   Future<void> loadQuizHistory({String? topicId}) async {
     historyTopicFilter = topicId;
     isQuizHistoryLoading = true;
     quizHistoryError = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -193,14 +215,14 @@ class HomeViewModel extends ChangeNotifier {
       quizHistoryError = e.toString();
     } finally {
       isQuizHistoryLoading = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
   Future<void> loadMatchHistory() async {
     isMatchHistoryLoading = true;
     matchHistoryError = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -216,7 +238,7 @@ class HomeViewModel extends ChangeNotifier {
       matchHistoryError = e.toString();
     } finally {
       isMatchHistoryLoading = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
@@ -225,7 +247,7 @@ class HomeViewModel extends ChangeNotifier {
     historyDetailError = null;
     selectedQuizHistory = null;
     selectedMatchHistory = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -239,7 +261,7 @@ class HomeViewModel extends ChangeNotifier {
       historyDetailError = e.toString();
     } finally {
       isHistoryDetailLoading = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
@@ -248,7 +270,7 @@ class HomeViewModel extends ChangeNotifier {
     historyDetailError = null;
     selectedQuizHistory = null;
     selectedMatchHistory = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -262,35 +284,35 @@ class HomeViewModel extends ChangeNotifier {
       historyDetailError = e.toString();
     } finally {
       isHistoryDetailLoading = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 
-  void syncCatalog(StoreCatalog catalog) {
-    final safeCoins = catalog.coins ?? coins;
+  void syncCatalog(StoreCatalog danhMuc) {
+    final soXuAnToan = danhMuc.coins ?? coins;
 
-    coins = safeCoins;
-    userCoins = safeCoins;
+    coins = soXuAnToan;
+    userCoins = soXuAnToan;
 
     ownedItems
       ..clear()
-      ..addAll(catalog.ownedQuantities);
+      ..addAll(danhMuc.ownedQuantities);
 
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
-  void updateAfterPurchase(StoreItem item, int remainingCoins, int quantity) {
-    coins = remainingCoins;
-    userCoins = remainingCoins;
-    ownedItems[item.id] = quantity;
+  void updateAfterPurchase(StoreItem vatPham, int xuConLai, int soLuong) {
+    coins = xuConLai;
+    userCoins = xuConLai;
+    ownedItems[vatPham.id] = soLuong;
 
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   Future<void> load() async {
     isLoading = true;
     error = null;
-    notifyListeners();
+    _notifyListenersSafely();
 
     try {
       await _attachToken();
@@ -333,7 +355,7 @@ class HomeViewModel extends ChangeNotifier {
       quizSetsByTopic = {};
     } finally {
       isLoading = false;
-      notifyListeners();
+      _notifyListenersSafely();
     }
   }
 }

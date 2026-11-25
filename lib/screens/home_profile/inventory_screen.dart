@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../models/item_model.dart';
 import '../../services/store_service.dart';
 import '../../widgets/item_visual.dart';
@@ -96,7 +96,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     try {
       await _dichVuCuaHang.setEquipped(
         vatPham.vatPham.id,
-        equipped: !vatPham.dangTrangBi,
+        dangTrangBi: !vatPham.dangTrangBi,
       );
       if (!mounted) return;
       await _taiTuiDo();
@@ -200,7 +200,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.primaryLight],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       ),
       child: Row(
         children: [
@@ -222,18 +222,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Bộ sưu tập của bạn',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.cardTitle.copyWith(color: Colors.white),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${_vatPham.length} vật phẩm đang sở hữu',
-                  style: const TextStyle(color: Colors.white70),
+                  style: AppTheme.caption.copyWith(color: Colors.white70),
                 ),
               ],
             ),
@@ -252,8 +248,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(17),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -277,10 +273,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     vatPham.vatPham.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppTheme.cardTitle,
                   ),
                   if (vatPham.vatPham.description.isNotEmpty) ...[
                     const SizedBox(height: 3),
@@ -288,10 +281,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       vatPham.vatPham.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: AppTheme.caption,
                     ),
                   ],
                   const SizedBox(height: 6),
@@ -300,10 +290,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   else
                     Text(
                       'Số lượng: ${vatPham.soLuong}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: AppTheme.caption,
                     ),
                 ],
               ),
@@ -345,7 +332,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
             'Đang sử dụng',
             style: TextStyle(
               color: AppColors.success,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -369,8 +356,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -383,10 +370,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Expanded(
             child: Text(
               laTuiDoTrong ? 'Túi đồ đang trống' : 'Chưa có $tenLoai nào',
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTheme.cardTitle.copyWith(fontSize: 14),
             ),
           ),
           TextButton(onPressed: _denCuaHang, child: const Text('Cửa hàng')),
@@ -400,8 +384,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [

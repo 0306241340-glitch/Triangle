@@ -1,21 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../models/friend_model.dart';
 import '../../models/notification_model.dart';
 import '../../models/room_model.dart';
-import '../../services/friend_service.dart';
-import '../../services/pvp_social_service.dart';
+import '../../viewmodels/pvp_social_vm.dart';
 import '../home_profile/friends_screen.dart';
 
 class PvpSocialScreen extends StatefulWidget {
-  const PvpSocialScreen({super.key, this.service, this.friendService});
+  const PvpSocialScreen({super.key, this.vm});
 
-  final PvpSocialService? service;
-  final FriendService? friendService;
+  final PvpSocialViewModel? vm;
 
   @override
   State<PvpSocialScreen> createState() => _PvpSocialScreenState();
@@ -23,107 +19,72 @@ class PvpSocialScreen extends StatefulWidget {
 
 class _PvpSocialScreenState extends State<PvpSocialScreen>
     with SingleTickerProviderStateMixin {
-  static const _mauNen = Colors.white;
-  static const _mauThe = Colors.white;
-  static const _mauVien = Color(0xFFE5E7EB);
-  static const _mauNenBieuTuong = Color(0xFFEFF4FF);
-  static const _mauXanh = Color(0xFF5B82F6);
-  static const _mauChuPhu = Color(0xFF667085);
+  static const _mauNen = AppColors.background;
+  static const _mauThe = AppColors.surface;
+  static const _mauVien = AppColors.border;
+  static const _mauNenBieuTuong = AppColors.primarySurface;
+  static const _mauXanh = AppColors.primary;
+  static const _mauChuPhu = AppColors.textSecondary;
 
-  late final PvpSocialService _dichVuDau;
-  late final FriendService _dichVuBanBe;
+  late final PvpSocialViewModel _boDieuKhien;
+  bool _tuTaoViewModel = false;
   late final TabController _boChuyenTab;
-  late Future<List<FriendRequest>> _dsBanBe;
-  late Future<List<PvpInvitation>> _dsLoiMoi;
-  final Map<String, Future<PublicProfile?>> _hoSoBan = {};
-  Timer? _boDemLoiMoi;
-  bool _dangTimTran = false;
-  String? _idDangXuLy;
 
   @override
   void initState() {
     super.initState();
-    _dichVuDau = widget.service ?? PvpSocialService();
-    _dichVuBanBe = widget.friendService ?? FriendService();
+    _tuTaoViewModel = widget.vm == null;
+    _boDieuKhien = widget.vm ?? PvpSocialViewModel();
+    _boDieuKhien.init();
     _boChuyenTab = TabController(length: 3, vsync: this);
-    _dsBanBe = _dichVuBanBe.loadFriends();
-    _dsLoiMoi = _dichVuDau.loadInvitations();
-    _boDemLoiMoi = Timer.periodic(
-      const Duration(seconds: 8),
-      (_) => _taiLaiLoiMoi(),
-    );
   }
 
   @override
   void dispose() {
-    _boDemLoiMoi?.cancel();
     _boChuyenTab.dispose();
+    if (_tuTaoViewModel) _boDieuKhien.dispose();
     super.dispose();
   }
 
   void _taiLaiBanBe() {
-    setState(() {
-      _dsBanBe = _dichVuBanBe.loadFriends();
-    });
+    _boDieuKhien.reloadFriends();
   }
 
   void _taiLaiLoiMoi() {
-    if (mounted) {
-      setState(() {
-        _dsLoiMoi = _dichVuDau.loadInvitations();
-      });
-    }
+    if (mounted) _boDieuKhien.reloadInvitations();
   }
 
   Future<PublicProfile?> _taiHoSoBan(String idNguoiDung) {
-    return _hoSoBan.putIfAbsent(
-      idNguoiDung,
-      () => _dichVuBanBe.getPublicProfile(idNguoiDung),
-    );
+    return _boDieuKhien.getProfile(idNguoiDung);
   }
 
   Future<void> _timTranNgauNhien() async {
-    if (_dangTimTran) return;
-    setState(() => _dangTimTran = true);
-    try {
-      var hangDoi = await _dichVuDau.joinQueue();
-      while (mounted && _dangTimTran) {
-        if (hangDoi.roomId != null) {
-          await _moPhong(hangDoi.roomId!);
-          break;
-        }
-        if (hangDoi.status == 'cancelled') {
-          throw StateError('Tìm trận đã bị hủy.');
-        }
-        await Future<void>.delayed(const Duration(seconds: 2));
-        if (!mounted || !_dangTimTran) break;
-        hangDoi = await _dichVuDau.queueStatus();
-      }
-    } catch (loi) {
-      if (mounted && _dangTimTran) _hienThongBao(loi.toString());
-    } finally {
-      if (mounted) setState(() => _dangTimTran = false);
+    final ketQua = await _boDieuKhien.startQueue();
+    if (!mounted) return;
+    if (ketQua.maPhong != null) {
+      await _moPhong(ketQua.maPhong!);
+    } else if (ketQua.thongBao != null) {
+      _hienThongBao(ketQua.thongBao!);
     }
   }
 
   Future<void> _huyTimTran() async {
-    setState(() => _dangTimTran = false);
-    try {
-      await _dichVuDau.leaveQueue();
-    } catch (loi) {
-      if (mounted) _hienThongBao(loi.toString());
+    final ketQua = await _boDieuKhien.cancelQueue();
+    if (!mounted) return;
+    if (ketQua.maPhong != null) {
+      await _moPhong(ketQua.maPhong!);
+    } else if (ketQua.thongBao != null) {
+      _hienThongBao(ketQua.thongBao!);
     }
   }
 
   Future<void> _thachDauBan(String idBan) async {
-    setState(() => _idDangXuLy = idBan);
-    try {
-      await _dichVuDau.inviteFriend(idBan);
-      if (mounted) _hienThongBao('Đã gửi lời mời thách đấu.');
-    } catch (loi) {
-      if (mounted) _hienThongBao(loi.toString());
-    } finally {
-      if (mounted) setState(() => _idDangXuLy = null);
+    final ketQua = await _boDieuKhien.inviteFriend(idBan);
+    if (!mounted) return;
+    if (ketQua.maPhong != null) {
+      await _moPhong(ketQua.maPhong!);
+    } else if (ketQua.thongBao != null) {
+      _hienThongBao(ketQua.thongBao!);
     }
   }
 
@@ -131,20 +92,15 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
     PvpInvitation loiMoi, {
     required bool chapNhan,
   }) async {
-    setState(() => _idDangXuLy = loiMoi.roomId);
-    try {
-      if (chapNhan) {
-        await _dichVuDau.acceptInvitation(loiMoi.roomId);
-        await _moPhong(loiMoi.roomId);
-      } else {
-        await _dichVuDau.declineInvitation(loiMoi.roomId);
-        if (mounted) _hienThongBao('Đã từ chối lời mời.');
-      }
-      _taiLaiLoiMoi();
-    } catch (loi) {
-      if (mounted) _hienThongBao(loi.toString());
-    } finally {
-      if (mounted) setState(() => _idDangXuLy = null);
+    final ketQua = await _boDieuKhien.respondToInvitation(
+      loiMoi,
+      chapNhan: chapNhan,
+    );
+    if (!mounted) return;
+    if (ketQua.maPhong != null) {
+      await _moPhong(ketQua.maPhong!);
+    } else if (ketQua.thongBao != null) {
+      _hienThongBao(ketQua.thongBao!);
     }
   }
 
@@ -152,7 +108,12 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => PvpRoomScreen(roomId: maPhong, service: _dichVuDau),
+        builder: (_) => PvpRoomScreen(
+          roomVm: PvpRoomViewModel(
+            roomId: maPhong,
+            service: _boDieuKhien.dichVuPvp,
+          ),
+        ),
       ),
     );
     if (mounted) _taiLaiLoiMoi();
@@ -176,18 +137,17 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
   }
 
   Future<void> _saoChepMaBanBe() async {
-    try {
-      final hoSo = await _dichVuBanBe.loadMyProfile();
-      if (hoSo.userCode.isEmpty) {
-        throw StateError('Chưa có mã kết bạn để chia sẻ.');
-      }
-      await Clipboard.setData(ClipboardData(text: hoSo.userCode));
-      if (mounted) _hienThongBao('Đã sao chép mã kết bạn.');
-    } catch (loi) {
-      if (mounted) {
-        _hienThongBao('Không thể chia sẻ mã kết bạn: $loi');
-      }
+    final ketQua = await _boDieuKhien.copyMyFriendCode();
+    if (!mounted) return;
+    if (ketQua.thongBao == null) return;
+    final maBanBe = ketQua.thongBao!;
+    if (maBanBe == 'Chưa có mã kết bạn.' ||
+        maBanBe == 'Không thể chia sẻ mã kết bạn.') {
+      _hienThongBao(maBanBe);
+      return;
     }
+    await Clipboard.setData(ClipboardData(text: maBanBe));
+    if (mounted) _hienThongBao('Đã sao chép mã kết bạn.');
   }
 
   void _moTabThachBan() {
@@ -196,39 +156,42 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _mauNen,
-      appBar: AppBar(
+    return AnimatedBuilder(
+      animation: _boDieuKhien,
+      builder: (context, _) => Scaffold(
         backgroundColor: _mauNen,
-        foregroundColor: const Color(0xFF1F2937),
-        surfaceTintColor: Colors.transparent,
-        centerTitle: true,
-        title: const Text('Đấu 1 vs 1'),
-        bottom: TabBar(
-          controller: _boChuyenTab,
-          labelColor: _mauXanh,
-          unselectedLabelColor: _mauChuPhu,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-          indicatorColor: _mauXanh,
-          indicatorWeight: 3,
-          dividerColor: _mauVien,
-          tabs: const [
-            Tab(text: 'Đấu nhanh'),
-            Tab(text: 'Thách bạn'),
-            Tab(text: 'Lời mời'),
-          ],
+        appBar: AppBar(
+          backgroundColor: _mauNen,
+          foregroundColor: _mauXanh,
+          surfaceTintColor: Colors.transparent,
+          centerTitle: true,
+          title: const Text('Đấu 1 vs 1'),
+          bottom: TabBar(
+            controller: _boChuyenTab,
+            labelColor: _mauXanh,
+            unselectedLabelColor: _mauChuPhu,
+            labelStyle: AppTheme.body.copyWith(fontWeight: FontWeight.w700),
+            indicatorColor: _mauXanh,
+            indicatorWeight: 3,
+            dividerColor: _mauVien,
+            tabs: const [
+              Tab(text: 'Đấu nhanh'),
+              Tab(text: 'Thách bạn'),
+              Tab(text: 'Lời mời'),
+            ],
+          ),
         ),
-      ),
-      body: TabBarView(
-        controller: _boChuyenTab,
-        children: [_tabDauNhanh(), _tabThachBan(), _tabLoiMoi()],
+        body: TabBarView(
+          controller: _boChuyenTab,
+          children: [_tabDauNhanh(), _tabThachBan(), _tabLoiMoi()],
+        ),
       ),
     );
   }
 
   Widget _tabDauNhanh() {
     return ColoredBox(
-      color: const Color(0xFFF5F7FC),
+      color: _mauNen,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -236,11 +199,11 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1E3A8A), Color(0xFF4F46E5)],
+                colors: [AppColors.primary, AppColors.primaryLight],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.18),
@@ -266,20 +229,15 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
+                Text(
                   'Sẵn sàng so tài?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 23,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.pageTitle.copyWith(color: Colors.white),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Tìm người chơi có điểm số phù hợp với bạn.',
-                  style: TextStyle(
+                  style: AppTheme.body.copyWith(
                     color: Colors.white.withValues(alpha: 0.82),
-                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -306,7 +264,9 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                   width: double.infinity,
                   height: 50,
                   child: FilledButton.icon(
-                    onPressed: _dangTimTran ? _huyTimTran : _timTranNgauNhien,
+                    onPressed: _boDieuKhien.dangTimTran
+                        ? _huyTimTran
+                        : _timTranNgauNhien,
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: AppColors.primary,
@@ -314,16 +274,18 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    icon: _dangTimTran
+                    icon: _boDieuKhien.dangTimTran
                         ? const Icon(Icons.close_rounded)
                         : const Icon(Icons.search_rounded),
                     label: Text(
-                      _dangTimTran ? 'Hủy tìm trận' : 'Tìm trận ngay',
+                      _boDieuKhien.dangTimTran
+                          ? 'Hủy tìm trận'
+                          : 'Tìm trận ngay',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
-                if (_dangTimTran) ...[
+                if (_boDieuKhien.dangTimTran) ...[
                   const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -338,9 +300,8 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                   const SizedBox(height: 10),
                   Text(
                     'Đang tìm đối thủ... Bạn có thể hủy bất cứ lúc nào.',
-                    style: TextStyle(
+                    style: AppTheme.body.copyWith(
                       color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -350,22 +311,15 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
           const SizedBox(height: 22),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              'Luật chơi',
-              style: TextStyle(
-                color: Color(0xFF1F2937),
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Text('Luật chơi', style: AppTheme.sectionTitle),
           ),
           const SizedBox(height: 10),
           Card(
             color: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: Color(0xFFE0E6F2)),
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+              side: const BorderSide(color: AppColors.border),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -387,19 +341,18 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Text.rich(
                           TextSpan(
-                            style: TextStyle(
+                            style: AppTheme.body.copyWith(
                               color: _mauChuPhu,
-                              fontSize: 15,
                               height: 1.45,
                             ),
                             children: [
                               TextSpan(
                                 text: 'Mỗi câu chỉ trả lời một lần. ',
                                 style: TextStyle(
-                                  color: Color(0xFF1F2937),
+                                  color: AppColors.textPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -410,7 +363,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                       ),
                     ],
                   ),
-                  const Divider(height: 24, color: Color(0xFFE0E6F2)),
+                  const Divider(height: 24, color: AppColors.border),
                   Row(
                     children: [
                       Container(
@@ -427,19 +380,18 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Text.rich(
                           TextSpan(
-                            style: TextStyle(
+                            style: AppTheme.body.copyWith(
                               color: _mauChuPhu,
-                              fontSize: 15,
                               height: 1.45,
                             ),
                             children: [
                               TextSpan(
                                 text: 'Hết 15 giây ',
                                 style: TextStyle(
-                                  color: Color(0xFF1F2937),
+                                  color: AppColors.textPrimary,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -465,7 +417,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
 
   Widget _tabThachBan() {
     return FutureBuilder<List<FriendRequest>>(
-      future: _dsBanBe,
+      future: _boDieuKhien.dsBanBe,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _trangThaiLoi(
@@ -536,9 +488,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
             separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final quanHe = banBe[index];
-              final idNguoiDung = quanHe.otherUserId(
-                _dichVuBanBe.currentUserId,
-              );
+              final idNguoiDung = quanHe.otherUserId(_boDieuKhien.maNguoiDung);
               return _theBanBe(idNguoiDung);
             },
           ),
@@ -553,12 +503,12 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
       builder: (context, snapshot) {
         final hoSo = snapshot.data;
         final ten = hoSo?.displayName ?? 'Người chơi';
-        final dangGui = _idDangXuLy == idNguoiDung;
+        final dangGui = _boDieuKhien.idDangXuLy == idNguoiDung;
         return Card(
           color: _mauThe,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             side: const BorderSide(color: _mauVien),
           ),
           child: Padding(
@@ -575,10 +525,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                         ten,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1F2937),
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: AppTheme.cardTitle,
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -587,14 +534,14 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                             : hoSo?.userCode.isNotEmpty == true
                             ? 'Mã bạn bè: ${hoSo!.userCode}'
                             : 'Sẵn sàng thách đấu',
-                        style: const TextStyle(color: _mauChuPhu, fontSize: 12),
+                        style: AppTheme.caption,
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 FilledButton(
-                  onPressed: _idDangXuLy == null
+                  onPressed: _boDieuKhien.idDangXuLy == null
                       ? () => _thachDauBan(idNguoiDung)
                       : null,
                   style: FilledButton.styleFrom(
@@ -623,8 +570,8 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
   }
 
   Widget _tabLoiMoi() {
-    return FutureBuilder<List<PvpInvitation>>(
-      future: _dsLoiMoi,
+    return StreamBuilder<List<PvpInvitation>>(
+      stream: _boDieuKhien.luongLoiMoi,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return _trangThaiLoi(
@@ -639,6 +586,13 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
         }
         final danhSachLoiMoi = snapshot.data!;
         if (danhSachLoiMoi.isEmpty) {
+          if (_boDieuKhien.loiDongBoLoiMoi != null) {
+            return _trangThaiLoi(
+              'Không thể đồng bộ lời mời thách đấu: '
+              '${_boDieuKhien.loiDongBoLoiMoi}',
+              _taiLaiLoiMoi,
+            );
+          }
           return _trangThaiTrong(
             bieuTuong: Icons.mark_email_unread_outlined,
             tieuDe: 'Chưa có lời mời nào',
@@ -678,12 +632,12 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
   }
 
   Widget _theLoiMoi(PvpInvitation loiMoi) {
-    final dangXuLy = _idDangXuLy == loiMoi.roomId;
+    final dangXuLy = _boDieuKhien.idDangXuLy == loiMoi.roomId;
     return Card(
       color: _mauThe,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         side: const BorderSide(color: _mauVien),
       ),
       child: Padding(
@@ -707,15 +661,12 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                         loiMoi.hostName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1F2937),
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: AppTheme.cardTitle,
                       ),
                       const SizedBox(height: 3),
                       const Text(
                         'Mời bạn đấu 10 câu hỏi',
-                        style: TextStyle(color: _mauChuPhu, fontSize: 12),
+                        style: AppTheme.caption,
                       ),
                     ],
                   ),
@@ -740,7 +691,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton(
-                    onPressed: _idDangXuLy == null
+                    onPressed: _boDieuKhien.idDangXuLy == null
                         ? () => _phanHoiLoiMoi(loiMoi, chapNhan: true)
                         : null,
                     style: FilledButton.styleFrom(
@@ -821,19 +772,14 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
                   Text(
                     tieuDe,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFF1F2937),
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTheme.sectionTitle,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     moTa,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: AppTheme.body.copyWith(
                       color: _mauChuPhu,
-                      fontSize: 15,
                       height: 1.45,
                     ),
                   ),
@@ -856,11 +802,7 @@ class _PvpSocialScreenState extends State<PvpSocialScreen>
           children: [
             const Icon(Icons.cloud_off_outlined, color: _mauChuPhu, size: 40),
             const SizedBox(height: 12),
-            Text(
-              noiDung,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF1F2937)),
-            ),
+            Text(noiDung, textAlign: TextAlign.center, style: AppTheme.body),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: thuLai,
@@ -899,9 +841,8 @@ class _ThongTinTran extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             noiDung,
-            style: const TextStyle(
+            style: AppTheme.caption.copyWith(
               color: Colors.white,
-              fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -912,131 +853,67 @@ class _ThongTinTran extends StatelessWidget {
 }
 
 class PvpRoomScreen extends StatefulWidget {
-  const PvpRoomScreen({required this.roomId, required this.service, super.key});
+  const PvpRoomScreen({required this.roomVm, super.key});
 
-  final String roomId;
-  final PvpSocialService service;
+  final PvpRoomViewModel roomVm;
 
   @override
   State<PvpRoomScreen> createState() => _PvpRoomScreenState();
 }
 
 class _PvpRoomScreenState extends State<PvpRoomScreen> {
-  PvpRoom? _phongDau;
-  Timer? _boDemTaiPhong;
-  Timer? _boDemHienThi;
-  bool _dangTaiDuLieu = true;
-  bool _dangTaiPhong = false;
-  bool _dangGuiCauTraLoi = false;
-  int? _luaChonDangGui;
-  String? _loiTaiPhong;
+  PvpRoomViewModel get _boDieuKhien => widget.roomVm;
+  bool _tuTaoViewModel = false;
 
   @override
   void initState() {
     super.initState();
-    _taiPhong();
-    _boDemTaiPhong = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _taiPhong(),
-    );
-    _boDemHienThi = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _phongDau?.status == 'playing') {
-        setState(() {});
-      }
-    });
+    _tuTaoViewModel = true;
+    _boDieuKhien.init();
   }
 
   @override
   void dispose() {
-    _boDemTaiPhong?.cancel();
-    _boDemHienThi?.cancel();
+    if (_tuTaoViewModel) _boDieuKhien.dispose();
     super.dispose();
   }
 
   Future<void> _taiPhong() async {
-    if (_dangTaiPhong) return;
-    _dangTaiPhong = true;
-    try {
-      final phong = await widget.service.loadRoom(widget.roomId);
-      if (!mounted) return;
-      setState(() {
-        _phongDau = phong;
-        _loiTaiPhong = null;
-        _dangTaiDuLieu = false;
-      });
-      if (phong.status == 'finished' || phong.status == 'cancelled') {
-        _boDemTaiPhong?.cancel();
-        _boDemHienThi?.cancel();
-      }
-    } catch (loi) {
-      if (mounted) {
-        setState(() {
-          _loiTaiPhong = loi.toString();
-          _dangTaiDuLieu = false;
-        });
-      }
-    } finally {
-      _dangTaiPhong = false;
-    }
+    await _boDieuKhien.loadRoom();
   }
 
   Future<void> _guiCauTraLoi(int luaChon) async {
-    final phong = _phongDau;
-    if (phong == null ||
-        phong.question == null ||
-        phong.myAnswered ||
-        _dangGuiCauTraLoi) {
-      return;
+    final loi = await _boDieuKhien.submitAnswer(luaChon);
+    if (mounted && loi != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loi)));
     }
-    setState(() {
-      _dangGuiCauTraLoi = true;
-      _luaChonDangGui = luaChon;
-    });
-    try {
-      final phongMoi = await widget.service.submitAnswer(
-        roomId: phong.id,
-        questionIndex: phong.questionIndex,
-        selectedIndex: luaChon,
-      );
-      if (mounted) setState(() => _phongDau = phongMoi);
-    } catch (loi) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(loi.toString())));
-        await _taiPhong();
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _dangGuiCauTraLoi = false;
-          _luaChonDangGui = null;
-        });
-      }
+  }
+
+  Future<void> _huyLoiMoi() async {
+    final loi = await _boDieuKhien.cancelInvitation();
+    if (mounted && loi != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loi)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final phong = _phongDau;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Trận đấu'),
-        actions: [
-          IconButton(
-            tooltip: 'Tải lại trận đấu',
-            onPressed: _dangTaiPhong ? null : _taiPhong,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: _dangTaiDuLieu
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : phong == null
-          ? _trangThaiTaiLoi()
-          : _noiDungPhong(phong),
+    return AnimatedBuilder(
+      animation: _boDieuKhien,
+      builder: (context, _) {
+        final phong = _boDieuKhien.phong;
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(title: const Text('Trận đấu')),
+          body: _boDieuKhien.dangTai
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                )
+              : phong == null
+              ? _trangThaiTaiLoi()
+              : _noiDungPhong(phong),
+        );
+      },
     );
   }
 
@@ -1054,7 +931,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _loiTaiPhong ?? 'Không tải được trận đấu.',
+              _boDieuKhien.loi ?? 'Không tải được trận đấu.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
@@ -1074,7 +951,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
       return _ketQuaTran(phong);
     }
     if (phong.status == 'waiting') {
-      return _choDoiThuChapNhan();
+      return _choDoiThuChapNhan(phong);
     }
     final cauHoi = phong.question;
     if (cauHoi == null) {
@@ -1082,7 +959,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
         child: CircularProgressIndicator(color: AppColors.primary),
       );
     }
-    final laChuPhong = widget.service.currentUserId == phong.hostId;
+    final laChuPhong = _boDieuKhien.maNguoiDung == phong.hostId;
     final giayCon = _tinhGiayCon(phong);
     final mauDem = giayCon <= 5 ? AppColors.error : AppColors.primary;
 
@@ -1122,8 +999,8 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             children: [
@@ -1169,19 +1046,18 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
         Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+            side: const BorderSide(color: AppColors.border),
           ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'CÂU HỎI',
-                  style: TextStyle(
+                  style: AppTheme.caption.copyWith(
                     color: AppColors.primaryLight,
-                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
                   ),
@@ -1189,12 +1065,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                 const SizedBox(height: 10),
                 Text(
                   cauHoi.content,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
-                  ),
+                  style: AppTheme.sectionTitle.copyWith(height: 1.4),
                 ),
               ],
             ),
@@ -1202,13 +1073,13 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
         ),
         const SizedBox(height: 4),
         ...cauHoi.options.asMap().entries.map((luaChon) {
-          final dangChon = _luaChonDangGui == luaChon.key;
+          final dangChon = _boDieuKhien.luaChonDaChon == luaChon.key;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: phong.myAnswered || _dangGuiCauTraLoi
+                onPressed: phong.myAnswered || _boDieuKhien.dangGuiDapAn
                     ? null
                     : () => _guiCauTraLoi(luaChon.key),
                 style: OutlinedButton.styleFrom(
@@ -1218,12 +1089,12 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                     vertical: 15,
                   ),
                   backgroundColor: phong.myAnswered && dangChon
-                      ? const Color(0xFFE0E7FF)
+                      ? AppColors.primarySurface
                       : Colors.white,
                   side: BorderSide(
                     color: phong.myAnswered && dangChon
                         ? AppColors.primaryLight
-                        : const Color(0xFFCBD5E1),
+                        : AppColors.border,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -1233,7 +1104,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                   children: [
                     CircleAvatar(
                       radius: 15,
-                      backgroundColor: const Color(0xFFEFF6FF),
+                      backgroundColor: AppColors.primarySurface,
                       child: Text(
                         String.fromCharCode(65 + luaChon.key),
                         style: const TextStyle(
@@ -1244,16 +1115,8 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        luaChon.value,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    if (dangChon && _dangGuiCauTraLoi)
+                    Expanded(child: Text(luaChon.value, style: AppTheme.body)),
+                    if (dangChon && _boDieuKhien.dangGuiDapAn)
                       const SizedBox(
                         width: 18,
                         height: 18,
@@ -1270,8 +1133,8 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
             margin: const EdgeInsets.only(top: 4),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(14),
+              color: AppColors.primarySurface,
+              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             ),
             child: Row(
               children: [
@@ -1294,10 +1157,10 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
               ],
             ),
           ),
-        if (_loiTaiPhong != null) ...[
+        if (_boDieuKhien.loi != null) ...[
           const SizedBox(height: 8),
           Text(
-            'Mất kết nối tạm thời. Đang thử lại: $_loiTaiPhong',
+            'Mất kết nối tạm thời. Đang thử lại: ${_boDieuKhien.loi}',
             textAlign: TextAlign.center,
             style: const TextStyle(color: AppColors.error, fontSize: 12),
           ),
@@ -1306,15 +1169,15 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
     );
   }
 
-  Widget _choDoiThuChapNhan() {
+  Widget _choDoiThuChapNhan(PvpRoom phong) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Card(
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+            side: const BorderSide(color: AppColors.border),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -1328,19 +1191,15 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Đang chờ bạn chấp nhận lời mời',
+                  'Đang chờ bạn bè chấp nhận lời mời',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTheme.sectionTitle,
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Màn hình sẽ tự cập nhật khi trận đấu bắt đầu.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: AppTheme.body.copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 16),
                 const SizedBox(
@@ -1348,6 +1207,24 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
+                if (_boDieuKhien.maNguoiDung == phong.hostId) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _boDieuKhien.dangHuy ? null : _huyLoiMoi,
+                    icon: _boDieuKhien.dangHuy
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.close),
+                    label: Text(
+                      _boDieuKhien.dangHuy
+                          ? 'Đang hủy lời mời...'
+                          : 'Hủy lời mời',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1363,11 +1240,11 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
   }) {
     return Card(
       elevation: 0,
-      color: laBan ? const Color(0xFFEFF6FF) : Colors.white,
+      color: laBan ? AppColors.primarySurface : Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: laBan ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0),
+          color: laBan ? AppColors.primaryLight : AppColors.border,
         ),
       ),
       child: Padding(
@@ -1388,18 +1265,11 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
               ten,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTheme.cardTitle,
             ),
             Text(
               '$diem điểm',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTheme.sectionTitle.copyWith(color: AppColors.primary),
             ),
           ],
         ),
@@ -1418,7 +1288,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
   }
 
   Widget _ketQuaTran(PvpRoom phong) {
-    final idNguoiChoi = widget.service.currentUserId;
+    final idNguoiChoi = _boDieuKhien.maNguoiDung;
     final hoa = phong.winnerId == null;
     final thang = phong.winnerId == idNguoiChoi;
     final tieuDe = phong.status == 'cancelled'
@@ -1446,11 +1316,7 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
             const SizedBox(height: 12),
             Text(
               tieuDe,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTheme.pageTitle,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -1458,9 +1324,8 @@ class _PvpRoomScreenState extends State<PvpRoomScreen> {
               '${phong.hostName}  ${phong.hostScore}  -  '
               '${phong.guestScore}  ${phong.guestName}',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: AppTheme.cardTitle.copyWith(
                 color: AppColors.textSecondary,
-                fontSize: 16,
               ),
             ),
             const SizedBox(height: 20),

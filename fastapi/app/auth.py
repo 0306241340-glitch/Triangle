@@ -9,6 +9,7 @@ import secrets
 from dataclasses import dataclass
 
 from fastapi import Depends, Header
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .database import get_db
@@ -33,7 +34,10 @@ def _init_firebase():
     import firebase_admin
     from firebase_admin import credentials
 
-    raw = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
+    raw = (
+        os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
+        or os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
+    )
     if raw.strip():
         cred = credentials.Certificate(json.loads(raw))
         _firebase_app = firebase_admin.initialize_app(cred)
@@ -46,6 +50,7 @@ def _init_firebase():
 def _has_firebase_credentials() -> bool:
     return bool(
         os.environ.get("FIREBASE_SERVICE_ACCOUNT", "").strip()
+        or os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON", "").strip()
         or os.path.exists("serviceAccountKey.json")
     )
 
@@ -98,13 +103,33 @@ def get_current_user(
 
     uid = decoded["uid"]
     user = db.query(User).filter(User.uid == uid).first()
-    if user is None:  # dang nhap lan dau: tao ho so nhu seed (0 diem, 100 xu)
-        user = User(uid=uid, email=decoded.get("email", ""),
-                    display_name=decoded.get("name", ""), coins=100,
-                    user_code=_new_user_code(db))
+    if user is None:
+        user = User(
+            uid=uid,
+            email=decoded.get("email", ""),
+            display_name=decoded.get("name", ""),
+            coins=100,
+            user_code=_new_user_code(db),
+        )
         db.add(user)
-        db.commit()
-    elif not user.user_code:
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            user = db.query(User).filter(User.uid == uid).first()
+            if user is None:
+                email = decoded.get("email", "")
+                email_user = db.query(User).filter(User.email == email).first()
+                if email and email_user is not None:
+                    raise ApiError(
+                        409,
+                        "ACCOUNT_EMAIL_CONFLICT",
+                        "Email này đã được liên kết với một hồ sơ khác. "
+                        "Hãy đăng nhập bằng tài khoản Firebase đã liên kết.",
+                    )
+                raise
+
+    if not user.user_code:
         user.user_code = _new_user_code(db)
         db.commit()
     if user.status == "locked":

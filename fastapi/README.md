@@ -1,16 +1,17 @@
 # FastAPI + PostgreSQL — backend cho app Đố Vui
 
 FastAPI là cổng duy nhất cho dữ liệu ứng dụng; PostgreSQL lưu hồ sơ, nội dung
-quiz, điểm/xu, bạn bè, yêu thích, cửa hàng và lịch sử. Firebase chỉ dùng cho
-Firebase Auth; FastAPI xác thực Firebase ID token trước khi truy cập PostgreSQL.
+quiz, điểm/xu, bạn bè, yêu thích, cửa hàng và lịch sử. Firebase Auth tiếp tục
+xác thực người dùng. Firestore chỉ phát bản chiếu trạng thái PvP realtime;
+FastAPI/PostgreSQL vẫn là nguồn dữ liệu và nơi quyết định đáp án, điểm số.
 
 ## Cái gì giữ nguyên, cái gì đổi
 
-| | Express cũ (Render) | FastAPI mới (bản này) |
+| | Express cũ | FastAPI mới (bản này) |
 |---|---|---|
 | Ngôn ngữ / framework | Node + Express | Python + FastAPI |
 | CSDL | Firestore (NoSQL) | **PostgreSQL qua SQLAlchemy** (SQLite chỉ để phát triển/test local) |
-| Đăng nhập | Firebase Auth, Bearer ID token | **Giữ nguyên** — Firebase chỉ xác thực; dữ liệu ứng dụng không lưu ở Firebase |
+| Đăng nhập | Firebase Auth, Bearer ID token | **Giữ nguyên** — Firebase xác thực; PostgreSQL giữ dữ liệu, Firestore chỉ phát PvP realtime |
 | Dữ liệu | đọc/ghi trực tiếp từ app | qua API: `/me`, `/topics`, `/quiz-sets`, `/quiz/*`, `/friends/*`, `/favorites`, `/store/*`, `/pvp/*`, `/leaderboard`, `/admin/*` |
 | Trả về | `{ok:true, data}` / `{ok:false, error:{code,message}}` | **Giữ nguyên y hệt** — `api_client.dart` đọc được luôn |
 | Chấm điểm | Dễ 10đ/5xu, TB 20đ/10xu, Khó 30đ/15xu | **Giữ nguyên** — làm đúng hết 10 câu = 180đ/90xu |
@@ -19,20 +20,25 @@ Firebase Auth; FastAPI xác thực Firebase ID token trước khi truy cập Pos
 
 SQL dùng **PostgreSQL trên Supabase** (An đã tạo project), không dùng MS SQL
 Server trong file Bài 09: file đó chạy SQL Server local trên máy, không
-deploy lên Render/demo được. Postgres vẫn là CSDL quan hệ, đúng yêu cầu
-của thầy, và Supabase có gói Free.
+triển khai thuận tiện. Postgres vẫn là CSDL quan hệ và Supabase có gói Free.
 
 ## Đấu 1vs1
 
 `/pvp/queue` ghép người chơi đang chờ theo điểm gần nhất; `/pvp/invite/{uid}`
 gửi lời mời tới bạn đã kết nối. Người nhận xem lời mời tại
 `/pvp/invitations`, rồi chấp nhận hoặc từ chối qua
-`/pvp/rooms/{id}/accept` và `/pvp/rooms/{id}/decline`. Trong trận, app tải
+`/pvp/rooms/{id}/accept` và `/pvp/rooms/{id}/decline`; người gửi có thể hủy
+phòng đang chờ qua `/pvp/rooms/{id}/cancel`. Trong trận, app tải
 trạng thái bằng `GET /pvp/rooms/{id}` và gửi một đáp án cho mỗi câu qua
 `POST /pvp/rooms/{id}/answer`. Trận gồm đúng 10 câu, 15 giây mỗi câu; đáp án
 đúng được 10 điểm. Máy chủ giữ đáp án đúng và chỉ trả nội dung/lựa chọn cho
 người chơi. Phòng, hàng đợi, kết quả và diễn biến được lưu vào các bảng
-`rooms`, `match_queue`, `match_histories` và `notifications`.
+`rooms`, `match_queue`, `match_histories` và `notifications`. Flutter nghe các
+Firestore snapshots để nhận lời mời, ghép trận và cập nhật phòng ngay lập tức;
+FastAPI ghi bản chiếu an toàn, còn đáp án đúng và điểm chỉ nằm trong PostgreSQL.
+Tài khoản chỉ có trạng thái PvP `idle` / `in_room`, không theo dõi online/offline.
+Phòng chờ hoặc trận không tiến triển quá 2 phút sẽ tự chuyển sang `cancelled`;
+phòng và lịch sử vẫn được giữ trong SQL, còn trạng thái realtime chuyển về `idle`.
 
 ## Bảng SQL
 
@@ -46,14 +52,22 @@ Xem chi tiết trong `app/models.py`.
 
 ## Chạy local (5 phút)
 
+Nếu đã có dữ liệu trên Supabase, tạo `fastapi/.env` từ `.env.example` và đặt
+`DATABASE_URL` bằng connection string **Transaction pooler** trong Supabase
+(thường dùng cổng `6543`). File `.env` được Git bỏ qua, không chia sẻ hoặc commit
+file này. Nếu không cấu hình `DATABASE_URL`, backend sẽ dùng SQLite
+`fastapi/quiz.db` riêng trên máy — dữ liệu trên Supabase sẽ không xuất hiện.
+
 ```bash
 cd fastapi
 python -m venv .venv
 .venv\Scripts\activate          # Windows; Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-python -m app.seed seed-data-3-chu-de.json   # 3 chủ đề, 3 bộ đề, 30 câu, 8 vật phẩm
-uvicorn app.main:app --reload   # http://127.0.0.1:8000, tài liệu: /docs
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000   # /docs
 ```
+
+Chỉ chạy `python -m app.seed seed-data-3-chu-de.json` nếu muốn nạp dữ liệu mẫu
+vào SQLite local; không cần chạy lệnh này khi dữ liệu đã có trên Supabase.
 
 Chưa có `serviceAccountKey.json` thì endpoint cần token sẽ trả 401 — là đúng.
 Muốn test không cần Firebase: `python test_smoke.py` (đã chạy qua, xem dưới).
@@ -61,42 +75,36 @@ Lấy file service account: Firebase Console → Project settings →
 Service accounts → Generate new private key → đặt tên
 `serviceAccountKey.json` trong thư mục `fastapi/` (**không commit**).
 
-## Deploy lên Render (miễn phí)
+## Cấu hình khi triển khai
 
-1. Đẩy thư mục `fastapi/` lên GitHub (nhánh `dev`) sao cho `render.yaml`
-   nằm ở gốc repo (hoặc đặt Root Directory = `fastapi` khi tạo Blueprint
-   từ repo Triangle) — Render chỉ đọc `render.yaml` ở gốc.
-2. Render → New → Blueprint → chọn repo → dùng sẵn file `render.yaml`:
-   nó chỉ tạo 1 Web Service (`quiz-app-api-fastapi`), **không tạo
-   Postgres trên Render nữa** — CSDL là Supabase An đã tạo, nên Render
-   không có mục Database / External Database URL cho API này.
-3. Web Service → Environment → thêm 2 biến:
-   - `DATABASE_URL` = chuỗi **Transaction pooler** của Supabase
-     (cổng 6543, `?pgbouncer=true`) — chính chuỗi An dùng để seed
-     trên máy local. Nếu mật khẩu có ký tự `@` thì ghi `%40` thay cho
-     `@` trong chuỗi này, giống lúc seed.
-   - `FIREBASE_SERVICE_ACCOUNT` = toàn bộ nội dung file service
-     account JSON trên 1 dòng (giống cách Express cũ dùng biến này).
-4. Khi API khởi động, API tự thêm các khung còn thiếu từ
-   `seed-data-3-chu-de.json` vào Supabase, không ghi đè vật phẩm hay dữ liệu
-   người dùng đã có. Không cần chạy lại toàn bộ seed.
-   (Seed đã sửa email 2 user về đúng tài khoản thật: An
-   `0306241340@caothang.edu.vn`, Ngọc `0306241382@caothang.edu.vn` —
-   file cũ ghi `test@quiz.app` / `admin@quiz.app` là sai, 2 tài khoản đó
-   không tồn tại.)
-5. Kiểm tra: `curl https://<ten-service>.onrender.com/health`
-   → `{"ok":true,...}`; `curl .../topics` → 401 là đúng (thiếu token).
+Repo không kèm cấu hình cho nhà cung cấp hosting. Dịch vụ FastAPI cần biến
+`DATABASE_URL` trỏ tới PostgreSQL và `FIREBASE_SERVICE_ACCOUNT` chứa JSON
+service account trên một dòng. Lệnh khởi chạy:
+
+```text
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Khi chuyển sang host mới, cấu hình `API_BASE_URL` cho Flutter rồi kiểm tra
+`/health`. Deploy Firestore Rules để client chỉ đọc projection PvP được cấp
+quyền. `firebase.json` không còn khai báo Functions; Firebase Function `api`
+đã triển khai trước đây cần được gỡ riêng nếu còn tồn tại.
 
 ## App Flutter
 
 Ứng dụng gửi mọi thao tác dữ liệu qua API; cấu hình URL khi build:
 
 ```dart
-flutter run --dart-define=API_BASE_URL=https://<api-service>.onrender.com
+flutter run --dart-define=API_BASE_URL=https://<your-api-host>
 ```
 
-Đặt `DATABASE_URL` trỏ tới PostgreSQL trên dịch vụ FastAPI. Không cần deploy
-Firestore Rules cho luồng dữ liệu mới.
+Không có URL API mặc định; cần truyền `API_BASE_URL` cho build hoặc run. PvP
+realtime cần cấu hình `FIREBASE_SERVICE_ACCOUNT` để FastAPI ghi các bản chiếu
+phòng, hàng chờ và lời mời. Mọi thao tác game vẫn đi qua API.
+Trong VS Code, cấu hình Android Emulator truyền sẵn
+`http://10.0.2.2:8000`; trước khi bấm Run, hãy chạy FastAPI local bằng lệnh
+ở trên trong terminal riêng. Nếu dùng điện thoại thật, thay URL bằng IP LAN
+của máy chạy FastAPI.
 
 ## API quản trị
 
@@ -139,5 +147,6 @@ submit 180đ + comment + admin đều qua.
 sang SQL**. Seed mới bắt đầu lại từ 0đ/100 xu cho mọi tài khoản.
 Chấp nhận được vì đó mới là dữ liệu test; nếu thầy muốn giữ, cần
 export Firestore → import SQL (việc riêng, báo mình làm sau).
-API Express cũ trên Render vẫn chạy cho tới khi An đổi base URL —
-đổi URL là lúc chính thức chuyển, trước đó cứ test FastAPI song song.
+Các dữ liệu cũ không tự nhập sang PostgreSQL. Chỉ giữ deployment FastAPI hiện
+tại làm nguồn dữ liệu chuẩn; nếu còn dịch vụ/function cũ trên cloud, hãy gỡ
+riêng sau khi chuyển traffic.

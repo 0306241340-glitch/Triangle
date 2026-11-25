@@ -1,15 +1,22 @@
 """Smoke test khong can Firebase: override auth bang user gia.
 Chay:  python -m pytest test_smoke.py -q   (hoac: python test_smoke.py)"""
-import os, sys
+import base64, json, os, sys, tempfile
 from datetime import datetime, timedelta
+from unittest.mock import patch
 os.environ["DATABASE_URL"] = "sqlite:///./test_quiz.db"
 if os.path.exists("test_quiz.db"):
     os.remove("test_quiz.db")
 sys.path.insert(0, ".")
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
+from sqlalchemy.orm import Session as DbSession, sessionmaker
 from fastapi.testclient import TestClient
+import app.auth as auth_module
 from app.auth import CurrentUser, get_current_user
 from app.database import Base, engine
+from app.errors import ApiError
 from app.main import app
+from app.routers import pvp
 from app.seed import seed
 
 Base.metadata.create_all(bind=engine)
@@ -17,6 +24,31 @@ seed("seed-data-3-chu-de.json")
 UID = "VFLqQiv8AnOvWt7lhfXnNtmfKcu2"  # An
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
 c = TestClient(app, raise_server_exceptions=False)
+published_rooms = {}
+published_invitations = set()
+published_queue_states = {}
+
+
+def publish_room(room_id, payload, invitation=None):
+    published_rooms[room_id] = payload
+    active = payload["status"] in ("waiting", "playing")
+    for uid in (payload["hostId"], payload.get("guestId")):
+        if uid is not None:
+            pvp.publish_queue_state(
+                uid,
+                "in_room" if active else "idle",
+                room_id=room_id if active else None,
+            )
+    if invitation is not None and payload["status"] == "waiting":
+        published_invitations.add(room_id)
+    else:
+        published_invitations.discard(room_id)
+
+
+pvp.publish_room = publish_room
+pvp.publish_queue_state = lambda uid, status, **kwargs: published_queue_states.update(
+    {uid: {"status": status, **kwargs}}
+)
 
 r = c.get("/health"); assert r.status_code == 200 and r.json()["data"]["status"] == "ok", r.text
 r = c.get("/topics"); assert r.status_code == 200 and len(r.json()["data"]) == 3, r.text
@@ -118,6 +150,10 @@ app.dependency_overrides[get_current_user] = lambda: CurrentUser(
 r = c.post("/pvp/queue")
 assert r.status_code == 200 and r.json()["data"]["status"] == "matched", r.text
 random_room_id = r.json()["data"]["roomId"]
+assert published_rooms[random_room_id]["status"] == "playing"
+assert "correctIndex" not in str(published_rooms[random_room_id])
+assert published_queue_states[UID]["room_id"] == random_room_id
+assert published_queue_states[ADMIN_UID]["room_id"] == random_room_id
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
 r = c.get(f"/pvp/rooms/{random_room_id}")
 assert r.status_code == 200 and "correctIndex" not in str(r.json()["data"]), r.text
@@ -160,6 +196,7 @@ def finish_match(room_id, start_index=0):
     )
     result = c.get(f"/pvp/rooms/{room_id}")
     assert result.status_code == 200 and result.json()["data"]["status"] == "finished"
+    assert published_rooms[room_id]["status"] == "finished"
     db = SessionLocal()
     history = db.query(MatchHistory).filter(
         MatchHistory.room_id == room_id
@@ -174,6 +211,8 @@ def finish_match(room_id, start_index=0):
 
 
 finish_match(random_room_id)
+assert published_queue_states[UID]["status"] == "idle"
+assert published_queue_states[ADMIN_UID]["status"] == "idle"
 r = c.get("/pvp/history")
 assert r.status_code == 200 and len(r.json()["data"]) == 1, r.text
 match_history_id = r.json()["data"][0]["id"]
@@ -183,6 +222,7 @@ assert r.json()["data"]["details"][0]["content"], r.text
 invite = c.post(f"/pvp/invite/{ADMIN_UID}")
 assert invite.status_code == 200 and invite.json()["data"]["status"] == "waiting", invite.text
 friend_room_id = invite.json()["data"]["roomId"]
+assert friend_room_id in published_invitations
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(
     uid=ADMIN_UID, role="admin"
 )
@@ -197,6 +237,7 @@ app.dependency_overrides[get_current_user] = lambda: CurrentUser(
 )
 accepted = c.post(f"/pvp/rooms/{friend_room_id}/accept")
 assert accepted.status_code == 200 and accepted.json()["data"]["status"] == "playing"
+assert friend_room_id not in published_invitations
 db = SessionLocal()
 friend_room = db.query(Room).filter(Room.id == friend_room_id).first()
 friend_room.question_start_time = datetime.utcnow() - timedelta(seconds=16)
@@ -206,6 +247,85 @@ timed_out = c.get(f"/pvp/rooms/{friend_room_id}")
 assert timed_out.status_code == 200
 assert timed_out.json()["data"]["questionIndex"] == 1, timed_out.text
 finish_match(friend_room_id, start_index=1)
+
+# The inviter can cancel a waiting challenge, but the recipient cannot.
+cancel_invite = c.post(f"/pvp/invite/{ADMIN_UID}")
+assert cancel_invite.status_code == 200, cancel_invite.text
+cancel_room_id = cancel_invite.json()["data"]["roomId"]
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+forbidden = c.post(f"/pvp/rooms/{cancel_room_id}/cancel")
+assert forbidden.status_code == 403, forbidden.text
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
+cancelled = c.post(f"/pvp/rooms/{cancel_room_id}/cancel")
+assert cancelled.status_code == 200
+assert cancelled.json()["data"]["status"] == "cancelled", cancelled.text
+assert cancel_room_id not in published_invitations
+assert published_queue_states[UID]["status"] == "idle"
+assert published_queue_states[ADMIN_UID]["status"] == "idle"
+db = SessionLocal()
+assert db.query(Room).filter(Room.id == cancel_room_id).first().status == "cancelled"
+db.close()
+
+# Waiting invites expire after two minutes but remain in SQL as cancelled rooms.
+stale_invite = c.post(f"/pvp/invite/{ADMIN_UID}")
+assert stale_invite.status_code == 200, stale_invite.text
+stale_invite_id = stale_invite.json()["data"]["roomId"]
+db = SessionLocal()
+stale_room = db.query(Room).filter(Room.id == stale_invite_id).first()
+stale_room.created_at = datetime.utcnow() - timedelta(minutes=1, seconds=59)
+db.commit()
+db.close()
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+incoming = c.get("/pvp/invitations")
+assert any(row["roomId"] == stale_invite_id for row in incoming.json()["data"])
+db = SessionLocal()
+stale_room = db.query(Room).filter(Room.id == stale_invite_id).first()
+stale_room.created_at = datetime.utcnow() - timedelta(minutes=2, seconds=1)
+db.commit()
+db.close()
+pvp.cleanup_expired_rooms()
+incoming = c.get("/pvp/invitations")
+assert all(row["roomId"] != stale_invite_id for row in incoming.json()["data"])
+assert published_rooms[stale_invite_id]["status"] == "cancelled"
+assert published_queue_states[UID]["status"] == "idle"
+assert published_queue_states[ADMIN_UID]["status"] == "idle"
+db = SessionLocal()
+assert db.query(Room).filter(Room.id == stale_invite_id).first() is not None
+db.close()
+
+# An abandoned active match expires and no longer blocks matchmaking.
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
+assert c.post("/pvp/queue").json()["data"]["status"] == "waiting"
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+    uid=ADMIN_UID, role="admin"
+)
+matched = c.post("/pvp/queue")
+assert matched.status_code == 200 and matched.json()["data"]["status"] == "matched", matched.text
+stale_match_id = matched.json()["data"]["roomId"]
+db = SessionLocal()
+stale_match = db.query(Room).filter(Room.id == stale_match_id).first()
+stale_match.question_start_time = datetime.utcnow() - timedelta(minutes=2, seconds=1)
+db.commit()
+db.close()
+app.dependency_overrides[get_current_user] = lambda: CurrentUser(uid=UID, role="user")
+queue = c.get("/pvp/queue")
+assert queue.status_code == 200 and queue.json()["data"] == {
+    "status": "idle",
+    "queueId": None,
+}, queue.text
+assert published_rooms[stale_match_id]["status"] == "cancelled"
+assert published_queue_states[UID]["status"] == "idle"
+assert published_queue_states[ADMIN_UID]["status"] == "idle"
+db = SessionLocal()
+assert db.query(Room).filter(Room.id == stale_match_id).first() is not None
+assert db.query(MatchHistory).filter(
+    MatchHistory.room_id == stale_match_id
+).first() is not None
+db.close()
 
 r = c.post("/favorites", json={"targetId": "set_tong_hop_1", "targetType": "quizSet"})
 assert r.status_code == 200, r.text
@@ -492,5 +612,54 @@ app.dependency_overrides[get_current_user] = lambda: CurrentUser(
 assert c.delete(f"/admin/questions/{question_id}").status_code == 409
 assert c.delete(f"/admin/quiz-sets/{manual_set_id}").status_code == 409
 assert c.delete(f"/admin/topics/{topic_id}").status_code == 409
+
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    auth_engine = create_engine(
+        URL.create("sqlite", database=os.path.join(temp_dir, "auth.db")),
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(bind=auth_engine)
+    with auth_engine.begin() as conn:
+        conn.execute(text("CREATE UNIQUE INDEX users_email_unique ON users (email)"))
+    auth_session_factory = sessionmaker(bind=auth_engine)
+    auth_db: DbSession = auth_session_factory()
+    concurrent_db: DbSession = auth_session_factory()
+    original_commit = auth_db.commit
+
+    def commit_after_concurrent_user():
+        concurrent_db.add(
+            User(
+                uid="local-dev-user",
+                email="dev@local.test",
+                user_code="ABC123",
+            )
+        )
+        concurrent_db.commit()
+        original_commit()
+
+    auth_db.commit = commit_after_concurrent_user
+    with patch.object(auth_module, "_has_firebase_credentials", return_value=False):
+        created = get_current_user("", auth_db)
+    assert created.uid == "local-dev-user"
+    auth_db.commit = original_commit
+
+    payload = base64.urlsafe_b64encode(
+        json.dumps(
+            {"uid": "different-firebase-uid", "email": "dev@local.test"}
+        ).encode()
+    ).decode().rstrip("=")
+    with patch.object(auth_module, "_has_firebase_credentials", return_value=False):
+        try:
+            get_current_user(f"Bearer e30.{payload}.signature", auth_db)
+            raise AssertionError("Expected conflicting email to return 409")
+        except ApiError as exc:
+            assert exc.status == 409
+            assert exc.code == "ACCOUNT_EMAIL_CONFLICT"
+
+    auth_db.close()
+    concurrent_db.close()
+    auth_engine.dispose()
+
 
 print("ALL SMOKE TESTS PASSED")

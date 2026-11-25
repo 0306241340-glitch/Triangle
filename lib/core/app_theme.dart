@@ -7,6 +7,36 @@ export 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
+  static const double cardRadius = 16;
+
+  static const TextStyle pageTitle = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 22,
+    fontWeight: FontWeight.bold,
+  );
+
+  static const TextStyle sectionTitle = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 18,
+    fontWeight: FontWeight.w700,
+  );
+
+  static const TextStyle cardTitle = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
+  static const TextStyle body = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 14,
+  );
+
+  static const TextStyle caption = TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 12,
+  );
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,

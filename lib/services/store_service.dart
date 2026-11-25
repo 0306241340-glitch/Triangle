@@ -6,53 +6,59 @@ import '../models/item_model.dart';
 class StoreService {
   StoreService({ApiClient? api, FirebaseAuth? auth})
     : _api = api ?? ApiClient(),
-      _auth = auth ?? FirebaseAuth.instance;
+      _dangNhap = auth ?? FirebaseAuth.instance;
 
   final ApiClient _api;
-  final FirebaseAuth _auth;
+  final FirebaseAuth _dangNhap;
 
   Future<StoreCatalog> loadCatalog() async {
-    await _attachToken();
+    await _ganToken();
 
-    final data = await _api.get('/store/items') as Map<String, dynamic>;
-    return StoreCatalog.fromJson(data);
+    final duLieu = await _api.get('/store/items') as Map<String, dynamic>;
+    return StoreCatalog.fromJson(duLieu);
   }
 
   Future<Map<String, dynamic>> loadInventory() async {
-    await _attachToken();
+    await _ganToken();
 
     return await _api.get('/store/inventory') as Map<String, dynamic>;
   }
 
-  Future<StorePurchaseResult> purchase(String itemId) async {
-    await _attachToken();
+  Future<StorePurchaseResult> purchase(String maVatPham) async {
+    await _ganToken();
 
-    final data = await _api.post('/store/purchase', {
-      'itemId': itemId,
+    final duLieu = await _api.post('/store/purchase', {
+      'itemId': maVatPham,
     }) as Map<String, dynamic>;
 
-    return StorePurchaseResult.fromJson(data);
+    return StorePurchaseResult.fromJson(duLieu);
   }
 
-  Future<void> setEquipped(String itemId, {required bool equipped}) async {
-    await _attachToken();
+  Future<void> setEquipped(
+    String maVatPham, {
+    required bool dangTrangBi,
+  }) async {
+    await _ganToken();
 
-    await _api.post('/store/equip', {'itemId': itemId, 'equipped': equipped});
+    await _api.post('/store/equip', {
+      'itemId': maVatPham,
+      'equipped': dangTrangBi,
+    });
   }
 
-  Future<void> _attachToken() async {
-    final user = _auth.currentUser;
+  Future<void> _ganToken() async {
+    final nguoiDung = _dangNhap.currentUser;
 
-    if (user == null) {
+    if (nguoiDung == null) {
       throw StateError('Bạn cần đăng nhập để sử dụng cửa hàng.');
     }
 
-    final token = await user.getIdToken();
+    final maToken = await nguoiDung.getIdToken();
 
-    if (token == null || token.isEmpty) {
+    if (maToken == null || maToken.isEmpty) {
       throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
     }
 
-    _api.setToken(token);
+    _api.setToken(maToken);
   }
 }

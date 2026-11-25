@@ -1,12 +1,14 @@
 # do_vui_ai_thuong
 
 A new Flutter project.
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Lưu trữ và đăng nhập
 
-Firebase Auth chỉ xác thực tài khoản. Hồ sơ, câu hỏi, kết quả, bạn bè, yêu
-thích, vật phẩm và số dư đều được đọc/ghi qua FastAPI vào PostgreSQL. Cấu hình
-`API_BASE_URL` cho Flutter và `DATABASE_URL` PostgreSQL cho FastAPI; xem
+Backend duy nhất là Python/FastAPI trong `fastapi/`; PostgreSQL lưu hồ sơ,
+câu hỏi, kết quả, bạn bè, yêu thích, vật phẩm và số dư. Firebase Auth tiếp tục
+xác thực tài khoản, Firestore chỉ phát trạng thái PvP realtime. Cấu hình
+`API_BASE_URL` cho Flutter và `DATABASE_URL` PostgreSQL; xem
 [fastapi/README.md](./fastapi/README.md) để chạy và deploy.
 
 ## Cửa hàng

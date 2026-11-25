@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/app_colors.dart';
+import '../../core/app_theme.dart';
 import '../../models/friend_model.dart';
 import '../../services/friend_service.dart';
 
@@ -74,8 +74,8 @@ class _FriendsScreenState extends State<FriendsScreen>
     setState(() {
       _hoSoBan.clear();
       _dsBanBe = _dichVuBanBe.loadFriends();
-      _loiMoiDaNhan = _dichVuBanBe.loadRequests(incoming: true);
-      _loiMoiDaGui = _dichVuBanBe.loadRequests(incoming: false);
+      _loiMoiDaNhan = _dichVuBanBe.loadRequests(laLoiMoiDen: true);
+      _loiMoiDaGui = _dichVuBanBe.loadRequests(laLoiMoiDen: false);
     });
   }
 
@@ -157,6 +157,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           unselectedLabelColor: AppColors.textSecondary,
           indicatorColor: AppColors.primaryLight,
           indicatorWeight: 3,
+          labelStyle: AppTheme.body.copyWith(fontWeight: FontWeight.w600),
           tabs: [
             const Tab(text: 'Bạn bè'),
             Tab(child: _tabLoiMoiCoSo()),
@@ -454,8 +455,8 @@ class _FriendsScreenState extends State<FriendsScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -465,21 +466,11 @@ class _FriendsScreenState extends State<FriendsScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Mã kết bạn của bạn',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
+                const Text('Mã kết bạn của bạn', style: AppTheme.caption),
                 const SizedBox(height: 3),
                 Text(
                   maBanBe,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
+                  style: AppTheme.cardTitle.copyWith(letterSpacing: 1),
                 ),
               ],
             ),
@@ -514,7 +505,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                         width: 76,
                         height: 76,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: AppColors.primarySurface,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: const Icon(
@@ -526,17 +517,13 @@ class _FriendsScreenState extends State<FriendsScreen>
                       const SizedBox(height: 16),
                       const Text(
                         'Chưa có bạn bè',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: AppTheme.sectionTitle,
                       ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         'Tìm người chơi theo tên hoặc mã để cùng tham gia.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: AppTheme.body.copyWith(
                           color: AppColors.textSecondary,
                           height: 1.4,
                         ),
@@ -610,7 +597,7 @@ class _FriendsScreenState extends State<FriendsScreen>
             elevation: 0,
             child: ListTile(
               leading: const CircleAvatar(
-                backgroundColor: Color(0xFFEFF6FF),
+                backgroundColor: AppColors.primarySurface,
                 child: Icon(Icons.person_outline, color: AppColors.primary),
               ),
               title: Text(
@@ -630,8 +617,8 @@ class _FriendsScreenState extends State<FriendsScreen>
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -647,20 +634,14 @@ class _FriendsScreenState extends State<FriendsScreen>
                     hoSo.displayName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: AppTheme.cardTitle,
                   ),
                   const SizedBox(height: 3),
                   Text(
                     hoSo.userCode.isEmpty
                         ? 'Người chơi'
                         : 'Mã: ${hoSo.userCode}',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: AppTheme.caption,
                   ),
                 ],
               ),
@@ -677,7 +658,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     final duongDanAnh = hoSo.avatarUrl;
     return CircleAvatar(
       radius: 22,
-      backgroundColor: const Color(0xFFE0E7FF),
+      backgroundColor: AppColors.primarySurface,
       foregroundImage: duongDanAnh.startsWith('http')
           ? NetworkImage(duongDanAnh)
           : null,
@@ -694,14 +675,7 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _tieuDeNhom(String ten) {
-    return Text(
-      ten,
-      style: const TextStyle(
-        color: AppColors.textPrimary,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-      ),
-    );
+    return Text(ten, style: AppTheme.sectionTitle);
   }
 
   Widget _khungThongBao({required IconData icon, required String noiDung}) {
@@ -711,7 +685,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -720,7 +694,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           Expanded(
             child: Text(
               noiDung,
-              style: const TextStyle(color: AppColors.textSecondary),
+              style: AppTheme.body.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],

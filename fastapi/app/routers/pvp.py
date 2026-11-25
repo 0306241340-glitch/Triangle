@@ -7,7 +7,7 @@ from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from ..auth import CurrentUser, get_current_user
-from ..database import get_db
+from ..database import SessionLocal, get_db
 from ..errors import ApiError, ok
 from ..models import (
     Friend,
@@ -18,12 +18,14 @@ from ..models import (
     Room,
     User,
 )
+from ..pvp_realtime import publish_queue_state, publish_room
 from ..schemas import PvpAnswerIn
 
 router = APIRouter()
 QUESTION_COUNT = 10
 QUESTION_SECONDS = 15
 QUESTION_POINTS = 10
+ROOM_INACTIVITY_TIMEOUT = timedelta(minutes=2)
 ACTIVE_ROOM_STATUSES = ("waiting", "playing")
 
 
@@ -56,16 +58,61 @@ def _new_room_questions(db: Session) -> list[dict]:
     return snapshots
 
 
+def _expire_stale_room(db: Session, room: Room, now: datetime) -> bool:
+    last_activity = (
+        room.created_at if room.status == "waiting" else room.question_start_time
+    )
+    if room.status not in ACTIVE_ROOM_STATUSES:
+        return False
+    if last_activity is not None and last_activity.tzinfo is not None:
+        last_activity = last_activity.astimezone(timezone.utc).replace(tzinfo=None)
+    if (
+        last_activity is not None
+        and now - last_activity < ROOM_INACTIVITY_TIMEOUT
+    ):
+        return False
+
+    room.status = "cancelled"
+    room.question_start_time = None
+    db.query(Notification).filter(
+        Notification.type == "match_invite",
+        Notification.ref_id == room.id,
+    ).update({Notification.is_read: True}, synchronize_session=False)
+    db.commit()
+    _publish_room(db, room)
+    return True
+
+
 def _active_room(db: Session, uid: str) -> Room | None:
-    return (
+    room = (
         db.query(Room)
         .filter(
             or_(Room.host_id == uid, Room.guest_id == uid),
             Room.status.in_(ACTIVE_ROOM_STATUSES),
         )
         .order_by(Room.created_at.desc())
+        .with_for_update(skip_locked=True)
         .first()
     )
+    if room is not None and _expire_stale_room(db, room, datetime.utcnow()):
+        return None
+    return room
+
+
+def cleanup_expired_rooms() -> None:
+    db = SessionLocal()
+    try:
+        rooms = (
+            db.query(Room)
+            .filter(Room.status.in_(ACTIVE_ROOM_STATUSES))
+            .with_for_update(skip_locked=True)
+            .all()
+        )
+        now = datetime.utcnow()
+        for room in rooms:
+            _expire_stale_room(db, room, now)
+    finally:
+        db.close()
 
 
 def _create_history(db: Session, room: Room) -> MatchHistory:
@@ -180,6 +227,35 @@ def _room_payload(db: Session, room: Room, uid: str) -> dict:
     return payload
 
 
+def _publish_room(db: Session, room: Room) -> None:
+    payload = _room_payload(db, room, room.host_id)
+    answers = {}
+    if (
+        room.status == "playing"
+        and room.current_question_index < len(room.question_ids or [])
+    ):
+        question = room.question_ids[room.current_question_index]
+        answers = question.get("answers", {})
+    payload.pop("myAnswered", None)
+    payload.pop("opponentAnswered", None)
+    payload["answeredUids"] = list(answers.keys())
+
+    created_at = room.created_at
+    if created_at is not None and created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+    invitation = None
+    if room.guest_id is not None:
+        invitation = {
+            "roomId": room.id,
+            "notificationId": room.id,
+            "hostId": room.host_id,
+            "hostName": payload["hostName"],
+            "guestId": room.guest_id,
+            "createdAt": created_at,
+        }
+    publish_room(room.id, payload, invitation)
+
+
 def _require_player(room: Room, uid: str) -> None:
     if uid not in (room.host_id, room.guest_id):
         raise ApiError(403, "FORBIDDEN", "Bạn không tham gia trận đấu này.")
@@ -191,6 +267,7 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
     active_room = _active_room(db, user.uid)
     if active_room is not None:
         if active_room.status == "waiting":
+            _publish_room(db, active_room)
             raise ApiError(
                 409,
                 "CONFLICT",
@@ -204,6 +281,11 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
         .first()
     )
     if waiting is not None:
+        publish_queue_state(
+            user.uid,
+            "waiting",
+            queue_id=waiting.id,
+        )
         return ok({"status": "waiting", "queueId": waiting.id})
 
     account = (
@@ -233,6 +315,11 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
     db.add(entry)
     if candidate is None:
         db.commit()
+        publish_queue_state(
+            user.uid,
+            "waiting",
+            queue_id=entry.id,
+        )
         return ok({"status": "waiting", "queueId": entry.id})
 
     candidate.status = "matched"
@@ -250,6 +337,7 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
     db.flush()
     _create_history(db, room)
     db.commit()
+    _publish_room(db, room)
     return ok({"status": "matched", "roomId": room.id})
 
 
@@ -265,9 +353,11 @@ def queue_status(user: CurrentUser = Depends(get_current_user),
         .order_by(MatchQueue.joined_at.desc())
         .first()
     )
+    if entry is None or entry.status != "waiting":
+        return ok({"status": "idle", "queueId": None})
     return ok({
-        "status": entry.status if entry else "idle",
-        "queueId": entry.id if entry else None,
+        "status": "waiting",
+        "queueId": entry.id,
     })
 
 
@@ -280,6 +370,11 @@ def leave_queue(user: CurrentUser = Depends(get_current_user),
     for entry in entries:
         entry.status = "cancelled"
     db.commit()
+    active_room = _active_room(db, user.uid)
+    if active_room is not None:
+        _publish_room(db, active_room)
+    else:
+        publish_queue_state(user.uid, "idle")
     return ok({"cancelled": len(entries)})
 
 
@@ -324,6 +419,7 @@ def invite_friend(friend_uid: str, user: CurrentUser = Depends(get_current_user)
         is_read=False,
     ))
     db.commit()
+    _publish_room(db, room)
     return ok({"roomId": room.id, "status": room.status})
 
 
@@ -344,6 +440,10 @@ def invitations(user: CurrentUser = Depends(get_current_user),
         .order_by(Notification.created_at.desc())
         .all()
     )
+    active_rows = [
+        row for row in rows
+        if not _expire_stale_room(db, row[1], datetime.utcnow())
+    ]
     return ok([
         {
             "roomId": room.id,
@@ -355,7 +455,7 @@ def invitations(user: CurrentUser = Depends(get_current_user),
                 if notification.created_at else None
             ),
         }
-        for notification, room, host in rows
+        for notification, room, host in active_rows
     ])
 
 
@@ -365,7 +465,11 @@ def accept_invite(room_id: str, user: CurrentUser = Depends(get_current_user),
     room = db.query(Room).filter(Room.id == room_id).with_for_update().first()
     if room is None:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy lời mời.")
-    if room.guest_id != user.uid or room.status != "waiting":
+    if room.guest_id != user.uid:
+        raise ApiError(403, "FORBIDDEN", "Bạn không thể nhận lời mời này.")
+    if _expire_stale_room(db, room, datetime.utcnow()):
+        return ok({"roomId": room.id, "status": room.status})
+    if room.status != "waiting":
         raise ApiError(403, "FORBIDDEN", "Bạn không thể nhận lời mời này.")
     room.status = "playing"
     room.question_start_time = datetime.utcnow()
@@ -376,6 +480,7 @@ def accept_invite(room_id: str, user: CurrentUser = Depends(get_current_user),
         Notification.ref_id == room_id,
     ).update({Notification.is_read: True}, synchronize_session=False)
     db.commit()
+    _publish_room(db, room)
     return ok({"roomId": room.id, "status": room.status})
 
 
@@ -385,7 +490,11 @@ def decline_invite(room_id: str, user: CurrentUser = Depends(get_current_user),
     room = db.query(Room).filter(Room.id == room_id).with_for_update().first()
     if room is None:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy lời mời.")
-    if room.guest_id != user.uid or room.status != "waiting":
+    if room.guest_id != user.uid:
+        raise ApiError(403, "FORBIDDEN", "Bạn không thể từ chối lời mời này.")
+    if _expire_stale_room(db, room, datetime.utcnow()):
+        return ok({"roomId": room.id, "status": room.status})
+    if room.status != "waiting":
         raise ApiError(403, "FORBIDDEN", "Bạn không thể từ chối lời mời này.")
     room.status = "cancelled"
     db.query(Notification).filter(
@@ -394,6 +503,29 @@ def decline_invite(room_id: str, user: CurrentUser = Depends(get_current_user),
         Notification.ref_id == room_id,
     ).update({Notification.is_read: True}, synchronize_session=False)
     db.commit()
+    _publish_room(db, room)
+    return ok({"roomId": room.id, "status": room.status})
+
+
+@router.post("/rooms/{room_id}/cancel")
+def cancel_invite(room_id: str, user: CurrentUser = Depends(get_current_user),
+                  db: Session = Depends(get_db)):
+    room = db.query(Room).filter(Room.id == room_id).with_for_update().first()
+    if room is None:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy lời mời.")
+    if room.host_id != user.uid:
+        raise ApiError(403, "FORBIDDEN", "Chỉ người gửi lời mời mới có thể hủy.")
+    if room.status != "waiting":
+        raise ApiError(409, "CONFLICT", "Không thể hủy sau khi trận đã bắt đầu.")
+
+    room.status = "cancelled"
+    db.query(Notification).filter(
+        Notification.user_id == room.guest_id,
+        Notification.type == "match_invite",
+        Notification.ref_id == room_id,
+    ).update({Notification.is_read: True}, synchronize_session=False)
+    db.commit()
+    _publish_room(db, room)
     return ok({"roomId": room.id, "status": room.status})
 
 
@@ -404,9 +536,12 @@ def get_room(room_id: str, user: CurrentUser = Depends(get_current_user),
     if room is None:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy phòng đấu.")
     _require_player(room, user.uid)
+    if _expire_stale_room(db, room, datetime.utcnow()):
+        return ok(_room_payload(db, room, user.uid))
     history = db.query(MatchHistory).filter(MatchHistory.room_id == room.id).first()
     _advance_if_due(room, history, datetime.utcnow())
     db.commit()
+    _publish_room(db, room)
     return ok(_room_payload(db, room, user.uid))
 
 
@@ -418,6 +553,8 @@ def submit_answer(room_id: str, body: PvpAnswerIn,
     if room is None:
         raise ApiError(404, "NOT_FOUND", "Không tìm thấy phòng đấu.")
     _require_player(room, user.uid)
+    if _expire_stale_room(db, room, datetime.utcnow()):
+        return ok(_room_payload(db, room, user.uid))
     history = db.query(MatchHistory).filter(MatchHistory.room_id == room.id).first()
     now = datetime.utcnow()
     _advance_if_due(room, history, now)
@@ -449,6 +586,7 @@ def submit_answer(room_id: str, body: PvpAnswerIn,
         _sync_history_question(history, room, room.current_question_index)
     _advance_if_due(room, history, now)
     db.commit()
+    _publish_room(db, room)
     return ok(_room_payload(db, room, user.uid))
 
 
