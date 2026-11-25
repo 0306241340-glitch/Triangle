@@ -248,7 +248,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: '🛡️',
                     title: 'Quản trị hệ thống',
                     subtitle: 'Quản lý nội dung, báo lỗi & thống kê',
-                    isHighlighted: true,
                     onTap: () {
                       Navigator.push(
                         context,
