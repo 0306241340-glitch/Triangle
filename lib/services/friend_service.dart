@@ -24,29 +24,43 @@ class FriendService {
     if (user == null) {
       throw StateError('Bạn cần đăng nhập để quản lý bạn bè.');
     }
+
     final token = await user.getIdToken();
     if (token == null || token.isEmpty) {
       throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
     }
+
     _api.setToken(token);
   }
 
   Future<void> ensurePublicProfile() async {
+    await loadMyProfile();
+  }
+
+  Future<PublicProfile> loadMyProfile() async {
     await _attachToken();
-    final profile = await _api.get('/me') as Map<String, dynamic>;
-    if ((profile['userCode'] as String?)?.isNotEmpty != true) {
+    final data = await _api.get('/me') as Map<String, dynamic>;
+    final profile = PublicProfile.fromJson(data);
+
+    if (profile.userCode.isEmpty) {
       throw StateError('Tài khoản chưa có mã kết bạn.');
     }
+
+    return profile;
   }
 
   Future<List<PublicProfile>> searchUsers(String query) async {
     final normalized = query.trim();
+
     if (normalized.length < 2) {
       throw ArgumentError('Nhập ít nhất 2 ký tự để tìm bạn bè.');
     }
+
     await _attachToken();
+
     final result =
         await _api.get('/friends/search', query: {'q': normalized}) as List;
+
     return result
         .map((item) => PublicProfile.fromJson(item as Map<String, dynamic>))
         .toList();
@@ -54,7 +68,9 @@ class FriendService {
 
   Future<List<FriendRequest>> loadFriends() async {
     await _attachToken();
+
     final rows = await _api.get('/friends') as List;
+
     return rows
         .map(
           (item) => FriendRequest.fromJson(
@@ -67,10 +83,12 @@ class FriendService {
 
   Future<List<FriendRequest>> loadRequests({required bool incoming}) async {
     await _attachToken();
+
     final rows = await _api.get(
       '/friends/requests',
       query: {'direction': incoming ? 'incoming' : 'outgoing'},
     ) as List;
+
     return rows
         .map(
           (item) => FriendRequest.fromJson(
@@ -83,6 +101,7 @@ class FriendService {
 
   Future<PublicProfile?> getPublicProfile(String uid) async {
     await _attachToken();
+
     try {
       final result = await _api.get('/friends/profile/$uid');
       return PublicProfile.fromJson(result as Map<String, dynamic>);

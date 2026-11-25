@@ -237,6 +237,17 @@ assert r.status_code == 200, r.text
 
 r = c.get("/store/items")
 assert r.status_code == 200 and r.json()["data"]["coins"] == 160, r.text
+khung_ids = {
+    item["id"]
+    for item in r.json()["data"]["items"]
+    if item["type"] == "frame"
+}
+assert khung_ids == {
+    "item_frame_gold",
+    "item_frame_neon",
+    "item_frame_silver",
+    "item_frame_fire",
+}, r.text
 r = c.post("/store/purchase", json={"itemId": "item_frame_gold"})
 assert r.status_code == 200 and r.json()["data"]["coins"] == 60, r.text
 r = c.post("/store/equip", json={"itemId": "item_frame_gold", "equipped": True})
