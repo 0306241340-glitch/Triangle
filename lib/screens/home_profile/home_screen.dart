@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../models/topic_model.dart';
 import '../../viewmodels/home_profile_vm.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
-import 'friends_screen.dart';
-import 'profile_screen.dart';
-import 'store_screen.dart';
-import 'history_screen.dart';
 import '../leaderboard/leaderboard_screen.dart';
 import '../pvp_social/pvp_social_screen.dart';
+import 'friends_screen.dart';
+import 'history_screen.dart';
+import 'profile_screen.dart';
+import 'store_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.vm});
@@ -163,7 +163,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             Icons.warning_amber_rounded,
                             color: Color(0xFFD97706),
                           ),
-                          title: const Text('Chưa tải được trạng thái yêu thích'),
+                          title: const Text(
+                            'Chưa tải được trạng thái yêu thích',
+                          ),
                           subtitle: Text(_vm.topicFavoriteLoadError!),
                           trailing: IconButton(
                             tooltip: 'Thử lại',
