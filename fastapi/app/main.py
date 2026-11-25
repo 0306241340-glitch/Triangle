@@ -4,14 +4,21 @@
 - Cung envelope {ok, data} / {ok:false, error:{code,message}} de Flutter khong doi code.
 - Cung Bearer Firebase ID token.
 - KEM CORS allow-all (ban Express khong co CORS — day la 1 trong cac loi sang nay)."""
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 import traceback
 
+from firebase_admin.exceptions import FirebaseError
 from .auth import get_current_user
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from google.api_core.exceptions import GoogleAPICallError
+from google.auth.exceptions import DefaultCredentialsError
 
 from .database import Base, engine, get_db
 from .errors import ApiError, fail_body, ok
@@ -20,7 +27,41 @@ from .routers import admin, favorites, friends, leaderboard, pvp, quiz, quiz_set
 from .seed import seed_frames
 from .schemas import ProfileUpdateIn
 
-app = FastAPI(title="Quiz App API (FastAPI + SQL)", version="2.0.0")
+logger = logging.getLogger(__name__)
+
+
+async def _cleanup_old_pvp_rooms():
+    while True:
+        try:
+            await asyncio.to_thread(pvp.cleanup_expired_rooms)
+        except (
+            SQLAlchemyError,
+            FirebaseError,
+            GoogleAPICallError,
+            DefaultCredentialsError,
+        ):
+            logger.exception("Không thể dọn phòng PvP đã hết hạn.")
+        await asyncio.sleep(30)
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    cleanup_task = asyncio.create_task(_cleanup_old_pvp_rooms())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+
+
+app = FastAPI(
+    title="Quiz App API (FastAPI + SQL)",
+    version="2.0.0",
+    lifespan=lifespan,
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"], allow_credentials=False)
 

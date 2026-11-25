@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../core/api_client.dart';
 import '../models/leaderboard_model.dart';
@@ -27,6 +28,7 @@ class LeaderboardViewModel extends ChangeNotifier {
   LeaderboardViewModel({ApiClient? api}) : _api = api ?? ApiClient();
 
   final ApiClient _api;
+  bool _disposed = false;
   bool isLoading = false;
   String? error;
   String scope = 'all';
@@ -36,11 +38,30 @@ class LeaderboardViewModel extends ChangeNotifier {
 
   String? get myUid => FirebaseAuth.instance.currentUser?.uid;
 
+  void _notifyListenersSafely() {
+    if (_disposed) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+      return;
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Future<void> load([String nextScope = 'all', String? topicId]) async {
+    if (_disposed) return;
     scope = nextScope;
     isLoading = true;
     error = null;
-    notifyListeners();
+    _notifyListenersSafely();
     try {
       await _fetch(scope, topicId);
     } on ApiException catch (e) {
@@ -60,15 +81,19 @@ class LeaderboardViewModel extends ChangeNotifier {
       error = 'Không tải được bảng xếp hạng, thử lại sau';
     }
     isLoading = false;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
-  Future<void> _fetch(String scope, String? topicId,
-      {bool forceRefresh = false}) async {
+  Future<void> _fetch(
+    String scope,
+    String? topicId, {
+    bool forceRefresh = false,
+  }) async {
     await _attachToken(_api, forceRefresh: forceRefresh);
     final query = <String, String>{'scope': scope, 'limit': '20'};
     if (topicId != null) query['topicId'] = topicId;
     final data = await _api.get('/leaderboard', query: query);
+    if (_disposed) return;
     final raw = data['entries'] as List? ?? [];
     entries = raw
         .whereType<Map<String, dynamic>>()
@@ -83,14 +108,34 @@ class AdminStatsViewModel extends ChangeNotifier {
   AdminStatsViewModel({ApiClient? api}) : _api = api ?? ApiClient();
 
   final ApiClient _api;
+  bool _disposed = false;
   bool isLoading = false;
   String? error;
   AdminStats? stats;
 
+  void _notifyListenersSafely() {
+    if (_disposed) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed) notifyListeners();
+      });
+      return;
+    }
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Future<void> load() async {
+    if (_disposed) return;
     isLoading = true;
     error = null;
-    notifyListeners();
+    _notifyListenersSafely();
     try {
       await _attachToken(_api);
       final data = await _api.get('/admin/stats');
@@ -104,6 +149,6 @@ class AdminStatsViewModel extends ChangeNotifier {
       error = 'Không tải được thống kê, thử lại sau';
     }
     isLoading = false;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 }

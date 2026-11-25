@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../../core/app_colors.dart';
 import '../../core/api_client.dart';
+import '../../core/app_theme.dart';
 import '../../models/item_model.dart';
 import '../../services/store_service.dart';
 import '../../viewmodels/home_profile_vm.dart';
@@ -200,19 +200,9 @@ class _StoreScreenState extends State<StoreScreen> {
           Row(
             children: [
               const Expanded(
-                child: Text(
-                  'Vật phẩm',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: Text('Vật phẩm', style: AppTheme.sectionTitle),
               ),
-              Text(
-                '${danhSachVatPham.length} món',
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
+              Text('${danhSachVatPham.length} món', style: AppTheme.caption),
             ],
           ),
           const SizedBox(height: 12),
@@ -242,10 +232,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   children: [
                     CircularProgressIndicator(color: AppColors.primary),
                     SizedBox(height: 12),
-                    Text(
-                      'Đang tải vật phẩm...',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
+                    Text('Đang tải vật phẩm...', style: AppTheme.caption),
                   ],
                 ),
               ),
@@ -265,7 +252,7 @@ class _StoreScreenState extends State<StoreScreen> {
                     Text(
                       'Chưa có vật phẩm trong danh mục này.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: AppTheme.caption,
                     ),
                   ],
                 ),
@@ -315,7 +302,7 @@ class _StoreScreenState extends State<StoreScreen> {
         gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.primaryLight],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
       ),
       child: Row(
         children: [
@@ -332,13 +319,10 @@ class _StoreScreenState extends State<StoreScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
               'Số xu của bạn',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTheme.cardTitle.copyWith(color: Colors.white),
             ),
           ),
           Text(
@@ -369,8 +353,8 @@ class _StoreScreenState extends State<StoreScreen> {
       elevation: 0,
       margin: const EdgeInsets.only(bottom: 10),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: Color(0xFFE5EAF1)),
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -397,11 +381,7 @@ class _StoreScreenState extends State<StoreScreen> {
                         vatPham.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: AppTheme.cardTitle,
                       ),
                       if (vatPham.description.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -409,11 +389,7 @@ class _StoreScreenState extends State<StoreScreen> {
                           vatPham.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                            height: 1.3,
-                          ),
+                          style: AppTheme.caption.copyWith(height: 1.3),
                         ),
                       ],
                     ],
@@ -460,17 +436,14 @@ class _StoreScreenState extends State<StoreScreen> {
                     child: LinearProgressIndicator(
                       value: tienDoXu,
                       minHeight: 6,
-                      backgroundColor: const Color(0xFFE2E8F0),
+                      backgroundColor: AppColors.border,
                       color: AppColors.primaryLight,
                     ),
                   ),
                   const SizedBox(height: 5),
                   Text(
                     'Đã có $soXuHienCo/${vatPham.price} xu',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: AppTheme.caption,
                   ),
                 ],
               )
@@ -480,13 +453,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   _giaVatPham(vatPham.price),
                   if (soLuong > 0) ...[
                     const SizedBox(width: 10),
-                    Text(
-                      'Đang có: $soLuong',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    Text('Đang có: $soLuong', style: AppTheme.caption),
                   ],
                   const Spacer(),
                   FilledButton(

@@ -6,6 +6,7 @@ class AppColors {
   // Màu chủ đạo (Primary) - Xanh dương đậm & Tím chàm
   static const Color primary = Color(0xFF1E3A8A);
   static const Color primaryLight = Color(0xFF4F46E5);
+  static const Color primarySurface = Color(0xFFEFF6FF);
 
   // Màu nhấn (Accent) - Vàng hổ phách (xu thưởng, huy hiệu Top)
   static const Color accent = Color(0xFFF59E0B);
@@ -18,6 +19,7 @@ class AppColors {
   // Màu nền & chữ trung tính
   static const Color background = Color(0xFFF8FAFC);
   static const Color surface = Colors.white;
+  static const Color border = Color(0xFFE2E8F0);
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Colors.black54;
 

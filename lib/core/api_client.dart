@@ -22,15 +22,22 @@ class ApiClient {
   ApiClient._internal({String? baseUrl})
     : _baseUrl = baseUrl ?? _defaultBaseUrl;
 
-  static const _defaultBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://quiz-app-api-fastapi.onrender.com',
-  );
+  static const _defaultBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static const _requestTimeout = Duration(seconds: 60);
 
   final String _baseUrl;
   String? _idToken;
+
+  Uri _uri(String path, {Map<String, String>? query}) {
+    if (_baseUrl.trim().isEmpty) {
+      throw ApiException(
+        'Chưa cấu hình API_BASE_URL. Hãy truyền URL FastAPI bằng --dart-define.',
+        503,
+      );
+    }
+    return Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+  }
 
   void setToken(String? token) {
     _idToken = token;
@@ -43,7 +50,7 @@ class ApiClient {
 
   Future<dynamic> get(String path, {Map<String, String>? query}) async {
     try {
-      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final uri = _uri(path, query: query);
 
       final res = await http
           .get(uri, headers: _headers)
@@ -59,7 +66,7 @@ class ApiClient {
 
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
     try {
-      final uri = Uri.parse('$_baseUrl$path');
+      final uri = _uri(path);
 
       final res = await http
           .post(uri, headers: _headers, body: jsonEncode(body))
@@ -75,7 +82,7 @@ class ApiClient {
 
   Future<dynamic> put(String path, Map<String, dynamic> body) async {
     try {
-      final uri = Uri.parse('$_baseUrl$path');
+      final uri = _uri(path);
 
       final res = await http
           .put(uri, headers: _headers, body: jsonEncode(body))
@@ -91,7 +98,7 @@ class ApiClient {
 
   Future<dynamic> delete(String path, {Map<String, String>? query}) async {
     try {
-      final uri = Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+      final uri = _uri(path, query: query);
 
       final res = await http
           .delete(uri, headers: _headers)

@@ -6,31 +6,31 @@ import '../models/friend_model.dart';
 class FriendService {
   FriendService({ApiClient? api, FirebaseAuth? auth})
     : _api = api ?? ApiClient(),
-      _auth = auth ?? FirebaseAuth.instance;
+      _dangNhap = auth ?? FirebaseAuth.instance;
 
   final ApiClient _api;
-  final FirebaseAuth _auth;
+  final FirebaseAuth _dangNhap;
 
   String get currentUserId {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) {
+    final maNguoiDung = _dangNhap.currentUser?.uid;
+    if (maNguoiDung == null) {
       throw StateError('Bạn cần đăng nhập để quản lý bạn bè.');
     }
-    return uid;
+    return maNguoiDung;
   }
 
-  Future<void> _attachToken() async {
-    final user = _auth.currentUser;
-    if (user == null) {
+  Future<void> _ganToken() async {
+    final nguoiDung = _dangNhap.currentUser;
+    if (nguoiDung == null) {
       throw StateError('Bạn cần đăng nhập để quản lý bạn bè.');
     }
 
-    final token = await user.getIdToken();
-    if (token == null || token.isEmpty) {
+    final maToken = await nguoiDung.getIdToken();
+    if (maToken == null || maToken.isEmpty) {
       throw StateError('Không lấy được phiên đăng nhập. Hãy đăng nhập lại.');
     }
 
-    _api.setToken(token);
+    _api.setToken(maToken);
   }
 
   Future<void> ensurePublicProfile() async {
@@ -38,97 +38,89 @@ class FriendService {
   }
 
   Future<PublicProfile> loadMyProfile() async {
-    await _attachToken();
-    final data = await _api.get('/me') as Map<String, dynamic>;
-    final profile = PublicProfile.fromJson(data);
+    await _ganToken();
+    final duLieu = await _api.get('/me') as Map<String, dynamic>;
+    final hoSo = PublicProfile.fromJson(duLieu);
 
-    if (profile.userCode.isEmpty) {
+    if (hoSo.userCode.isEmpty) {
       throw StateError('Tài khoản chưa có mã kết bạn.');
     }
 
-    return profile;
+    return hoSo;
   }
 
-  Future<List<PublicProfile>> searchUsers(String query) async {
-    final normalized = query.trim();
+  Future<List<PublicProfile>> searchUsers(String tuKhoa) async {
+    final tuKhoaChuanHoa = tuKhoa.trim();
 
-    if (normalized.length < 2) {
+    if (tuKhoaChuanHoa.length < 2) {
       throw ArgumentError('Nhập ít nhất 2 ký tự để tìm bạn bè.');
     }
 
-    await _attachToken();
+    await _ganToken();
 
-    final result =
-        await _api.get('/friends/search', query: {'q': normalized}) as List;
+    final ketQua =
+        await _api.get('/friends/search', query: {'q': tuKhoaChuanHoa}) as List;
 
-    return result
-        .map((item) => PublicProfile.fromJson(item as Map<String, dynamic>))
+    return ketQua
+        .map((duLieu) => PublicProfile.fromJson(duLieu as Map<String, dynamic>))
         .toList();
   }
 
   Future<List<FriendRequest>> loadFriends() async {
-    await _attachToken();
+    await _ganToken();
 
-    final rows = await _api.get('/friends') as List;
+    final dsBan = await _api.get('/friends') as List;
 
-    return rows
-        .map(
-          (item) => FriendRequest.fromJson(
-            (item as Map<String, dynamic>)['id'].toString(),
-            item,
-          ),
-        )
-        .toList();
+    return dsBan.map((duLieu) {
+      final yeuCau = duLieu as Map<String, dynamic>;
+      return FriendRequest.fromJson(yeuCau['id'].toString(), yeuCau);
+    }).toList();
   }
 
-  Future<List<FriendRequest>> loadRequests({required bool incoming}) async {
-    await _attachToken();
+  Future<List<FriendRequest>> loadRequests({required bool laLoiMoiDen}) async {
+    await _ganToken();
 
-    final rows = await _api.get(
+    final dsLoiMoi = await _api.get(
       '/friends/requests',
-      query: {'direction': incoming ? 'incoming' : 'outgoing'},
+      query: {'direction': laLoiMoiDen ? 'incoming' : 'outgoing'},
     ) as List;
 
-    return rows
-        .map(
-          (item) => FriendRequest.fromJson(
-            (item as Map<String, dynamic>)['id'].toString(),
-            item,
-          ),
-        )
-        .toList();
+    return dsLoiMoi.map((duLieu) {
+      final yeuCau = duLieu as Map<String, dynamic>;
+      return FriendRequest.fromJson(yeuCau['id'].toString(), yeuCau);
+    }).toList();
   }
 
-  Future<PublicProfile?> getPublicProfile(String uid) async {
-    await _attachToken();
+  Future<PublicProfile?> getPublicProfile(String maNguoiDung) async {
+    await _ganToken();
 
     try {
-      final result = await _api.get('/friends/profile/$uid');
-      return PublicProfile.fromJson(result as Map<String, dynamic>);
-    } on ApiException catch (error) {
-      if (error.statusCode == 404) return null;
+      final ketQua = await _api.get('/friends/profile/$maNguoiDung');
+      return PublicProfile.fromJson(ketQua as Map<String, dynamic>);
+    } on ApiException catch (loi) {
+      if (loi.statusCode == 404) return null;
       rethrow;
     }
   }
 
-  Future<void> sendRequest(String recipientUid) async {
-    await _attachToken();
-    await _api.post('/friends/$recipientUid', {});
+  Future<void> sendRequest(String maNguoiNhan) async {
+    await _ganToken();
+    await _api.post('/friends/$maNguoiNhan', {});
   }
 
-  Future<void> acceptRequest(String requestId) async {
-    await _attachToken();
-    await _api.post('/friends/$requestId/accept', {});
+  Future<void> acceptRequest(String maYeuCau) async {
+    await _ganToken();
+    await _api.post('/friends/$maYeuCau/accept', {});
   }
 
-  Future<void> rejectRequest(String requestId) => _delete(requestId);
+  Future<void> rejectRequest(String maYeuCau) => _xoaYeuCau(maYeuCau);
 
-  Future<void> removeFriend(String requestId) => _delete(requestId);
+  Future<void> removeFriend(String maYeuCau) => _xoaYeuCau(maYeuCau);
 
-  Future<void> cancelRequest(String requestId) => _delete(requestId);
+  Future<void> cancelRequest(String maYeuCau) => _xoaYeuCau(maYeuCau);
 
-  Future<void> _delete(String requestId) async {
-    await _attachToken();
-    await _api.delete('/friends/$requestId');
+  Future<void> _xoaYeuCau(String maYeuCau) async {
+    await _ganToken();
+    await _api.delete('/friends/$maYeuCau');
   }
 }
