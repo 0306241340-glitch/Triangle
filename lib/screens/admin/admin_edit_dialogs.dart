@@ -12,7 +12,6 @@ String _slugifyId(String value) {
     'e': 'èéẹẻẽêềếệểễ',
     'i': 'ìíịỉĩ',
     'o': 'òóọỏõôồốộổỗơờớợởỡ',
-    'u': 'ùúụủũưừứựửữ',
     'y': 'ỳýỵỷỹ',
   };
   for (final entry in accentGroups.entries) {
