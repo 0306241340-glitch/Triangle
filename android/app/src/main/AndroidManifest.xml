@@ -3,6 +3,7 @@
     <application
         android:label="do_vui_ai_thuong"
         android:name="${applicationName}"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

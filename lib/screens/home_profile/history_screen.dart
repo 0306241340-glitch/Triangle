@@ -26,8 +26,11 @@ class _HistoryScreenState extends State<HistoryScreen>
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
     _tabs.addListener(_loadSelectedTab);
-    _vm.loadQuizHistory();
-    _vm.loadMatchHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _vm.loadQuizHistory();
+      _vm.loadMatchHistory();
+    });
   }
 
   void _loadSelectedTab() {
