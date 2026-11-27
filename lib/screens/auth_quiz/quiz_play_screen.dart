@@ -662,6 +662,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           icon: Icons.filter_2,
                           label: '50/50',
                           cost: 30,
+                          inventoryCount: _vm.helpCount('fifty_fifty'),
                           used: _vm.hiddenOptions.containsKey(_vm.currentIndex),
                           loading: _vm.activeHelp == 'fifty_fifty',
                           disabled: _vm.isUsingHelp,
@@ -673,6 +674,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           icon: Icons.swap_horiz,
                           label: 'Đổi câu',
                           cost: 30,
+                          inventoryCount: _vm.helpCount('change_question'),
                           used: _vm.changedQuestions.contains(_vm.currentIndex),
                           loading: _vm.activeHelp == 'change_question',
                           disabled: _vm.isUsingHelp,
@@ -684,6 +686,7 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           icon: Icons.more_time,
                           label: '+30s',
                           cost: 20,
+                          inventoryCount: _vm.helpCount('extra_time'),
                           used: _vm.usedExtraTime,
                           loading: _vm.activeHelp == 'extra_time',
                           disabled: _vm.isUsingHelp,
@@ -760,6 +763,7 @@ class _HelpButton extends StatelessWidget {
     required this.cost,
     required this.used,
     required this.onTap,
+    this.inventoryCount = 0,
     this.loading = false,
     this.disabled = false,
   });
@@ -767,6 +771,7 @@ class _HelpButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final int cost;
+  final int inventoryCount;
   final bool used;
   final bool loading;
   final bool disabled;
@@ -774,7 +779,10 @@ class _HelpButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = used ? Colors.grey : AppColors.accent;
+    final hasItem = !used && inventoryCount > 0;
+    final color = used
+        ? Colors.grey
+        : (hasItem ? AppColors.success : AppColors.accent);
     return InkWell(
       onTap: (used || disabled) ? null : onTap,
       borderRadius: BorderRadius.circular(20),
@@ -783,12 +791,12 @@ class _HelpButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: used
               ? Colors.grey.shade100
-              : AppColors.accent.withOpacity(0.08),
+              : color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: used
                 ? Colors.grey.shade300
-                : AppColors.accent.withOpacity(0.4),
+                : color.withOpacity(0.4),
             width: 1,
           ),
         ),
@@ -817,11 +825,13 @@ class _HelpButton extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Text(
-              used ? '(Hết)' : '($cost🪙)',
+              used
+                  ? '(Hết)'
+                  : (hasItem ? '(Còn $inventoryCount)' : '($cost🪙)'),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: used ? FontWeight.normal : FontWeight.bold,
-                color: used ? Colors.grey : AppColors.accent,
+                color: color,
               ),
             ),
           ],

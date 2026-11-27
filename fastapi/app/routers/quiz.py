@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..errors import ApiError, ok
-from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, QuizSetQuestion, Transaction, User
-from ..schemas import FiftyFiftyIn, HelpIn, StartIn, SubmitIn
+from ..models import Attempt, AttemptAnswer, HistoryDetail, Item, Question, QuizHistory, QuizSet, QuizSetQuestion, Report, Transaction, User, UserItem
+from ..schemas import FiftyFiftyIn, HelpIn, ReportIn, StartIn, SubmitIn
 
 router = APIRouter()
 POINTS = {"easy": (10, 5), "medium": (20, 10), "hard": (30, 15)}
@@ -18,6 +18,49 @@ def _shuffle(a):
     a = list(a)
     random.shuffle(a)
     return a
+
+
+def _help_kind_for_item(item: Item) -> str | None:
+    if (item.type or "") not in ("help", "lifeline"):
+        return None
+    text = f"{item.id} {item.effect or ''} {item.name or ''}".lower()
+    if "5050" in text or "fifty_fifty" in text or "50/50" in text:
+        return "fifty_fifty"
+    if "extra_time" in text or "add_time" in text or "+30s" in text or "thêm thời gian" in text:
+        return "extra_time"
+    if "change_q" in text or "change_question" in text or "đổi câu" in text:
+        return "change_question"
+    return None
+
+
+def _get_help_inventory(db: Session, user_id: str) -> dict[str, int]:
+    counts = {"fifty_fifty": 0, "extra_time": 0, "change_question": 0}
+    rows = (
+        db.query(UserItem, Item)
+        .join(Item, Item.id == UserItem.item_id)
+        .filter(UserItem.user_id == user_id, UserItem.quantity > 0)
+        .all()
+    )
+    for owned, item in rows:
+        kind = _help_kind_for_item(item)
+        if kind:
+            counts[kind] += owned.quantity or 0
+    return counts
+
+
+def _consume_help_item(db: Session, user_id: str, help_type: str) -> UserItem | None:
+    rows = (
+        db.query(UserItem, Item)
+        .join(Item, Item.id == UserItem.item_id)
+        .filter(UserItem.user_id == user_id, UserItem.quantity > 0)
+        .with_for_update()
+        .all()
+    )
+    for owned, item in rows:
+        if _help_kind_for_item(item) == help_type:
+            owned.quantity = (owned.quantity or 1) - 1
+            return owned
+    return None
 
 @router.post("/start")
 def start(body: StartIn, user: CurrentUser = Depends(get_current_user),
@@ -80,6 +123,7 @@ def start(body: StartIn, user: CurrentUser = Depends(get_current_user),
     account = db.query(User).filter(User.uid == user.uid).first()
     return ok({"attemptId": attempt_id, "durationSec": s.duration_sec or 300,
                "topicId": s.topic_id, "userCoins": account.coins or 0,
+               "helpInventory": _get_help_inventory(db, user.uid),
                "questions": out_qs})
 
 @router.post("/submit")
@@ -209,18 +253,28 @@ def _fifty_fifty(body: FiftyFiftyIn, user, db):
     used = dict(att.helps_used or {})
     if used.get(body.questionId):
         raise ApiError(409, "CONFLICT", "Câu này đã dùng 50/50 rồi.")
-    u = db.query(User).filter(User.uid == user.uid).first()
-    if (u.coins or 0) < 30:
+    u = db.query(User).filter(User.uid == user.uid).with_for_update().first()
+    used_item = _consume_help_item(db, user.uid, "fifty_fifty")
+    if used_item is None and (u.coins or 0) < 30:
         raise ApiError(400, "INSUFFICIENT_COINS", "Không đủ 30 xu để dùng 50/50.")
     wrong = [i for i in range(4) if i != key.correct_index and i != body.selectedIndex]
     hidden = _shuffle(wrong)[:2]
-    u.coins -= 30
+    if used_item is None:
+        u.coins -= 30
+        db.add(Transaction(user_id=user.uid, type="spend", amount=-30,
+                           reason="fifty_fifty", related_id=att.id))
+    else:
+        db.add(Transaction(user_id=user.uid, type="spend", amount=0,
+                           reason="fifty_fifty_item", related_id=att.id))
     used[body.questionId] = "fifty_fifty"
     att.helps_used = used
-    db.add(Transaction(user_id=user.uid, type="spend", amount=-30,
-                       reason="fifty_fifty", related_id=att.id))
     db.commit()
-    return ok({"hiddenIndices": hidden, "coins": u.coins})
+    return ok({
+        "hiddenIndices": hidden,
+        "coins": u.coins,
+        "usedInventory": used_item is not None,
+        "helpInventory": _get_help_inventory(db, user.uid),
+    })
 
 @router.post("/fifty-fifty")
 def fifty_fifty(body: FiftyFiftyIn, user: CurrentUser = Depends(get_current_user),
@@ -321,15 +375,25 @@ def use_other_help(body: HelpIn, user: CurrentUser = Depends(get_current_user),
     else:
         raise ApiError(400, "VALIDATION", "Loại trợ giúp không hợp lệ.")
 
-    if (account.coins or 0) < cost:
-        raise ApiError(400, "INSUFFICIENT_COINS", f"Không đủ {cost} xu.")
-    account.coins -= cost
+    used_item = _consume_help_item(db, user.uid, body.helpType)
+    if used_item is None:
+        if (account.coins or 0) < cost:
+            raise ApiError(400, "INSUFFICIENT_COINS", f"Không đủ {cost} xu.")
+        account.coins -= cost
+        db.add(Transaction(user_id=user.uid, type="spend", amount=-cost,
+                           reason=body.helpType, related_id=att.id))
+    else:
+        db.add(Transaction(user_id=user.uid, type="spend", amount=0,
+                           reason=f"{body.helpType}_item", related_id=att.id))
     used[key] = True
     att.helps_used = used
-    db.add(Transaction(user_id=user.uid, type="spend", amount=-cost,
-                       reason=body.helpType, related_id=att.id))
     db.commit()
-    return ok({**response, "coins": account.coins})
+    return ok({
+        **response,
+        "coins": account.coins,
+        "usedInventory": used_item is not None,
+        "helpInventory": _get_help_inventory(db, user.uid),
+    })
 
 @router.get("/history")
 def history(topicId: str = Query(default=""), page: int = Query(default=1),

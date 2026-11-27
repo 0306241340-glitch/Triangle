@@ -110,9 +110,24 @@ class QuizPlayViewModel extends ChangeNotifier {
   Set<int> changedQuestions = {}; // Đổi câu hỏi: mỗi câu chỉ đổi 1 lần
   String? activeHelp; // Loại trợ giúp đang chờ máy chủ xử lý
   Map<String, int> correctIndices = {}; // questionId -> chỉ số đáp án đúng (sau khi nộp)
+  Map<String, int> helpInventory = {
+    'fifty_fifty': 0,
+    'change_question': 0,
+    'extra_time': 0,
+  };
 
   bool get isUsingHelp => activeHelp != null;
   bool get isSubmitting => _submitting;
+  int helpCount(String helpType) => helpInventory[helpType] ?? 0;
+
+  void _syncHelpInventory(dynamic raw) {
+    if (raw is! Map) return;
+    helpInventory = {
+      'fifty_fifty': (raw['fifty_fifty'] as num?)?.toInt() ?? 0,
+      'change_question': (raw['change_question'] as num?)?.toInt() ?? 0,
+      'extra_time': (raw['extra_time'] as num?)?.toInt() ?? 0,
+    };
+  }
 
   int get total => questions.length;
   Question? get currentQuestion =>
@@ -134,6 +149,7 @@ class QuizPlayViewModel extends ChangeNotifier {
     hiddenOptions.clear();
     changedQuestions.clear();
     correctIndices.clear();
+    helpInventory = {'fifty_fifty': 0, 'change_question': 0, 'extra_time': 0};
     attemptId = null;
     submitted = false;
     submitError = null;
@@ -176,6 +192,7 @@ class QuizPlayViewModel extends ChangeNotifier {
       remainingSec = (data['durationSec'] as num?)?.toInt() ?? remainingSec;
       final serverCoins = (data['userCoins'] as num?)?.toInt();
       if (serverCoins != null) userCoins = serverCoins;
+      _syncHelpInventory(data['helpInventory']);
       questions = (data['questions'] as List)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -228,7 +245,9 @@ class QuizPlayViewModel extends ChangeNotifier {
     if (q == null) return 'Không có câu hỏi';
     if (hiddenOptions.containsKey(currentIndex))
       return 'Câu này đã dùng 50/50 rồi';
-    if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    if (helpCount('fifty_fifty') <= 0 && userCoins < 30) {
+      return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    }
     activeHelp = 'fifty_fifty';
     notifyListeners();
     try {
@@ -245,6 +264,7 @@ class QuizPlayViewModel extends ChangeNotifier {
           .toSet();
       hiddenOptions[currentIndex] = hide;
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      _syncHelpInventory(data['helpInventory']);
       return null;
     } catch (error) {
       return error.toString();
@@ -258,13 +278,21 @@ class QuizPlayViewModel extends ChangeNotifier {
   Future<String?> useExtraTime() async {
     if (isUsingHelp) return null;
     if (usedExtraTime) return 'Đã dùng Thêm thời gian rồi';
-    if (userCoins < 20) return 'Không đủ xu (cần 20, còn $userCoins xu)';
+    final hasItem = helpCount('extra_time') > 0;
+    if (!hasItem && userCoins < 20) {
+      return 'Không đủ xu (cần 20, còn $userCoins xu)';
+    }
 
     const optimisticAdded = 30;
     const cost = 20;
     final prevCoins = userCoins;
+    final prevCount = helpCount('extra_time');
     remainingSec += optimisticAdded;
-    userCoins -= cost;
+    if (hasItem) {
+      helpInventory['extra_time'] = prevCount - 1;
+    } else {
+      userCoins -= cost;
+    }
     usedExtraTime = true;
     activeHelp = 'extra_time';
     notifyListeners();
@@ -276,10 +304,12 @@ class QuizPlayViewModel extends ChangeNotifier {
         remainingSec += (serverAdded - optimisticAdded);
       }
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      _syncHelpInventory(data['helpInventory']);
       return null;
     } catch (error) {
       remainingSec = (remainingSec - optimisticAdded).clamp(0, 1 << 30);
       userCoins = prevCoins;
+      helpInventory['extra_time'] = prevCount;
       usedExtraTime = false;
       return error.toString();
     } finally {
@@ -292,7 +322,9 @@ class QuizPlayViewModel extends ChangeNotifier {
   Future<String?> useChangeQuestion() async {
     if (isUsingHelp) return null;
     if (changedQuestions.contains(currentIndex)) return 'Câu này đã đổi rồi';
-    if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    if (helpCount('change_question') <= 0 && userCoins < 30) {
+      return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    }
     final oldQuestion = currentQuestion;
     if (oldQuestion == null) return 'Không có câu hỏi';
     activeHelp = 'change_question';
@@ -324,6 +356,7 @@ class QuizPlayViewModel extends ChangeNotifier {
       changedQuestions.add(currentIndex);
       changedQuestions.add(otherIndex);
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
+      _syncHelpInventory(data['helpInventory']);
       return null;
     } catch (error) {
       return error.toString();
