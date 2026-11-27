@@ -1,8 +1,177 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
+import '../../models/question_model.dart';
 import '../../models/quiz_set_model.dart';
 import '../../viewmodels/auth_quiz_vm.dart';
+
+typedef _SubmitQuestionReport = Future<String?> Function(
+  String issueType,
+  String description,
+  String answerText,
+);
+
+class _QuestionReportDialog extends StatefulWidget {
+  const _QuestionReportDialog({required this.question, required this.onSubmit});
+
+  final Question question;
+  final _SubmitQuestionReport onSubmit;
+
+  @override
+  State<_QuestionReportDialog> createState() => _QuestionReportDialogState();
+}
+
+class _QuestionReportDialogState extends State<_QuestionReportDialog> {
+  final _descriptionController = TextEditingController();
+  String _issueType = 'question';
+  int? _answerIndex;
+  String? _validationError;
+  bool _isSending = false;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final description = _descriptionController.text.trim();
+    if (description.length < 5) {
+      setState(() => _validationError = 'Mô tả cần ít nhất 5 ký tự.');
+      return;
+    }
+    if (_issueType == 'answer' && _answerIndex == null) {
+      setState(() => _validationError = 'Hãy chọn đáp án cần báo lỗi.');
+      return;
+    }
+
+    setState(() {
+      _isSending = true;
+      _validationError = null;
+    });
+    final answerText = _answerIndex == null
+        ? ''
+        : widget.question.options[_answerIndex!];
+    final error = await widget.onSubmit(_issueType, description, answerText);
+    if (!mounted) return;
+    if (error != null) {
+      setState(() {
+        _isSending = false;
+        _validationError = 'Gửi báo lỗi thất bại: $error';
+      });
+      return;
+    }
+    Navigator.pop(context, true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Báo lỗi câu hỏi/đáp án'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Bạn muốn báo lỗi phần nào?'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Câu hỏi'),
+                  selected: _issueType == 'question',
+                  onSelected: (_) => setState(() {
+                    _issueType = 'question';
+                    _validationError = null;
+                  }),
+                ),
+                ChoiceChip(
+                  label: const Text('Đáp án'),
+                  selected: _issueType == 'answer',
+                  onSelected: (_) => setState(() {
+                    _issueType = 'answer';
+                    _validationError = null;
+                  }),
+                ),
+              ],
+            ),
+            if (_issueType == 'answer') ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<int>(
+                initialValue: _answerIndex,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Đáp án cần báo lỗi',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (
+                    var index = 0;
+                    index < widget.question.options.length;
+                    index++
+                  )
+                    DropdownMenuItem(
+                      value: index,
+                      child: Text(
+                        '${String.fromCharCode(65 + index)}. ${widget.question.options[index]}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                ],
+                onChanged: (value) => setState(() {
+                  _answerIndex = value;
+                  _validationError = null;
+                }),
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descriptionController,
+              maxLength: 1000,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Mô tả lỗi',
+                hintText: 'Cho biết câu hỏi hoặc đáp án sai ở đâu',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            if (_validationError != null)
+              Text(
+                _validationError!,
+                style: const TextStyle(color: AppColors.error),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: _isSending ? null : _submit,
+          child: _isSending
+              ? const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text('Đang gửi...'),
+                  ],
+                )
+              : const Text('Gửi báo lỗi'),
+        ),
+      ],
+    );
+  }
+}
 
 class QuizPlayScreen extends StatefulWidget {
   const QuizPlayScreen({super.key, required this.quizSet});
@@ -30,6 +199,25 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
     if (err != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
     }
+  }
+
+  Future<void> _reportQuestion(Question question) async {
+    final didReport = await showDialog<bool>(
+      context: context,
+      builder: (_) => _QuestionReportDialog(
+        question: question,
+        onSubmit: (issueType, description, answerText) => _vm.reportQuestion(
+          questionId: question.id,
+          issueType: issueType,
+          description: description,
+          answerText: answerText,
+        ),
+      ),
+    );
+    if (didReport != true || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã gửi báo lỗi. Cảm ơn bạn!')),
+    );
   }
 
   // ──── Dialog kết quả ────
@@ -370,6 +558,14 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                                 ),
                               ),
                             ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () => _reportQuestion(q),
+                            icon: const Icon(Icons.flag_outlined, size: 18),
+                            label: const Text('Báo lỗi câu hỏi/đáp án'),
                           ),
                         ),
                         const SizedBox(height: 16),

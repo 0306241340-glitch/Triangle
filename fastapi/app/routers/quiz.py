@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..auth import CurrentUser, get_current_user
 from ..database import get_db
 from ..errors import ApiError, ok
-from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, Transaction, User
+from ..models import Attempt, AttemptAnswer, HistoryDetail, Question, QuizHistory, QuizSet, QuizSetQuestion, Transaction, User
 from ..schemas import FiftyFiftyIn, HelpIn, StartIn, SubmitIn
 
 router = APIRouter()
@@ -108,6 +108,58 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
     return ok({"score": score, "correctCount": correct, "totalCount": len(keys),
                "answeredCount": len(body.answers), "coinsEarned": coins,
                "userCoins": u.coins, "historyId": hist.id})
+
+
+@router.post("/report")
+def report_question(body: ReportIn, user: CurrentUser = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    attempt = db.query(Attempt).filter(Attempt.id == body.attemptId).first()
+    if attempt is None:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy lượt chơi này.")
+    if attempt.user_id != user.uid:
+        raise ApiError(403, "FORBIDDEN", "Không phải lượt chơi của bạn.")
+
+    answer = db.query(AttemptAnswer).filter(
+        AttemptAnswer.attempt_id == body.attemptId,
+        AttemptAnswer.question_id == body.questionId,
+    ).first()
+    if answer is None:
+        raise ApiError(404, "NOT_FOUND", "Câu hỏi không thuộc lượt chơi này.")
+    question = db.query(Question).filter(
+        Question.id == body.questionId,
+    ).first()
+    if question is None:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy câu hỏi.")
+
+    description = body.description.strip()
+    if len(description) < 5:
+        raise ApiError(400, "VALIDATION", "Mô tả lỗi cần ít nhất 5 ký tự.")
+    answer_text = body.answerText.strip()
+    if body.issueType == "answer" and not answer_text:
+        raise ApiError(400, "VALIDATION", "Hãy chọn đáp án cần báo lỗi.")
+    valid_options = {
+        option.strip()
+        for option in (question.options or [])
+        if isinstance(option, str)
+    }
+    if answer_text and answer_text not in valid_options:
+        raise ApiError(400, "VALIDATION", "Đáp án không thuộc câu hỏi này.")
+
+    issue_label = "Câu hỏi" if body.issueType == "question" else "Đáp án"
+    reason = f"{issue_label}: {description}"
+    if answer_text:
+        reason += f"\nLựa chọn: {answer_text}"
+
+    report = Report(
+        question_id=body.questionId,
+        user_id=user.uid,
+        reason=reason,
+        status="pending",
+    )
+    db.add(report)
+    db.commit()
+    return ok({"id": report.id, "status": report.status})
+
 
 def _fifty_fifty(body: FiftyFiftyIn, user, db):
     att = db.query(Attempt).filter(Attempt.id == body.attemptId).first()

@@ -10,7 +10,16 @@ Postgres; SQLite khong kiem tra FK nen smoke test cu khong bat duoc).
 Day cung la loi tiem an o /quiz/submit (HistoryDetail chen truoc QuizHistory)."""
 import uuid
 from datetime import datetime
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import declarative_base, relationship
 from .database import Base
 
@@ -244,6 +253,7 @@ class MatchHistory(Base):
 class MatchQueue(Base):
     """3.2.14 — hang doi ghep doi thu ngau nhien theo diem."""
     __tablename__ = "match_queue"
+    __table_args__ = (UniqueConstraint("user_id", name="match_queue_user_key"),)
     id = Column(String, primary_key=True, default=lambda: uuid.uuid4().hex)
     user_id = Column(String, ForeignKey("users.uid"), nullable=False)
     score = Column(Integer, default=0)

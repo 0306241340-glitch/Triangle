@@ -62,16 +62,10 @@ class HomeViewModel extends ChangeNotifier {
   List<Topic> topics = [];
   Map<String, List<QuizSet>> quizSetsByTopic = {};
 
-  final Set<String> favoriteTopicIds = {};
-  final Set<String> topicFavoriteRequests = {};
-
   String query = '';
 
   bool isQuizHistoryLoading = false;
   bool isMatchHistoryLoading = false;
-  bool isLoadingTopicFavorites = false;
-
-  String? topicFavoriteLoadError;
   String? quizHistoryError;
   String? matchHistoryError;
   String? historyTopicFilter;
@@ -99,82 +93,6 @@ class HomeViewModel extends ChangeNotifier {
 
   List<QuizSet> quizSetsForTopic(String topicId) =>
       quizSetsByTopic[topicId] ?? [];
-
-  bool isTopicFavorite(String topicId) => favoriteTopicIds.contains(topicId);
-
-  bool isUpdatingTopicFavorite(String topicId) =>
-      topicFavoriteRequests.contains(topicId);
-
-  Future<String?> toggleTopicFavorite(String topicId) async {
-    if (!topicFavoriteRequests.add(topicId)) return null;
-
-    _notifyListenersSafely();
-
-    try {
-      await _attachToken();
-
-      if (favoriteTopicIds.contains(topicId)) {
-        await _api.delete(
-          '/favorites',
-          query: {'targetId': topicId, 'targetType': 'topic'},
-        );
-
-        favoriteTopicIds.remove(topicId);
-      } else {
-        await _api.post('/favorites', {
-          'targetId': topicId,
-          'targetType': 'topic',
-        });
-
-        favoriteTopicIds.add(topicId);
-      }
-
-      return null;
-    } catch (e) {
-      return e.toString();
-    } finally {
-      topicFavoriteRequests.remove(topicId);
-      _notifyListenersSafely();
-    }
-  }
-
-  Future<void> loadTopicFavorites() async {
-    if (topics.isEmpty) {
-      favoriteTopicIds.clear();
-      return;
-    }
-
-    isLoadingTopicFavorites = true;
-    topicFavoriteLoadError = null;
-    _notifyListenersSafely();
-
-    try {
-      await _attachToken();
-
-      final responses = await Future.wait(
-        topics.map(
-          (topic) => _api.get(
-            '/favorites/status',
-            query: {'targetId': topic.id, 'targetType': 'topic'},
-          ),
-        ),
-      );
-
-      favoriteTopicIds
-        ..clear()
-        ..addAll([
-          for (var index = 0; index < topics.length; index++)
-            if ((responses[index] as Map<String, dynamic>)['isFavorite'] ==
-                true)
-              topics[index].id,
-        ]);
-    } catch (e) {
-      topicFavoriteLoadError = e.toString();
-    } finally {
-      isLoadingTopicFavorites = false;
-      _notifyListenersSafely();
-    }
-  }
 
   void setQuery(String value) {
     query = value;
@@ -347,8 +265,6 @@ class HomeViewModel extends ChangeNotifier {
       for (final set in sets) {
         quizSetsByTopic.putIfAbsent(set.topicId, () => []).add(set);
       }
-
-      await loadTopicFavorites();
     } catch (e) {
       error = e.toString();
       topics = [];

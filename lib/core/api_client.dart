@@ -64,13 +64,17 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> post(String path, Map<String, dynamic> body) async {
+  Future<dynamic> post(
+    String path,
+    Map<String, dynamic> body, {
+    Duration? timeout,
+  }) async {
     try {
       final uri = _uri(path);
 
       final res = await http
           .post(uri, headers: _headers, body: jsonEncode(body))
-          .timeout(_requestTimeout);
+          .timeout(timeout ?? _requestTimeout);
 
       return _handle(res);
     } on ApiException {

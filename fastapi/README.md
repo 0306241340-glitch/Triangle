@@ -105,6 +105,23 @@ Trong VS Code, cấu hình Android Emulator truyền sẵn
 ở trên trong terminal riêng. Nếu dùng điện thoại thật, thay URL bằng IP LAN
 của máy chạy FastAPI.
 
+## API quản trị
+
+Các endpoint dưới đây yêu cầu role admin và chỉ đọc dữ liệu:
+
+- `GET /admin/stats`
+- `GET /admin/quiz-sets` và `GET /admin/quiz-sets/{id}/questions`
+- `GET /admin/items`, `GET /admin/users`, `GET /admin/reports`
+
+ID vật phẩm được tạo theo loại và tên (`item_title_<slug-tên>`,
+`item_frame_<slug-tên>`, `item_<slug-tên>` cho trợ giúp); có thể chỉnh sửa
+trước khi lưu. Nếu trùng ID thì API tự thêm hậu tố số để đảm bảo duy nhất.
+ID chủ đề/bộ đề có dạng `topic_<slug-tên>` / `set_<slug-tên>`. Số câu của chủ
+đề, lượt thi và điểm trung bình của bộ đề do hệ thống tính, không nhập thủ công.
+
+Danh sách câu hỏi lấy các câu đang hoạt động thuộc chủ đề của bộ đề; schema
+hiện tại chưa lưu quan hệ câu hỏi trực tiếp với từng bộ đề.
+
 ## Đã kiểm thử (18/11, máy này)
 
 `python test_smoke.py` — **ALL SMOKE TESTS PASSED**:

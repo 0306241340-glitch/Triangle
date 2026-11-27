@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from pydantic import BaseModel, Field
 
 class StartIn(BaseModel):
@@ -13,6 +13,15 @@ class SubmitIn(BaseModel):
     quizSetId: str
     answers: List[AnswerIn]
     timeTakenSec: int = 0
+
+
+class ReportIn(BaseModel):
+    attemptId: str = Field(min_length=1, max_length=128)
+    questionId: str = Field(min_length=1, max_length=128)
+    issueType: Literal["question", "answer"]
+    answerText: str = Field(default="", max_length=1000)
+    description: str = Field(min_length=5, max_length=1000)
+
 
 class FiftyFiftyIn(BaseModel):
     attemptId: str
