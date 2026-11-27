@@ -537,34 +537,160 @@ Widget _summaryValue(String value, String label) => Column(
 
 Widget _quizAnswerCard(int number, QuizHistoryDetail detail) {
   final isCorrect = detail.isCorrect;
+  final isSkipped = detail.selectedIndex < 0;
+  final statusColor = isSkipped
+      ? Colors.grey.shade700
+      : (isCorrect ? const Color(0xFF16A34A) : const Color(0xFFDC2626));
+  final statusLabel = isSkipped ? 'Bỏ qua' : (isCorrect ? 'Đúng' : 'Sai');
+
   return Card(
-    margin: const EdgeInsets.only(bottom: 10),
+    margin: const EdgeInsets.only(bottom: 12),
+    elevation: 0,
+    color: Colors.white,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: Colors.grey.shade200),
+    ),
     child: Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Câu $number',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              Text(
+                'Câu $number',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
           ),
           if (detail.content.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(detail.content),
+            const SizedBox(height: 8),
+            Text(
+              detail.content,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
           ],
-          const SizedBox(height: 8),
-          Text('Bạn chọn: ${_answerLabel(detail.selectedIndex)}'),
-          Text('Đáp án đúng: ${_answerLabel(detail.correctIndex)}'),
-          const SizedBox(height: 4),
-          Text(
-            isCorrect ? 'Chính xác' : 'Chưa chính xác',
+          const SizedBox(height: 10),
+          if (detail.options.isNotEmpty) ...[
+            for (var i = 0; i < detail.options.length; i++)
+              _historyOptionTile(
+                index: i,
+                text: detail.options[i],
+                isCorrectOpt: i == detail.correctIndex,
+                isSelectedOpt: i == detail.selectedIndex,
+              ),
+          ] else ...[
+            Text('Bạn chọn: ${_answerLabel(detail.selectedIndex)}'),
+            Text('Đáp án đúng: ${_answerLabel(detail.correctIndex)}'),
+          ],
+          if (detail.explanation.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Giải thích: ${detail.explanation}',
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _historyOptionTile({
+  required int index,
+  required String text,
+  required bool isCorrectOpt,
+  required bool isSelectedOpt,
+}) {
+  final letter = String.fromCharCode(65 + index);
+  Color bg = Colors.white;
+  Color border = Colors.grey.shade300;
+  Color textColor = Colors.black87;
+  IconData? icon;
+  Color? iconColor;
+  String? tag;
+
+  if (isCorrectOpt) {
+    bg = const Color(0xFF16A34A).withValues(alpha: 0.1);
+    border = const Color(0xFF16A34A);
+    textColor = const Color(0xFF15803D);
+    icon = Icons.check_circle;
+    iconColor = const Color(0xFF16A34A);
+    tag = isSelectedOpt ? 'Bạn chọn • Đúng' : 'Đáp án đúng';
+  } else if (isSelectedOpt) {
+    bg = const Color(0xFFDC2626).withValues(alpha: 0.08);
+    border = const Color(0xFFDC2626);
+    textColor = const Color(0xFFB91C1C);
+    icon = Icons.cancel;
+    iconColor = const Color(0xFFDC2626);
+    tag = 'Bạn chọn';
+  }
+
+  return Container(
+    margin: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+    decoration: BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: border),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            '$letter. $text',
             style: TextStyle(
-              color: isCorrect ? Colors.green.shade700 : Colors.red.shade700,
+              color: textColor,
+              fontWeight: (isCorrectOpt || isSelectedOpt)
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
+          ),
+        ),
+        if (tag != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            tag,
+            style: TextStyle(
+              fontSize: 11,
               fontWeight: FontWeight.w600,
+              color: iconColor,
             ),
           ),
         ],
-      ),
+        if (icon != null) ...[
+          const SizedBox(width: 6),
+          Icon(icon, size: 18, color: iconColor),
+        ],
+      ],
     ),
   );
 }

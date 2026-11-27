@@ -44,6 +44,8 @@ class QuizHistoryDetail {
     required this.correctIndex,
     required this.isCorrect,
     required this.level,
+    this.options = const [],
+    this.explanation = '',
   });
 
   final String questionId;
@@ -52,6 +54,8 @@ class QuizHistoryDetail {
   final int correctIndex;
   final bool isCorrect;
   final String level;
+  final List<String> options;
+  final String explanation;
 
   factory QuizHistoryDetail.fromJson(Map<String, dynamic> json) {
     return QuizHistoryDetail(
@@ -61,6 +65,10 @@ class QuizHistoryDetail {
       correctIndex: (json['correctIndex'] as num?)?.toInt() ?? -1,
       isCorrect: json['isCorrect'] as bool? ?? false,
       level: json['level'] as String? ?? 'easy',
+      options: (json['options'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      explanation: json['explanation'] as String? ?? '',
     );
   }
 }

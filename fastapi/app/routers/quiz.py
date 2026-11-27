@@ -66,12 +66,14 @@ def start(body: StartIn, user: CurrentUser = Depends(get_current_user),
     out_qs = []
     for q in qs:
         order = _shuffle([0, 1, 2, 3])
+        shuffled_options = [q.options[i] for i in order]
         answer = AttemptAnswer(attempt_id=attempt_id, question_id=q.id,
-                               correct_index=order.index(q.correct_index), level=q.level)
+                               correct_index=order.index(q.correct_index),
+                               options=shuffled_options, level=q.level)
         db.add(answer)
         db.flush()
         out_qs.append({"id": q.id, "topicId": q.topic_id, "content": q.content,
-                       "options": [q.options[i] for i in order], "level": q.level,
+                       "options": shuffled_options, "level": q.level,
                        "slotId": str(answer.id)})
     db.commit()
     db.flush()
@@ -109,7 +111,8 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
             coins += cn
         details.append({"questionId": a.questionId, "selectedIndex": a.selectedIndex,
                         "correctIndex": k.correct_index if k else -1,
-                        "isCorrect": is_ok, "level": k.level if k else "easy"})
+                        "isCorrect": is_ok, "options": list(k.options or []) if k else [],
+                        "level": k.level if k else "easy"})
     hist = QuizHistory(user_id=user.uid, quiz_set_id=body.quizSetId, topic_id=att.topic_id,
                        score=score, correct_count=correct, total_count=len(keys),
                        coins_earned=coins, time_taken_sec=body.timeTakenSec or 0)
@@ -118,7 +121,7 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
     for d in details:
         db.add(HistoryDetail(history_id=hist.id, question_id=d["questionId"],
                              selected_index=d["selectedIndex"], correct_index=d["correctIndex"],
-                             is_correct=d["isCorrect"], level=d["level"]))
+                             is_correct=d["isCorrect"], options=d["options"], level=d["level"]))
     u = db.query(User).filter(User.uid == user.uid).first()
     u.score += score
     u.weekly_score += score
@@ -236,16 +239,20 @@ def use_other_help(body: HelpIn, user: CurrentUser = Depends(get_current_user),
         )
         current_order = _shuffle(list(range(len(other_question.options))))
         other_order = _shuffle(list(range(len(current_question.options))))
+        current_options = [other_question.options[i] for i in current_order]
+        other_options = [current_question.options[i] for i in other_order]
         answer.correct_index = current_order.index(other_question.correct_index)
+        answer.options = current_options
         answer.level = other_question.level
         other_answer.correct_index = other_order.index(current_question.correct_index)
+        other_answer.options = other_options
         other_answer.level = current_question.level
         response = {
             "question": {
                 "id": other_question.id,
                 "topicId": other_question.topic_id,
                 "content": other_question.content,
-                "options": [other_question.options[i] for i in current_order],
+                "options": current_options,
                 "level": other_question.level,
                 "slotId": str(answer.id),
             },
@@ -253,7 +260,7 @@ def use_other_help(body: HelpIn, user: CurrentUser = Depends(get_current_user),
                 "id": current_question.id,
                 "topicId": current_question.topic_id,
                 "content": current_question.content,
-                "options": [current_question.options[i] for i in other_order],
+                "options": other_options,
                 "level": current_question.level,
                 "slotId": str(other_answer.id),
             },
@@ -286,6 +293,23 @@ def history(topicId: str = Query(default=""), page: int = Query(default=1),
                 "createdAt": h.created_at.isoformat() if h.created_at else None}
                for h in rows])
 
+def _fallback_history_options(question, correct_index: int) -> list[str]:
+    """Fallback cho lịch sử cũ chưa lưu options đã xáo: đảm bảo đáp án đúng nằm ở correct_index."""
+    if not question or not question.options:
+        return []
+    opts = list(question.options)
+    if (
+        0 <= question.correct_index < len(opts)
+        and 0 <= correct_index < len(opts)
+        and question.correct_index != correct_index
+    ):
+        opts[question.correct_index], opts[correct_index] = (
+            opts[correct_index],
+            opts[question.correct_index],
+        )
+    return opts
+
+
 @router.get("/history/{hid}")
 def history_detail(hid: str, user: CurrentUser = Depends(get_current_user),
                    db: Session = Depends(get_db)):
@@ -303,6 +327,11 @@ def history_detail(hid: str, user: CurrentUser = Depends(get_current_user),
                "coinsEarned": h.coins_earned, "timeTakenSec": h.time_taken_sec,
                "details": [{"questionId": d.question_id,
                             "content": questions[d.question_id].content
+                            if d.question_id in questions else "",
+                            "options": d.options if d.options else _fallback_history_options(
+                                questions.get(d.question_id), d.correct_index
+                            ),
+                            "explanation": questions[d.question_id].explanation
                             if d.question_id in questions else "",
                             "selectedIndex": d.selected_index,
                             "correctIndex": d.correct_index, "isCorrect": d.is_correct,

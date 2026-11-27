@@ -60,5 +60,15 @@ def add_comment(set_id: str, body: CommentIn,
     c = Comment(quiz_set_id=set_id, user_id=user.uid, rating=body.rating, content=body.content)
     db.add(c)
     db.commit()
-    return ok({"id": c.id, "quizSetId": set_id, "userId": user.uid,
-               "rating": c.rating, "content": c.content})
+    db.refresh(c)
+    u = db.query(User).filter(User.uid == user.uid).first()
+    return ok({
+        "id": c.id,
+        "quizSetId": set_id,
+        "userId": user.uid,
+        "userName": (u.display_name if u and u.display_name else "Người chơi"),
+        "rating": c.rating,
+        "comment": c.content,
+        "content": c.content,
+        "createdAt": c.created_at.isoformat() if c.created_at else None,
+    })

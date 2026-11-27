@@ -28,6 +28,9 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
   String? _loadError;
   late QuizSet _set;
   List<Review> _reviews = [];
+  int _selectedRating = 5;
+  bool _isSubmittingReview = false;
+  final TextEditingController _commentController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +38,12 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
     _set = widget.quizSet;
     _loadRealSet();
     _loadFavorite();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _attachToken() async {
@@ -79,15 +88,12 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
       ) as Map<String, dynamic>;
       if (mounted) setState(() => _isFavorite = response['isFavorite'] == true);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Không thể tải trạng thái yêu thích.')),
-        );
-      }
+      // Bỏ qua nếu chưa tải được trạng thái yêu thích ban đầu
     }
   }
 
   Future<void> _toggleFavorite() async {
+    if (_isFavoriteLoading) return;
     setState(() => _isFavoriteLoading = true);
     try {
       await _attachToken();
@@ -102,7 +108,18 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
           'targetType': 'quizSet',
         });
       }
-      if (mounted) setState(() => _isFavorite = !_isFavorite);
+      if (!mounted) return;
+      final nextState = !_isFavorite;
+      setState(() => _isFavorite = nextState);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            nextState
+                ? 'Đã lưu bộ đề vào danh sách yêu thích.'
+                : 'Đã bỏ bộ đề khỏi danh sách yêu thích.',
+          ),
+        ),
+      );
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -111,6 +128,37 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _isFavoriteLoading = false);
+    }
+  }
+
+  Future<void> _submitReview() async {
+    final content = _commentController.text.trim();
+    if (_isSubmittingReview) return;
+    setState(() => _isSubmittingReview = true);
+    try {
+      await _attachToken();
+      final data = await ApiClient().post(
+        '/quiz-sets/${widget.quizSet.id}/comments',
+        {'rating': _selectedRating, 'content': content},
+      ) as Map<String, dynamic>;
+      if (!mounted) return;
+      final created = Review.fromJson(data);
+      setState(() {
+        _reviews = [created, ..._reviews];
+        _commentController.clear();
+        _selectedRating = 5;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã gửi đánh giá thành công!')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể gửi đánh giá: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmittingReview = false);
     }
   }
 
@@ -253,21 +301,122 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
                     ),
                   ),
                   onPressed: _isFavoriteLoading ? null : _toggleFavorite,
-                  icon: Icon(
-                    _isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite ? AppColors.error : AppColors.primary,
-                  ),
+                  icon: _isFavoriteLoading
+                      ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _isFavorite
+                                ? AppColors.error
+                                : AppColors.primary,
+                          ),
+                        )
+                      : Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _isFavorite
+                              ? AppColors.error
+                              : AppColors.primary,
+                        ),
                   label: Text(_isFavorite ? 'Đã thích' : 'Yêu thích'),
                 ),
               ),
             ],
           ),
           const Divider(height: 32),
-          const Text(
-            'Đánh giá',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              const Text(
+                'Đánh giá',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              if (_reviews.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '(${(_reviews.fold<int>(0, (sum, r) => sum + r.rating) / _reviews.length).toStringAsFixed(1)} ⭐ • ${_reviews.length})',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Viết đánh giá của bạn',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      for (var star = 1; star <= 5; star++)
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          onPressed: _isSubmittingReview
+                              ? null
+                              : () => setState(() => _selectedRating = star),
+                          icon: Icon(
+                            star <= _selectedRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                            size: 28,
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '$_selectedRating/5 sao',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 3,
+                    maxLength: 500,
+                    enabled: !_isSubmittingReview,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập nhận xét về bộ đề (không bắt buộc)...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton(
+                      onPressed: _isSubmittingReview ? null : _submitReview,
+                      child: _isSubmittingReview
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Gửi đánh giá'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           if (_reviews.isEmpty)
             const Card(
               child: ListTile(
@@ -279,10 +428,18 @@ class _QuizSetDetailScreenState extends State<QuizSetDetailScreen> {
             ..._reviews.map(
               (r) => Card(
                 child: ListTile(
-                  leading: CircleAvatar(child: Text(r.userName[0])),
+                  leading: CircleAvatar(
+                    child: Text(
+                      r.userName.isNotEmpty
+                          ? r.userName[0].toUpperCase()
+                          : '?',
+                    ),
+                  ),
                   title: Text(r.userName),
-                  subtitle: Text(r.comment),
-                  trailing: Text('⭐' * r.rating),
+                  subtitle: r.comment.trim().isEmpty
+                      ? null
+                      : Text(r.comment),
+                  trailing: Text('⭐' * r.rating.clamp(1, 5)),
                 ),
               ),
             ),

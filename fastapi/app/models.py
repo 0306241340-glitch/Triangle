@@ -124,6 +124,7 @@ class AttemptAnswer(Base):
     attempt_id = Column(String, ForeignKey("attempts.id"), nullable=False)
     question_id = Column(String, ForeignKey("questions.id"), nullable=False)
     correct_index = Column(Integer, nullable=False)  # vi tri dung SAU KHI xao
+    options = Column(JSON, default=list)  # 4 lua chon theo thu tu da xao
     level = Column(String, default="easy")
     attempt = relationship("Attempt", back_populates="answers")
     question = relationship("Question")
@@ -152,6 +153,7 @@ class HistoryDetail(Base):
     selected_index = Column(Integer, default=-1)
     correct_index = Column(Integer, default=-1)
     is_correct = Column(Boolean, default=False)
+    options = Column(JSON, default=list)  # 4 lua chon theo thu tu da xao
     level = Column(String, default="easy")
     history = relationship("QuizHistory", back_populates="details")
 

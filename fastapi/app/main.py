@@ -8,6 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import traceback
@@ -66,6 +67,24 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
                    allow_headers=["*"], allow_credentials=False)
 
 Base.metadata.create_all(bind=engine)
+
+
+def _ensure_history_options_columns():
+    """Bo sung cot options cho attempt_answers va history_details neu DB da ton tai."""
+    dialect = engine.dialect.name
+    with engine.begin() as conn:
+        for table in ("attempt_answers", "history_details"):
+            if dialect == "postgresql":
+                conn.execute(
+                    text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb")
+                )
+            elif dialect == "sqlite":
+                cols = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()}
+                if "options" not in cols:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN options JSON DEFAULT '[]'"))
+
+
+_ensure_history_options_columns()
 seed_frames()
 
 @app.exception_handler(ApiError)
