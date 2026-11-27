@@ -155,25 +155,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    if (_vm.topicFavoriteLoadError != null)
-                      Card(
-                        color: const Color(0xFFFFFBEB),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFFD97706),
-                          ),
-                          title: const Text(
-                            'Chưa tải được trạng thái yêu thích',
-                          ),
-                          subtitle: Text(_vm.topicFavoriteLoadError!),
-                          trailing: IconButton(
-                            tooltip: 'Thử lại',
-                            onPressed: _vm.loadTopicFavorites,
-                            icon: const Icon(Icons.refresh),
-                          ),
-                        ),
-                      ),
                     if (topics.isEmpty)
                       const Center(
                         child: Padding(
@@ -210,58 +191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                             color: Color(0xFF0F172A),
                                           ),
                                         ),
-                                      ),
-                                      IconButton(
-                                        tooltip: _vm.isTopicFavorite(topic.id)
-                                            ? 'Bỏ chủ đề yêu thích'
-                                            : 'Lưu chủ đề yêu thích',
-                                        visualDensity: VisualDensity.compact,
-                                        onPressed:
-                                            _vm.isUpdatingTopicFavorite(
-                                              topic.id,
-                                            )
-                                            ? null
-                                            : () async {
-                                                final error = await _vm
-                                                    .toggleTopicFavorite(
-                                                      topic.id,
-                                                    );
-                                                if (error != null &&
-                                                    context.mounted) {
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Không thể cập nhật yêu thích: $error',
-                                                      ),
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                        icon:
-                                            _vm.isUpdatingTopicFavorite(
-                                              topic.id,
-                                            )
-                                            ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                    ),
-                                              )
-                                            : Icon(
-                                                _vm.isTopicFavorite(topic.id)
-                                                    ? Icons.favorite
-                                                    : Icons.favorite_border,
-                                                color:
-                                                    _vm.isTopicFavorite(
-                                                      topic.id,
-                                                    )
-                                                    ? const Color(0xFFEF4444)
-                                                    : const Color(0xFF64748B),
-                                              ),
                                       ),
                                     ],
                                   ),

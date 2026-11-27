@@ -264,6 +264,12 @@ def _require_player(room: Room, uid: str) -> None:
 @router.post("/queue")
 def join_queue(user: CurrentUser = Depends(get_current_user),
                db: Session = Depends(get_db)):
+    account = (
+        db.query(User).filter(User.uid == user.uid).with_for_update().first()
+    )
+    if account is None:
+        raise ApiError(404, "NOT_FOUND", "Không tìm thấy hồ sơ người chơi.")
+
     active_room = _active_room(db, user.uid)
     if active_room is not None:
         if active_room.status == "waiting":
@@ -275,24 +281,20 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
             )
         return ok({"status": active_room.status, "roomId": active_room.id})
 
-    waiting = (
+    entry = (
         db.query(MatchQueue)
-        .filter(MatchQueue.user_id == user.uid, MatchQueue.status == "waiting")
+        .filter(MatchQueue.user_id == user.uid)
+        .with_for_update()
         .first()
     )
-    if waiting is not None:
+    if entry is not None and entry.status == "waiting":
         publish_queue_state(
             user.uid,
             "waiting",
-            queue_id=waiting.id,
+            queue_id=entry.id,
         )
-        return ok({"status": "waiting", "queueId": waiting.id})
+        return ok({"status": "waiting", "queueId": entry.id})
 
-    account = (
-        db.query(User).filter(User.uid == user.uid).with_for_update().first()
-    )
-    if account is None:
-        raise ApiError(404, "NOT_FOUND", "Không tìm thấy hồ sơ người chơi.")
     candidate = (
         db.query(MatchQueue)
         .filter(
@@ -307,12 +309,13 @@ def join_queue(user: CurrentUser = Depends(get_current_user),
         .first()
     )
 
-    entry = MatchQueue(
-        user_id=user.uid,
-        score=account.score or 0,
-        status="matched" if candidate else "waiting",
-    )
-    db.add(entry)
+    if entry is None:
+        entry = MatchQueue(user_id=user.uid)
+        db.add(entry)
+    entry.score = account.score or 0
+    entry.status = "matched" if candidate else "waiting"
+    entry.joined_at = datetime.utcnow()
+
     if candidate is None:
         db.commit()
         publish_queue_state(
