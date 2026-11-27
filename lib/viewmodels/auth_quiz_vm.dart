@@ -353,6 +353,31 @@ class QuizPlayViewModel extends ChangeNotifier {
 
   // ──────────────────────────────────────────────────────────────────
 
+  Future<String?> reportQuestion({
+    required String questionId,
+    required String issueType,
+    required String description,
+    String answerText = '',
+  }) async {
+    try {
+      final currentAttemptId = attemptId;
+      if (currentAttemptId == null) {
+        throw StateError('Lượt chơi chưa được lưu trên máy chủ.');
+      }
+
+      await _api.post('/quiz/report', {
+        'attemptId': currentAttemptId,
+        'questionId': questionId,
+        'issueType': issueType,
+        'answerText': answerText,
+        'description': description,
+      }, timeout: const Duration(seconds: 15));
+      return null;
+    } catch (error) {
+      return error.toString();
+    }
+  }
+
   Future<void> submit() async {
     if (submitted || _submitting || attemptId == null) return;
     _submitting = true;

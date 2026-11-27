@@ -68,11 +68,24 @@ att = start["attemptId"]
 
 # 50/50: lay dap an dung that tu DB, an 2 sai, khong an dung, tru 30 xu
 from app.database import SessionLocal
-from app.models import AttemptAnswer, User
-db = SessionLocal()
-keys = {a.question_id: a.correct_index for a in
-        db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == att).all()}
+from app.models import AttemptAnswer, Report, User
 q0 = start["questions"][0]
+report_response = c.post("/quiz/report", json={
+    "attemptId": att,
+    "questionId": q0["id"],
+    "issueType": "answer",
+    "answerText": q0["options"][0],
+    "description": "Đáp án này có vẻ chưa chính xác.",
+})
+assert report_response.status_code == 200, report_response.text
+db = SessionLocal()
+report = db.query(Report).filter(
+    Report.id == report_response.json()["data"]["id"]
+).first()
+assert report is not None
+assert report.question_id == q0["id"] and report.reason.startswith("Đáp án:")
+keys = {a.question_id: a.correct_index for
+        a in db.query(AttemptAnswer).filter(AttemptAnswer.attempt_id == att).all()}
 r = c.post("/quiz/fifty-fifty", json={"attemptId": att, "questionId": q0["id"]})
 assert r.status_code == 200, r.text
 hidden = r.json()["data"]["hiddenIndices"]
@@ -132,6 +145,13 @@ assert [item["id"] for item in r.json()["data"]] == [friendship_id], r.text
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(
     uid=ADMIN_UID, role="admin"
 )
+r = c.get("/admin/reports")
+assert r.status_code == 200 and any(
+    report["questionId"] == q0["id"]
+    and report["userId"] == UID
+    and report["reason"].startswith("Đáp án:")
+    for report in r.json()["data"]
+), r.text
 r = c.get("/friends/requests", params={"direction": "incoming"})
 assert [item["id"] for item in r.json()["data"]] == [friendship_id], r.text
 r = c.post(f"/friends/{friendship_id}/accept")
@@ -141,7 +161,7 @@ r = c.get("/friends")
 assert [item["id"] for item in r.json()["data"]] == [friendship_id], r.text
 
 # Random matchmaking and friend challenges use persisted PostgreSQL room state.
-from app.models import MatchHistory, Room
+from app.models import MatchHistory, MatchQueue, Room
 r = c.post("/pvp/queue")
 assert r.status_code == 200 and r.json()["data"]["status"] == "waiting", r.text
 app.dependency_overrides[get_current_user] = lambda: CurrentUser(
@@ -213,6 +233,15 @@ def finish_match(room_id, start_index=0):
 finish_match(random_room_id)
 assert published_queue_states[UID]["status"] == "idle"
 assert published_queue_states[ADMIN_UID]["status"] == "idle"
+requeued = c.post("/pvp/queue")
+assert (
+    requeued.status_code == 200
+    and requeued.json()["data"]["status"] == "waiting"
+), requeued.text
+db = SessionLocal()
+assert db.query(MatchQueue).filter(MatchQueue.user_id == UID).count() == 1
+db.close()
+assert c.delete("/pvp/queue").status_code == 200
 r = c.get("/pvp/history")
 assert r.status_code == 200 and len(r.json()["data"]) == 1, r.text
 match_history_id = r.json()["data"][0]["id"]
