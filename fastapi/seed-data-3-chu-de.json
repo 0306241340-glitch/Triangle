@@ -89,6 +89,7 @@
         "Mỹ",
         "Canada"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -105,6 +106,7 @@
         "Trái Đất",
         "Sao Hỏa"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -121,6 +123,7 @@
         "90 phút",
         "100 phút"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -137,6 +140,7 @@
         "Báo",
         "Voi"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -153,6 +157,7 @@
         "O₂",
         "NaCl"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -169,6 +174,7 @@
         "Tokyo",
         "Seoul"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -185,6 +191,7 @@
         "Leonardo da Vinci",
         "Rembrandt"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -201,6 +208,7 @@
         "2",
         "3"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -217,6 +225,7 @@
         "Đồng",
         "Sắt"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -233,6 +242,7 @@
         "1979",
         "1989"
       ],
+      "quizSetId": "set_tong_hop_1",
       "topicId": "topic_tong_hop"
     },
     {
@@ -249,6 +259,7 @@
         "Con cá",
         "Con chó"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -265,6 +276,7 @@
         "Cái kéo",
         "Con dao"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -281,6 +293,7 @@
         "Cái thước",
         "Cây nến"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -297,6 +310,7 @@
         "Cái ly",
         "Cái bát"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -313,6 +327,7 @@
         "Quyển sách",
         "Quả địa cầu"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -329,6 +344,7 @@
         "Thời gian",
         "Thức ăn"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -345,6 +361,7 @@
         "Cái xe",
         "Con rùa"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -361,6 +378,7 @@
         "Quần áo",
         "Xe máy"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -377,6 +395,7 @@
         "Xe bị hỏng",
         "Đánh bạc"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -393,6 +412,7 @@
         "Máy bay",
         "Lá thư"
       ],
+      "quizSetId": "set_do_meo_1",
       "topicId": "topic_do_meo"
     },
     {
@@ -409,6 +429,7 @@
         "Gấu Pooh",
         "Mèo Tom"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -425,6 +446,7 @@
         "Trấn Thành",
         "Mỹ Tâm"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -441,6 +463,7 @@
         "Lên đàng",
         "Giải phóng miền Nam"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -457,6 +480,7 @@
         "Thủy Hử",
         "Hồng Lâu Mộng"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -473,6 +497,7 @@
         "Ngô Thanh Vân",
         "Trần Anh Hùng"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -489,6 +514,7 @@
         "Violin",
         "Trống"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -505,6 +531,7 @@
         "Hulk",
         "Captain America"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -521,6 +548,7 @@
         "Văn Cao",
         "Phú Quang"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -537,6 +565,7 @@
         "1927",
         "1949"
       ],
+      "quizSetId": "set_giai_tri_1",
       "topicId": "topic_giai_tri"
     },
     {
@@ -553,12 +582,1035 @@
         "Titanic",
         "Star Wars"
       ],
+      "quizSetId": "set_giai_tri_1",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Loài động vật nào có tới 3 trái tim?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Bạch tuộc có 2 tim mang và 1 tim chính.",
+      "id": "q_th_11",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Cá voi xanh",
+        "Bạch tuộc",
+        "Cá mập",
+        "Rùa"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Loại trái cây nào được mệnh danh là “vua của các loại trái cây”?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Sầu riêng nổi tiếng ở Đông Nam Á với mùi đặc trưng.",
+      "id": "q_th_12",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Xoài",
+        "Sầu riêng",
+        "Mít",
+        "Chôm chôm"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Một năm thường có bao nhiêu ngày?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Năm nhuận mới có 366 ngày.",
+      "id": "q_th_13",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "364",
+        "365",
+        "366",
+        "360"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Đại dương nào lớn nhất thế giới?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Thái Bình Dương chiếm khoảng 1/3 diện tích Trái Đất.",
+      "id": "q_th_14",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Đại Tây Dương",
+        "Ấn Độ Dương",
+        "Thái Bình Dương",
+        "Bắc Băng Dương"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Cơ thể tự tạo ra loại vitamin nào khi chúng ta tắm nắng?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Da tổng hợp vitamin D dưới tác dụng của tia UVB.",
+      "id": "q_th_15",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Vitamin A",
+        "Vitamin C",
+        "Vitamin D",
+        "Vitamin K"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Thủ đô của nước Úc là thành phố nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Nhiều người nhầm là Sydney, nhưng thủ đô là Canberra.",
+      "id": "q_th_16",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Sydney",
+        "Melbourne",
+        "Canberra",
+        "Perth"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Loài vật nào chạy nhanh nhất trên cạn?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Báo săn có thể đạt khoảng 100 km/h.",
+      "id": "q_th_17",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Sư tử",
+        "Báo săn (cheetah)",
+        "Ngựa",
+        "Linh dương"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Tháp Eiffel nằm ở quốc gia nào?",
+      "correctIndex": 3,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tháp Eiffel ở thủ đô Paris, Pháp.",
+      "id": "q_th_18",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Ý",
+        "Anh",
+        "Đức",
+        "Pháp"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Khí nào chiếm nhiều nhất trong không khí?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Nitơ chiếm khoảng 78% không khí.",
+      "id": "q_th_19",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Oxy",
+        "Nitơ",
+        "Carbonic",
+        "Hydro"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Kim loại nào ở thể lỏng ở nhiệt độ phòng?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Thủy ngân là kim loại lỏng ở điều kiện thường.",
+      "id": "q_th_20",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Chì",
+        "Thủy ngân",
+        "Nhôm",
+        "Kẽm"
+      ],
+      "quizSetId": "set_tong_hop_2",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Ai là tác giả của “Truyện Kiều”?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Truyện Kiều là kiệt tác của đại thi hào Nguyễn Du.",
+      "id": "q_th_21",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Nguyễn Trãi",
+        "Nguyễn Du",
+        "Hồ Xuân Hương",
+        "Nguyễn Đình Chiểu"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Quốc gia nào đông dân nhất thế giới hiện nay?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Ấn Độ vượt Trung Quốc từ năm 2023.",
+      "id": "q_th_22",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Trung Quốc",
+        "Mỹ",
+        "Ấn Độ",
+        "Indonesia"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Đơn vị đo cường độ dòng điện là gì?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Ampe (A) là đơn vị đo cường độ dòng điện.",
+      "id": "q_th_23",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Vôn",
+        "Ampe",
+        "Ôm",
+        "Oát"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Số La Mã “XL” bằng bao nhiêu?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "XL = 50 − 10 = 40.",
+      "id": "q_th_24",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "60",
+        "40",
+        "15",
+        "90"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Loài vật nào có vân tay gần giống người?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Vân tay koala giống người đến mức khó phân biệt dưới kính hiển vi.",
+      "id": "q_th_25",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Khỉ đột",
+        "Gấu trúc",
+        "Gấu túi koala",
+        "Tinh tinh"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Khí nào giúp trái cây mau chín?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Ethylene là hormone thực vật thúc đẩy quá trình chín.",
+      "id": "q_th_26",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Ethylene",
+        "Oxy",
+        "Metan",
+        "Heli"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Ngôi sao gần Hệ Mặt Trời nhất (không kể Mặt Trời) là?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Proxima Centauri cách chúng ta khoảng 4,2 năm ánh sáng.",
+      "id": "q_th_27",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Sirius",
+        "Proxima Centauri",
+        "Vega",
+        "Polaris"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Cơ quan lớn nhất của cơ thể người là gì?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Da là cơ quan lớn nhất, nặng khoảng 3–4 kg.",
+      "id": "q_th_28",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Gan",
+        "Phổi",
+        "Da",
+        "Ruột"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Kim tự tháp Giza nằm ở quốc gia nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Kim tự tháp Giza ở gần thủ đô Cairo, Ai Cập.",
+      "id": "q_th_29",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Mexico",
+        "Ai Cập",
+        "Peru",
+        "Iraq"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Quốc khánh Việt Nam là ngày nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Ngày 2/9/1945 Chủ tịch Hồ Chí Minh đọc Tuyên ngôn Độc lập.",
+      "id": "q_th_30",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "30/4",
+        "19/5",
+        "2/9",
+        "20/11"
+      ],
+      "quizSetId": "set_tong_hop_3",
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "content": "Cái gì luôn ở phía trước bạn nhưng bạn không bao giờ nhìn thấy?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tương lai luôn ở phía trước nhưng chưa tới.",
+      "id": "q_dm_11",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Tương lai",
+        "Cái bóng",
+        "Cái gương",
+        "Không khí"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì ăn thì sống, uống nước thì chết?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Lửa cháy nhờ “ăn” củi, gặp nước thì tắt.",
+      "id": "q_dm_12",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Cá",
+        "Lửa",
+        "Cây",
+        "Con người"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Tháng nào trong năm có 28 ngày?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tháng nào cũng có ít nhất 28 ngày.",
+      "id": "q_dm_13",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Chỉ tháng 2",
+        "Tất cả các tháng",
+        "Tháng 2 và tháng 4",
+        "Không tháng nào"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Bố của Tí có 3 người con tên là Tèo, Tủn và …?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Bố của Tí thì người con thứ ba chính là Tí.",
+      "id": "q_dm_14",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Tũn",
+        "Tủm",
+        "Tí",
+        "Tèn"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì càng lau càng ướt?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Khăn thấm nước nên lau càng nhiều càng ướt.",
+      "id": "q_dm_15",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Cái bàn",
+        "Cái khăn",
+        "Cái gương",
+        "Cái sàn"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì bạn càng lấy đi thì nó càng lớn?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Đào đất ra thì hố càng to.",
+      "id": "q_dm_16",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Cái hố",
+        "Cái bánh",
+        "Cái túi",
+        "Cái hộp"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Con vật nào đẻ trứng nhưng lại là động vật có vú?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Thú mỏ vịt là loài thú hiếm hoi đẻ trứng.",
+      "id": "q_dm_17",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Cá heo",
+        "Dơi",
+        "Thú mỏ vịt",
+        "Cá voi"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Đàn vịt có 2 con đi trước, 2 con đi sau, 1 con đi giữa. Đàn có mấy con?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "2 + 1 + 2 = 5 con.",
+      "id": "q_dm_18",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì luôn đến nhưng không bao giờ tới?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Khi tới thì nó đã thành “hôm nay”.",
+      "id": "q_dm_19",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Ngày mai",
+        "Hôm qua",
+        "Buổi sáng",
+        "Mùa xuân"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Bạn vượt qua người đứng thứ hai trong cuộc đua. Bạn đứng thứ mấy?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Vượt người thứ hai thì bạn thế chỗ họ, tức là thứ hai.",
+      "id": "q_dm_20",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Thứ nhất",
+        "Thứ hai",
+        "Thứ ba",
+        "Không biết"
+      ],
+      "quizSetId": "set_do_meo_2",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì lên mà không bao giờ xuống?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tuổi chỉ tăng chứ không giảm.",
+      "id": "q_dm_21",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Con diều",
+        "Tuổi tác",
+        "Khinh khí cầu",
+        "Giá vàng"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì nhẹ như lông vũ nhưng người khỏe nhất cũng không giữ được quá vài phút?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Không ai nhịn thở được lâu.",
+      "id": "q_dm_22",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Hơi thở",
+        "Đám mây",
+        "Bụi",
+        "Tiếng nói"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Trên cây có 5 con chim, bạn bắn rơi 1 con. Còn lại mấy con trên cây?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tiếng súng làm các con chim còn lại bay hết.",
+      "id": "q_dm_23",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "4",
+        "1",
+        "0",
+        "5"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Có 3 quả cam, bạn lấy đi 2 quả. Bạn có mấy quả?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Bạn lấy 2 quả thì bạn đang có 2 quả.",
+      "id": "q_dm_24",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "1",
+        "2",
+        "3",
+        "0"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì có 88 phím nhưng không mở được ổ khóa nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Đàn piano có 88 phím.",
+      "id": "q_dm_25",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Bàn phím máy tính",
+        "Đàn piano",
+        "Máy đánh chữ",
+        "Máy tính bỏ túi"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì bay mà không có cánh, khóc mà không có mắt?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Mây bay trên trời và “khóc” thành mưa.",
+      "id": "q_dm_26",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Con chim",
+        "Đám mây",
+        "Cái diều",
+        "Con dơi"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Con gì sáng đi bốn chân, trưa hai chân, tối ba chân?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Câu đố nổi tiếng của Nhân sư: bò, đi thẳng rồi chống gậy.",
+      "id": "q_dm_27",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Con mèo",
+        "Con người",
+        "Con khỉ",
+        "Con gấu"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì càng nhiều thì càng ít nhìn thấy?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Bóng tối càng dày thì càng khó nhìn.",
+      "id": "q_dm_28",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Bóng tối",
+        "Ánh sáng",
+        "Nước",
+        "Sương mù"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Cái gì có mặt mà không có miệng, có kim mà không biết may?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Đồng hồ có mặt số và kim giờ, kim phút.",
+      "id": "q_dm_29",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Cái đồng hồ",
+        "Cái gương",
+        "Con nhím",
+        "Cái quạt"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Tôi nói được mà không có miệng, nghe được mà không có tai. Tôi là gì?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Tiếng vang lặp lại âm thanh bạn phát ra.",
+      "id": "q_dm_30",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Con vẹt",
+        "Tiếng vang",
+        "Cái loa",
+        "Cái điện thoại"
+      ],
+      "quizSetId": "set_do_meo_3",
+      "topicId": "topic_do_meo"
+    },
+    {
+      "content": "Chú cá hề tên Nemo là nhân vật chính của phim hoạt hình nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Finding Nemo (Đi tìm Nemo) của Pixar.",
+      "id": "q_gt_11",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Finding Nemo",
+        "Moana",
+        "Shark Tale",
+        "Ponyo"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nhóm nhạc nữ BLACKPINK có bao nhiêu thành viên?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Gồm Jisoo, Jennie, Rosé và Lisa.",
+      "id": "q_gt_12",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "3",
+        "4",
+        "5",
+        "6"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ca khúc “Hãy trao cho anh” là của ca sĩ nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Bài hát hợp tác cùng rapper Snoop Dogg.",
+      "id": "q_gt_13",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Đen Vâu",
+        "Sơn Tùng M-TP",
+        "Noo Phước Thịnh",
+        "Bích Phương"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ca khúc “Hey Jude” là của ban nhạc nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "“Hey Jude” ra mắt năm 1968.",
+      "id": "q_gt_14",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Queen",
+        "The Beatles",
+        "ABBA",
+        "The Rolling Stones"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nữ hoàng Elsa xuất hiện trong bộ phim hoạt hình nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Frozen (Nữ hoàng băng giá).",
+      "id": "q_gt_15",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Frozen",
+        "Tangled",
+        "Brave",
+        "Cinderella"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ai đóng vai Jack trong phim “Titanic”?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Leonardo DiCaprio đóng cùng Kate Winslet.",
+      "id": "q_gt_16",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Brad Pitt",
+        "Tom Cruise",
+        "Leonardo DiCaprio",
+        "Johnny Depp"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nhạc cụ nào sau đây thường có 6 dây?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Guitar thông thường có 6 dây.",
+      "id": "q_gt_17",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Đàn guitar",
+        "Đàn violin",
+        "Đàn tranh",
+        "Đàn bầu"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Nhân vật Mario là linh vật của hãng game nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Mario là biểu tượng của Nintendo.",
+      "id": "q_gt_18",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Sony",
+        "Sega",
+        "Nintendo",
+        "Atari"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Harry Potter theo học ngôi trường phù thủy nào?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Hogwarts là trường pháp thuật nổi tiếng.",
+      "id": "q_gt_19",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "Hogwarts",
+        "Beauxbatons",
+        "Durmstrang",
+        "Ilvermorny"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Bộ phim không nói tiếng Anh đầu tiên thắng Oscar Phim hay nhất là?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "“Ký sinh trùng” (Hàn Quốc) thắng Oscar năm 2020.",
+      "id": "q_gt_20",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Parasite",
+        "Roma",
+        "Amélie",
+        "Crouching Tiger"
+      ],
+      "quizSetId": "set_giai_tri_2",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ai là nhạc sĩ của ca khúc “Diễm xưa”?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "“Diễm xưa” là tác phẩm nổi tiếng của Trịnh Công Sơn.",
+      "id": "q_gt_21",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Phạm Duy",
+        "Trịnh Công Sơn",
+        "Văn Cao",
+        "Phú Quang"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Giải thưởng âm nhạc danh giá nhất nước Mỹ có tên là gì?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Grammy dành cho ngành âm nhạc.",
+      "id": "q_gt_22",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Grammy",
+        "Emmy",
+        "Tony",
+        "Golden Globe"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ban nhạc ABBA đến từ quốc gia nào?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "ABBA là ban nhạc pop nổi tiếng của Thụy Điển.",
+      "id": "q_gt_23",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Na Uy",
+        "Phần Lan",
+        "Thụy Điển",
+        "Đan Mạch"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ai sáng tác bản giao hưởng số 9 có đoạn “Ode to Joy”?",
+      "correctIndex": 2,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Beethoven sáng tác khi đã điếc hoàn toàn.",
+      "id": "q_gt_24",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Mozart",
+        "Bach",
+        "Beethoven",
+        "Chopin"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Phim hoạt hình “Vùng đất linh hồn” (Spirited Away) của hãng nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Spirited Away của đạo diễn Hayao Miyazaki.",
+      "id": "q_gt_25",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Pixar",
+        "Studio Ghibli",
+        "DreamWorks",
+        "Disney"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ai là tác giả vở kịch “Hồn Trương Ba, da hàng thịt”?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Vở kịch nổi tiếng của Lưu Quang Vũ.",
+      "id": "q_gt_26",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "Lưu Quang Vũ",
+        "Nguyễn Huy Tưởng",
+        "Nam Cao",
+        "Tô Hoài"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Thám tử Sherlock Holmes sống ở số nhà nào trên phố Baker?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Địa chỉ nổi tiếng: 221B Baker Street.",
+      "id": "q_gt_27",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "221B",
+        "10A",
+        "42C",
+        "7B"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Đàn bầu truyền thống của Việt Nam có mấy dây?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Đàn bầu còn gọi là đàn độc huyền, chỉ có một dây.",
+      "id": "q_gt_28",
+      "isActive": true,
+      "level": "easy",
+      "options": [
+        "1 dây",
+        "2 dây",
+        "3 dây",
+        "5 dây"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Ca sĩ nào được mệnh danh “Nữ hoàng nhạc Pop”?",
+      "correctIndex": 0,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Madonna được gọi là Queen of Pop.",
+      "id": "q_gt_29",
+      "isActive": true,
+      "level": "medium",
+      "options": [
+        "Madonna",
+        "Adele",
+        "Rihanna",
+        "Celine Dion"
+      ],
+      "quizSetId": "set_giai_tri_3",
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "content": "Bộ phim “Titanic” ra mắt vào năm nào?",
+      "correctIndex": 1,
+      "createdAt": "2026-11-27T00:00:00Z",
+      "explanation": "Titanic công chiếu năm 1997.",
+      "id": "q_gt_30",
+      "isActive": true,
+      "level": "hard",
+      "options": [
+        "1995",
+        "1997",
+        "1999",
+        "2001"
+      ],
+      "quizSetId": "set_giai_tri_3",
       "topicId": "topic_giai_tri"
     }
   ],
   "quiz_sets": [
     {
       "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Bộ đề khởi động với các câu hỏi cơ bản.",
+      "difficulty": "easy",
       "durationSec": 300,
       "id": "set_tong_hop_1",
       "isActive": true,
@@ -568,6 +1620,8 @@
     },
     {
       "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Bộ đề khởi động với các câu hỏi cơ bản.",
+      "difficulty": "easy",
       "durationSec": 300,
       "id": "set_do_meo_1",
       "isActive": true,
@@ -577,10 +1631,78 @@
     },
     {
       "createdAt": "2026-11-13T00:00:00Z",
+      "description": "Bộ đề khởi động với các câu hỏi cơ bản.",
+      "difficulty": "easy",
       "durationSec": 300,
       "id": "set_giai_tri_1",
       "isActive": true,
       "name": "Giải trí – Âm nhạc – Phim ảnh — Bộ 1",
+      "questionCount": 10,
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Khám phá vui vẻ",
+      "difficulty": "medium",
+      "durationSec": 300,
+      "id": "set_tong_hop_2",
+      "isActive": true,
+      "name": "Kiến thức tổng hợp / Đời sống — Bộ 2",
+      "questionCount": 10,
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Thử thách trí nhớ",
+      "difficulty": "hard",
+      "durationSec": 300,
+      "id": "set_tong_hop_3",
+      "isActive": true,
+      "name": "Kiến thức tổng hợp / Đời sống — Bộ 3",
+      "questionCount": 10,
+      "topicId": "topic_tong_hop"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Đố vui bẻ não",
+      "difficulty": "medium",
+      "durationSec": 300,
+      "id": "set_do_meo_2",
+      "isActive": true,
+      "name": "Đố dân gian & Câu đố mẹo — Bộ 2",
+      "questionCount": 10,
+      "topicId": "topic_do_meo"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Đố mẹo siêu khó",
+      "difficulty": "hard",
+      "durationSec": 300,
+      "id": "set_do_meo_3",
+      "isActive": true,
+      "name": "Đố dân gian & Câu đố mẹo — Bộ 3",
+      "questionCount": 10,
+      "topicId": "topic_do_meo"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Giải trí cuối tuần",
+      "difficulty": "medium",
+      "durationSec": 300,
+      "id": "set_giai_tri_2",
+      "isActive": true,
+      "name": "Giải trí – Âm nhạc – Phim ảnh — Bộ 2",
+      "questionCount": 10,
+      "topicId": "topic_giai_tri"
+    },
+    {
+      "createdAt": "2026-11-27T00:00:00Z",
+      "description": "Dân chơi thứ thiệt",
+      "difficulty": "hard",
+      "durationSec": 300,
+      "id": "set_giai_tri_3",
+      "isActive": true,
+      "name": "Giải trí – Âm nhạc – Phim ảnh — Bộ 3",
       "questionCount": 10,
       "topicId": "topic_giai_tri"
     }
@@ -594,7 +1716,7 @@
       "imageUrl": "",
       "isActive": true,
       "name": "Kiến thức tổng hợp / Đời sống",
-      "questionCount": 10
+      "questionCount": 30
     },
     {
       "createdAt": "2026-11-13T00:00:00Z",
@@ -604,7 +1726,7 @@
       "imageUrl": "",
       "isActive": true,
       "name": "Đố dân gian & Câu đố mẹo",
-      "questionCount": 10
+      "questionCount": 30
     },
     {
       "createdAt": "2026-11-13T00:00:00Z",
@@ -614,7 +1736,7 @@
       "imageUrl": "",
       "isActive": true,
       "name": "Giải trí – Âm nhạc – Phim ảnh",
-      "questionCount": 10
+      "questionCount": 30
     }
   ],
   "users": [

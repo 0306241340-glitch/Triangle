@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/app_theme.dart';
+import '../../models/quiz_set_model.dart';
 import '../../models/topic_model.dart';
 import '../../viewmodels/home_profile_vm.dart';
 import '../auth_quiz/quiz_set_detail_screen.dart';
@@ -37,8 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  /// Khi bấm vào topic → lấy QuizSet đầu tiên đã tải từ API.
-  /// Nếu topic chưa có bộ đề nào thì hiện SnackBar.
+  /// Khi bấm vào topic:
+  /// - Chưa có bộ đề nào → hiện SnackBar.
+  /// - Chỉ có 1 bộ đề → vào thẳng màn chi tiết.
+  /// - Có nhiều bộ đề → hiện danh sách để người chơi chọn bộ.
   Future<void> _openTopic(Topic topic) async {
     final sets = _vm.quizSetsForTopic(topic.id);
     if (sets.isEmpty) {
@@ -47,15 +51,78 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
+    QuizSet? selected = sets.first;
+    if (sets.length > 1) {
+      selected = await _pickQuizSet(topic, sets);
+      if (selected == null || !mounted) return;
+    }
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuizSetDetailScreen(quizSet: sets.first, topic: topic),
+        builder: (_) => QuizSetDetailScreen(quizSet: selected!, topic: topic),
       ),
     );
     if (mounted) {
       _vm.load();
     }
+  }
+
+  Future<QuizSet?> _pickQuizSet(Topic topic, List<QuizSet> sets) {
+    return showModalBottomSheet<QuizSet>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            children: [
+              Text(
+                'Chọn bộ đề — ${topic.name}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${sets.length} bộ đề có sẵn',
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 10),
+              for (final set in sets)
+                Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.levelColor(set.level)
+                          .withValues(alpha: 0.15),
+                      child: Icon(
+                        Icons.quiz_outlined,
+                        color: AppColors.levelColor(set.level),
+                      ),
+                    ),
+                    title: Text(
+                      set.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      '${set.levelLabel} • ${set.questionCount} câu • '
+                      '${set.durationSec ~/ 60} phút • ${set.attemptCount} lượt',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(sheetContext, set),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override

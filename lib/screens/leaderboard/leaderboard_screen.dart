@@ -99,7 +99,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         listenable: _vm,
         builder: (context, _) {
           return RefreshIndicator(
-            onRefresh: () => _vm.load(),
+            onRefresh: () => _vm.load(_vm.scope),
             child: ListView(
               padding: const EdgeInsets.only(bottom: 16),
               children: [

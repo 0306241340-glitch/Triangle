@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from .database import Base, SessionLocal, engine
-from .models import Item, Question, QuizSet, Topic, User
+from .models import Item, Question, QuizSet, QuizSetQuestion, Topic, User
 
 
 def _them_vat_pham(db, vat_pham):
@@ -53,11 +53,20 @@ def seed(path):
                              is_active=t.get("isActive", True),
                              question_count=t.get("questionCount", 0)))
         for s in data.get("quiz_sets", []):
-            if not db.query(QuizSet).filter(QuizSet.id == s["id"]).first():
+            existing_set = db.query(QuizSet).filter(QuizSet.id == s["id"]).first()
+            if existing_set is None:
                 db.add(QuizSet(id=s["id"], topic_id=s["topicId"], name=s["name"],
+                               description=s.get("description", ""),
+                               difficulty=s.get("difficulty", ""),
                                duration_sec=s.get("durationSec", 300),
                                question_count=s.get("questionCount", 10),
                                is_active=s.get("isActive", True)))
+            else:
+                # Bo sung do kho / mo ta cho bo de cu neu dang de trong (khong ghi de gia tri da co)
+                if not existing_set.difficulty and s.get("difficulty"):
+                    existing_set.difficulty = s["difficulty"]
+                if not existing_set.description and s.get("description"):
+                    existing_set.description = s["description"]
         for q in data.get("questions", []):
             if not db.query(Question).filter(Question.id == q["id"]).first():
                 db.add(Question(id=q["id"], topic_id=q["topicId"], content=q["content"],
@@ -65,6 +74,22 @@ def seed(path):
                                 level=q.get("level", "easy"),
                                 explanation=q.get("explanation", ""),
                                 is_active=q.get("isActive", True)))
+        db.flush()
+        # Gan cau hoi vao tung bo de (quizSetId) de moi bo co de co dinh
+        positions = {}
+        for q in data.get("questions", []):
+            set_id = q.get("quizSetId")
+            if not set_id:
+                continue
+            position = positions.get(set_id, 0)
+            positions[set_id] = position + 1
+            linked = db.query(QuizSetQuestion).filter(
+                QuizSetQuestion.quiz_set_id == set_id,
+                QuizSetQuestion.question_id == q["id"],
+            ).first()
+            if linked is None:
+                db.add(QuizSetQuestion(quiz_set_id=set_id, question_id=q["id"],
+                                       position=position))
         for it in data.get("items", []):
             _them_vat_pham(db, it)
         for u in data.get("users", []):
@@ -73,6 +98,7 @@ def seed(path):
                             display_name=u.get("displayName", ""), role=u.get("role", "user"),
                             score=u.get("score", 0), coins=u.get("coins", 100),
                             weekly_score=u.get("weeklyScore", 0),
+                            monthly_score=u.get("monthlyScore", u.get("weeklyScore", u.get("score", 0))),
                             user_code=u.get("userCode", "")))
         db.commit()
         print(f"Seed xong: {db.query(Topic).count()} topics, "

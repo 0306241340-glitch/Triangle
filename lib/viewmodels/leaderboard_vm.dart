@@ -10,15 +10,20 @@ import '../models/leaderboard_model.dart';
 // token đã gần hết hạn (50 phút); nếu server trả 401 thì làm mới rồi
 // gọi lại 1 lần.
 String? _cachedToken;
+String? _cachedUid;
 DateTime? _cachedAt;
 
 Future<void> _attachToken(ApiClient api, {bool forceRefresh = false}) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  final currentUid = currentUser?.uid;
   final now = DateTime.now();
   if (forceRefresh ||
+      currentUid != _cachedUid ||
       _cachedToken == null ||
       _cachedAt == null ||
       now.difference(_cachedAt!).inMinutes >= 50) {
-    _cachedToken = await FirebaseAuth.instance.currentUser?.getIdToken(true);
+    _cachedToken = await currentUser?.getIdToken(forceRefresh);
+    _cachedUid = currentUid;
     _cachedAt = now;
   }
   api.setToken(_cachedToken);
