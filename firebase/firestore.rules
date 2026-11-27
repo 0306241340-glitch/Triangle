@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSelf(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid}/pvp_invitations/{roomId} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /users/{uid}/pvp_state/{stateId} {
+      allow read: if isSelf(uid);
+      allow write: if false;
+    }
+
+    match /rooms/{roomId} {
+      allow read: if request.auth != null
+        && (resource.data.hostId == request.auth.uid
+          || resource.data.guestId == request.auth.uid);
+      allow write: if false;
+    }
+  }
+}

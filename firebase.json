@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "rules": "firebase/firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "do-vui-ai-thuong",
+          "appId": "1:574367747064:android:4b919b45f77373026e240d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "do-vui-ai-thuong",
+          "configurations": {
+            "android": "1:574367747064:android:4b919b45f77373026e240d",
+            "ios": "1:574367747064:ios:e65a1a94c1ae44666e240d",
+            "macos": "1:574367747064:ios:e65a1a94c1ae44666e240d",
+            "web": "1:574367747064:web:f1ccf1155f723e896e240d",
+            "windows": "1:574367747064:web:d7a11ad22f20f7936e240d"
+          }
+        }
+      }
+    }
+  }
+}

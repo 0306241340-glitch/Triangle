@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "574367747064",
+    "firebase_url": "https://do-vui-ai-thuong-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "do-vui-ai-thuong",
+    "storage_bucket": "do-vui-ai-thuong.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:574367747064:android:4b919b45f77373026e240d",
+        "android_client_info": {
+          "package_name": "com.example.do_vui_ai_thuong"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "574367747064-hgiji0pl1pobtr71led5aqhh31b3o43m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsVh3e8N15Y4qk7QZk1R3vL9FHf9l6CJI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "574367747064-hgiji0pl1pobtr71led5aqhh31b3o43m.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "574367747064-jnfpdpun0euhunp71idq8nl5h51k4j0o.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.doVuiAiThuong"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
