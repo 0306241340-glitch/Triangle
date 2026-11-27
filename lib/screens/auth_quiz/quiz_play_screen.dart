@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../models/quiz_set_model.dart';
 import '../../viewmodels/auth_quiz_vm.dart';
+import 'quiz_review_screen.dart';
 
 class QuizPlayScreen extends StatefulWidget {
   const QuizPlayScreen({super.key, required this.quizSet});
@@ -120,9 +121,17 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Màn Xem lại S09 — Ngọc đang làm'),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QuizReviewScreen(
+                    quizTitle: widget.quizSet.title,
+                    questions: _vm.questions,
+                    answers: Map<int, int>.from(_vm.answers),
+                    correctIndices: Map<String, int>.from(_vm.correctIndices),
+                    score: _vm.score,
+                    correctCount: _vm.correctCount,
+                  ),
                 ),
               );
             },
@@ -458,6 +467,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: '50/50',
                           cost: 30,
                           used: _vm.hiddenOptions.containsKey(_vm.currentIndex),
+                          loading: _vm.activeHelp == 'fifty_fifty',
+                          disabled: _vm.isUsingHelp,
                           onTap: () =>
                               _useHelp(() async => _vm.useFiftyFifty()),
                         ),
@@ -467,6 +478,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: 'Đổi câu',
                           cost: 30,
                           used: _vm.changedQuestions.contains(_vm.currentIndex),
+                          loading: _vm.activeHelp == 'change_question',
+                          disabled: _vm.isUsingHelp,
                           onTap: () =>
                               _useHelp(() async => _vm.useChangeQuestion()),
                         ),
@@ -476,6 +489,8 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           label: '+30s',
                           cost: 20,
                           used: _vm.usedExtraTime,
+                          loading: _vm.activeHelp == 'extra_time',
+                          disabled: _vm.isUsingHelp,
                           onTap: () => _useHelp(() async => _vm.useExtraTime()),
                         ),
                       ],
@@ -509,9 +524,25 @@ class _QuizPlayScreenState extends State<QuizPlayScreen> {
                           padding: EdgeInsets.zero,
                         ),
                         onPressed: _vm.isLast
-                            ? () => _vm.submit()
+                            ? (_vm.isSubmitting ? null : () => _vm.submit())
                             : () => _vm.goTo(_vm.currentIndex + 1),
-                        child: Text(_vm.isLast ? 'Nộp bài' : 'Sau →'),
+                        child: _vm.isLast && _vm.isSubmitting
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text('Đang nộp...'),
+                                ],
+                              )
+                            : Text(_vm.isLast ? 'Nộp bài' : 'Sau →'),
                       ),
                     ),
                   ],
@@ -533,19 +564,23 @@ class _HelpButton extends StatelessWidget {
     required this.cost,
     required this.used,
     required this.onTap,
+    this.loading = false,
+    this.disabled = false,
   });
 
   final IconData icon;
   final String label;
   final int cost;
   final bool used;
+  final bool loading;
+  final bool disabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = used ? Colors.grey : AppColors.accent;
     return InkWell(
-      onTap: used ? null : onTap,
+      onTap: (used || disabled) ? null : onTap,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -564,7 +599,17 @@ class _HelpButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: color),
+            if (loading)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: color,
+                ),
+              )
+            else
+              Icon(icon, size: 16, color: color),
             const SizedBox(width: 4),
             Text(
               label,

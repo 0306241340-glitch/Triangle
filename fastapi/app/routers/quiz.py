@@ -135,7 +135,8 @@ def submit(body: SubmitIn, user: CurrentUser = Depends(get_current_user),
     db.commit()
     return ok({"score": score, "correctCount": correct, "totalCount": len(keys),
                "answeredCount": len(body.answers), "coinsEarned": coins,
-               "userCoins": u.coins, "historyId": hist.id})
+               "userCoins": u.coins, "historyId": hist.id,
+               "correctIndices": {qid: k.correct_index for qid, k in keys.items()}})
 
 def _fifty_fifty(body: FiftyFiftyIn, user, db):
     att = db.query(Attempt).filter(Attempt.id == body.attemptId).first()
@@ -217,12 +218,14 @@ def use_other_help(body: HelpIn, user: CurrentUser = Depends(get_current_user),
         if not other_answers:
             raise ApiError(400, "VALIDATION", "Không có câu hỏi khác để thay thế.")
         other_answer = random.choice(other_answers)
-        current_question = db.query(Question).filter(
-            Question.id == answer.question_id,
-        ).first()
-        other_question = db.query(Question).filter(
-            Question.id == other_answer.question_id,
-        ).first()
+        q_map = {
+            q.id: q
+            for q in db.query(Question).filter(
+                Question.id.in_([answer.question_id, other_answer.question_id])
+            ).all()
+        }
+        current_question = q_map.get(answer.question_id)
+        other_question = q_map.get(other_answer.question_id)
         if (current_question is None or other_question is None or
                 len(current_question.options or []) < 2 or
                 len(other_question.options or []) < 2):

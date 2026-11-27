@@ -6,7 +6,6 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.pool import NullPool
 
 # Load fastapi/.env when DATABASE_URL is not supplied by the process environment.
 load_dotenv()
@@ -27,7 +26,13 @@ else:
 
 engine_kwargs = {"connect_args": connect_args}
 if "pooler.supabase.com" in DATABASE_URL or ":6543" in DATABASE_URL:
-    engine_kwargs["poolclass"] = NullPool
+    # Giữ pool nhỏ để tái sử dụng kết nối TCP/SSL tới Supabase, tránh bắt tay lại mỗi request.
+    engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 5,
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    })
 engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

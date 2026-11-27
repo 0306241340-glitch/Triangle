@@ -1,7 +1,7 @@
 # do_vui_ai_thuong
 
 A new Flutter project.
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:apppip install -r requirements.txt --host 0.0.0.0 --port 8000 --reload
 
 ## Lưu trữ và đăng nhập
 

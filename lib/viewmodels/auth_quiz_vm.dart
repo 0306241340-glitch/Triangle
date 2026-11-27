@@ -108,6 +108,11 @@ class QuizPlayViewModel extends ChangeNotifier {
   /// Đếm số lần đã dùng mỗi loại trợ giúp (toàn bài, không phải từng câu).
   bool usedExtraTime = false; // Thêm thời gian: dùng 1 lần / bài
   Set<int> changedQuestions = {}; // Đổi câu hỏi: mỗi câu chỉ đổi 1 lần
+  String? activeHelp; // Loại trợ giúp đang chờ máy chủ xử lý
+  Map<String, int> correctIndices = {}; // questionId -> chỉ số đáp án đúng (sau khi nộp)
+
+  bool get isUsingHelp => activeHelp != null;
+  bool get isSubmitting => _submitting;
 
   int get total => questions.length;
   Question? get currentQuestion =>
@@ -128,10 +133,12 @@ class QuizPlayViewModel extends ChangeNotifier {
     answers.clear();
     hiddenOptions.clear();
     changedQuestions.clear();
+    correctIndices.clear();
     attemptId = null;
     submitted = false;
     submitError = null;
     usedExtraTime = false;
+    activeHelp = null;
     currentIndex = 0;
     remainingSec = 300;
     score = 0;
@@ -216,11 +223,14 @@ class QuizPlayViewModel extends ChangeNotifier {
 
   /// Trả về chuỗi lỗi nếu yêu cầu trợ giúp thất bại.
   Future<String?> useFiftyFifty() async {
+    if (isUsingHelp) return null;
     final q = currentQuestion;
     if (q == null) return 'Không có câu hỏi';
     if (hiddenOptions.containsKey(currentIndex))
       return 'Câu này đã dùng 50/50 rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
+    activeHelp = 'fifty_fifty';
+    notifyListeners();
     try {
       if (attemptId == null) {
         throw StateError('Lượt chơi chưa được lưu trên máy chủ.');
@@ -235,35 +245,58 @@ class QuizPlayViewModel extends ChangeNotifier {
           .toSet();
       hiddenOptions[currentIndex] = hide;
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
-      notifyListeners();
       return null;
     } catch (error) {
       return error.toString();
+    } finally {
+      activeHelp = null;
+      notifyListeners();
     }
   }
 
-  /// Trợ giúp 2: Thêm thời gian — máy chủ trừ xu và ghi nhận lượt dùng.
+  /// Trợ giúp 2: Thêm thời gian — cập nhật lạc quan ngay trên UI, đồng bộ/hoàn tác theo máy chủ.
   Future<String?> useExtraTime() async {
+    if (isUsingHelp) return null;
     if (usedExtraTime) return 'Đã dùng Thêm thời gian rồi';
     if (userCoins < 20) return 'Không đủ xu (cần 20, còn $userCoins xu)';
+
+    const optimisticAdded = 30;
+    const cost = 20;
+    final prevCoins = userCoins;
+    remainingSec += optimisticAdded;
+    userCoins -= cost;
+    usedExtraTime = true;
+    activeHelp = 'extra_time';
+    notifyListeners();
+
     try {
       final data = await _useServerHelp('extra_time');
-      remainingSec += (data['addedSeconds'] as num?)?.toInt() ?? 30;
+      final serverAdded = (data['addedSeconds'] as num?)?.toInt() ?? optimisticAdded;
+      if (serverAdded != optimisticAdded) {
+        remainingSec += (serverAdded - optimisticAdded);
+      }
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
-      usedExtraTime = true;
-      notifyListeners();
       return null;
     } catch (error) {
+      remainingSec = (remainingSec - optimisticAdded).clamp(0, 1 << 30);
+      userCoins = prevCoins;
+      usedExtraTime = false;
       return error.toString();
+    } finally {
+      activeHelp = null;
+      notifyListeners();
     }
   }
 
   /// Trợ giúp 3: Yêu cầu máy chủ thay câu và trừ xu trong cùng giao dịch.
   Future<String?> useChangeQuestion() async {
+    if (isUsingHelp) return null;
     if (changedQuestions.contains(currentIndex)) return 'Câu này đã đổi rồi';
     if (userCoins < 30) return 'Không đủ xu (cần 30, còn $userCoins xu)';
     final oldQuestion = currentQuestion;
     if (oldQuestion == null) return 'Không có câu hỏi';
+    activeHelp = 'change_question';
+    notifyListeners();
     try {
       final data = await _useServerHelp(
         'change_question',
@@ -291,10 +324,12 @@ class QuizPlayViewModel extends ChangeNotifier {
       changedQuestions.add(currentIndex);
       changedQuestions.add(otherIndex);
       userCoins = (data['coins'] as num?)?.toInt() ?? userCoins;
-      notifyListeners();
       return null;
     } catch (error) {
       return error.toString();
+    } finally {
+      activeHelp = null;
+      notifyListeners();
     }
   }
 
@@ -323,11 +358,12 @@ class QuizPlayViewModel extends ChangeNotifier {
     _submitting = true;
     _timer?.cancel();
     submitError = null;
+    notifyListeners();
     final elapsed = _initialDuration - remainingSec;
     final timeTakenSec = elapsed < 0 ? 0 : elapsed;
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      final token = await currentUser?.getIdToken(true);
+      final token = await currentUser?.getIdToken();
       if (token == null || token.isEmpty) {
         throw StateError('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.');
       }
@@ -350,14 +386,21 @@ class QuizPlayViewModel extends ChangeNotifier {
       userCoins = (data['userCoins'] as num?)?.toInt() ?? userCoins;
       skippedCount =
           total - ((data['answeredCount'] as num?)?.toInt() ?? answers.length);
+      final rawCorrect = data['correctIndices'];
+      if (rawCorrect is Map) {
+        correctIndices = {
+          for (final e in rawCorrect.entries)
+            e.key.toString(): (e.value as num).toInt(),
+        };
+      }
       submitted = true;
     } catch (error) {
       submitError = error.toString();
       if (remainingSec > 0) _startTimer();
     } finally {
       _submitting = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   @override
